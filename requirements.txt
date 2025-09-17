@@ -1,0 +1,16 @@
+torch>=2.5.0
+torchaudio>=2.5.0
+transformers>=4.36.2
+safetensors
+huggingface_hub
+einops
+inflect
+addict
+wetext
+pydantic
+simplejson
+sortedcontainers
+soundfile
+diffusers
+tqdm
+bitsandbytes
