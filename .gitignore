@@ -7,7 +7,6 @@ __pycache__/
 *.so
 
 # Distribution / packaging
-.github
 .idea
 .Python
 __pycache__
