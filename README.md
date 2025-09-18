@@ -8,7 +8,6 @@
     <img src="https://github.com/user-attachments/assets/3f8a9544-6893-4893-8b3e-ac58dc6d0f95" alt="ComfyUI-VoxCPM" width="70%">
   </a>
   
-example_workflows/VoxCPM_example.png
 
   <p align="center">
     A custom node for ComfyUI that integrates <strong>VoxCPM</strong>, a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.
