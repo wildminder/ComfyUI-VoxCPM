@@ -5,8 +5,10 @@
   <h1 align="center">ComfyUI-VoxCPM</h1>
 
   <a href="https://github.com/wildminder/ComfyUI-VoxCPM">    
-    <img src="https://github.com/user-attachments/assets/077f76c1-edd7-4bff-94c6-615037222913" alt="ComfyUI-VoxCPM" width="70%">
+    <img src="https://github.com/user-attachments/assets/3f8a9544-6893-4893-8b3e-ac58dc6d0f95" alt="ComfyUI-VoxCPM" width="70%">
   </a>
+  
+example_workflows/VoxCPM_example.png
 
   <p align="center">
     A custom node for ComfyUI that integrates <strong>VoxCPM</strong>, a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.
@@ -33,6 +35,10 @@
 
 VoxCPM is a novel tokenizer-free Text-to-Speech system that redefines realism in speech synthesis by modeling speech in a continuous space. Built on the MiniCPM-4 backbone, it excels at generating highly expressive speech and performing accurate zero-shot voice cloning.
 
+<div align="center">
+      <img src="./example_workflows/VoxCPM_example.png" alt="ComfyUI-VoxCPM example workflow">
+  </div>
+  
 This custom node handles everything from model downloading and memory management to audio processing, allowing you to generate high-quality speech directly from a text script and optional reference audio files.
 
 **✨ Key Features:**
