@@ -5,7 +5,7 @@
   <h1 align="center">ComfyUI-VoxCPM</h1>
 
   <a href="https://github.com/wildminder/ComfyUI-VoxCPM">    
-    <img src="https://github.com/user-attachments/assets/077f76c1-edd7-4bff-94c6-615037222913" alt="ComfyUI-VoxCPM" width="50%">
+    <img src="https://github.com/user-attachments/assets/077f76c1-edd7-4bff-94c6-615037222913" alt="ComfyUI-VoxCPM" width="70%">
   </a>
 
   <p align="center">
@@ -67,6 +67,13 @@ Alternatively, to install manually:
 3.  **Start/Restart ComfyUI:**
     Launch ComfyUI. The "VoxCPM TTS" node will appear under the `audio/tts` category. The first time you use the node, it will automatically download the selected model to your `ComfyUI/models/tts/VoxCPM/` folder.
 
+## Models
+This node automatically downloads the required model files.
+
+| Model | Parameters | Hugging Face Link |
+|:---|:---:|:---|
+| VoxCPM-0.5B | 0.5B | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## 🛠️ Usage
@@ -77,6 +84,9 @@ Alternatively, to install manually:
     *   For **voice cloning**, provide the transcript of your reference audio in the `prompt_text` field.
     *   Enter the text you want to generate in the main `text` field.
 4.  **Generate:** Queue the prompt. The node will process the text and generate a single audio file.
+
+> [!NOTE]
+> **Denoising:** The original VoxCPM library includes a built-in denoiser (ZipEnhancer). This feature has been intentionally removed from the node. The ComfyUI philosophy encourages modular, single-purpose nodes. For denoising, please use a dedicated audio processing node before passing the `prompt_audio` to this one. This keeps the workflow clean and flexible.
 
 ### Node Inputs
 
