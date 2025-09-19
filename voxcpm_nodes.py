@@ -18,6 +18,35 @@ logger = logging.getLogger(__name__)
 # Global cache for patcher instances to avoid re-creation
 VOXCPM_PATCHER_CACHE = {}
 
+def get_available_devices():
+    """Detects and returns a list of available PyTorch devices in order of preference."""
+    devices = []
+    if torch.cuda.is_available():
+        devices.append("cuda")
+    
+    # Check for DirectML on Windows
+    try:
+        import platform
+        if platform.system() == "Windows" and hasattr(torch.backends, 'directml') and torch.backends.directml.is_available():
+            devices.append("directml")
+    except:
+        pass
+
+    # Check for HIP on AMD
+    if hasattr(torch.version, 'hip') and torch.version.hip is not None:
+        try:
+            if torch.cuda.is_available() and torch.cuda.get_device_name(0).lower().find('amd') != -1:
+                 devices.append("hip")
+        except:
+            pass
+
+    # Check for MPS on Apple Silicon
+    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        devices.append("mps")
+        
+    devices.append("cpu")
+    return devices
+
 def set_seed(seed: int):
     if seed < 0:
         seed = torch.randint(0, 0xFFFFFFFFFFFFFFFF, (1,)).item()
@@ -50,11 +79,8 @@ class VoxCPMNode(io.ComfyNode):
         if not model_names:
             model_names.append("No models found. Please download VoxCPM-0.5B.")
 
-        available_devices = ["cpu"]
-        default_device = "cpu"
-        if torch.cuda.is_available():
-            available_devices.insert(0, "cuda")
-            default_device = "cuda"
+        available_devices = get_available_devices()
+        default_device = available_devices[0]
 
         return io.Schema(
             node_id="VoxCPM_TTS",
@@ -71,7 +97,7 @@ class VoxCPMNode(io.ComfyNode):
                 io.Boolean.Input("normalize_text", default=True, label_on="Normalize", label_off="Raw", tooltip="Enable text normalization (recommended for general text)."),
                 io.Int.Input("seed", default=-1, min=-1, max=0xFFFFFFFFFFFFFFFF, tooltip="Seed for reproducibility. -1 for random."),
                 io.Boolean.Input("force_offload", default=False, label_on="Force Offload", label_off="Auto-Manage", tooltip="Force the model to be offloaded from VRAM after generation."),
-                io.Combo.Input("device", options=available_devices, default=default_device, tooltip="Device to run inference on. Defaults to cuda if available."),				
+                io.Combo.Input("device", options=available_devices, default=default_device, tooltip="Device to run inference on. Defaults to the best available."),
             ],
             outputs=[
                 io.Audio.Output(display_name="Generated Audio"),
