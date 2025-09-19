@@ -174,7 +174,7 @@ class MiniCPMAttention(nn.Module):
         self,
         hidden_states: torch.Tensor,
         position_emb: Tuple[torch.Tensor, torch.Tensor],
-        position_id: int,
+        position_id: torch.Tensor,
         kv_cache: Tuple[torch.Tensor, torch.Tensor],
     ) -> torch.Tensor:
         bsz, _ = hidden_states.size()
@@ -193,10 +193,17 @@ class MiniCPMAttention(nn.Module):
 
         key_cache, value_cache = kv_cache
 
-        key_cache[:, :, position_id, :] = key_states
-        value_cache[:, :, position_id, :] = value_states
+        # Some fixes I guess: Convert the position_id tensor to a Python integer for robust indexing
+        pos_id_int = position_id.item()
 
-        attn_mask = torch.arange(key_cache.size(2), device=key_cache.device) <= position_id
+        # Another fix, pytorch2.9: Explicitly squeeze the singleton dimension (dim 2) before assignment
+        key_cache[:, :, pos_id_int, :] = key_states.squeeze(2)
+        value_cache[:, :, pos_id_int, :] = value_states.squeeze(2)
+
+        attn_mask = torch.arange(key_cache.size(2), device=key_cache.device) <= pos_id_int
+        # Reshape the mask to be explicitly 4D to avoid broadcasting issues in newer PyTorch versions.
+        attn_mask = attn_mask.view(1, 1, 1, -1)
+
 
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
