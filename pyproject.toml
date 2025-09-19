@@ -1,9 +1,9 @@
 [project]
 name = "ComfyUI-VoxCPM"
 description = "VoxCPM TTS. Context-aware, expressive speech generation and true-to-life voice cloning"
-version = "0.1.1"
+version = "0.2.1"
 license = {file = "LICENSE"}
-dependencies = ["torch","torchaudio","transformers","safetensors","huggingface_hub","einops","inflect","addict","wetext","pydantic","simplejson","sortedcontainers","soundfile","diffusers","tqdm","bitsandbytes"]
+dependencies = ["torch","torchaudio","transformers","safetensors","huggingface_hub","einops","inflect","addict","wetext","pydantic","simplejson","sortedcontainers","soundfile","diffusers","tqdm","bitsandbytes","torchcodec"]
 
 [project.urls]
 Repository = "https://github.com/wildminder/ComfyUI-VoxCPM"
