@@ -2,75 +2,8 @@
   "id": "332f7ac5-c30f-44aa-991a-aff51b05038a",
   "revision": 0,
   "last_node_id": 4,
-  "last_link_id": 3,
+  "last_link_id": 8,
   "nodes": [
-    {
-      "id": 2,
-      "type": "LoadAudio",
-      "pos": [
-        -1843.4453125,
-        -1058.6048583984375
-      ],
-      "size": [
-        350.4437255859375,
-        136
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "AUDIO",
-          "type": "AUDIO",
-          "links": [
-            3
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadAudio",
-        "cnr_id": "comfy-core",
-        "ver": "0.3.52",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "audio": true,
-            "audioUI": true,
-            "upload": true
-          },
-          "version": "7.0.1"
-        }
-      },
-      "widgets_values": [
-        "male_stewie.mp3",
-        null,
-        null
-      ]
-    },
-    {
-      "id": 4,
-      "type": "MarkdownNote",
-      "pos": [
-        -1834.9903564453125,
-        -871.060546875
-      ],
-      "size": [
-        343.6364440917969,
-        326.18182373046875
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Note",
-      "properties": {},
-      "widgets_values": [
-        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Parameters | Hugging Face Link |\n|:---|:---:|:---|\n| VoxCPM-0.5B | 0.5B | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n## Support \n\n- Don't know how to update PyTorch?\n- Need help with ComfyUI?\n- Need technical support?\n\n### Or do you just have questions? Then join the [@TokenDiffusion](https://t.me/TokenDiff_hub) group\n"
-      ],
-      "color": "#233",
-      "bgcolor": "#355"
-    },
     {
       "id": 1,
       "type": "SaveAudio",
@@ -94,9 +27,9 @@
       ],
       "outputs": [],
       "properties": {
-        "Node name for S&R": "SaveAudio",
         "cnr_id": "comfy-core",
         "ver": "0.3.52",
+        "Node name for S&R": "SaveAudio",
         "ue_properties": {
           "widget_ue_connectable": {
             "filename_prefix": true,
@@ -110,6 +43,73 @@
       ]
     },
     {
+      "id": 4,
+      "type": "MarkdownNote",
+      "pos": [
+        -1834.9903564453125,
+        -871.060546875
+      ],
+      "size": [
+        341.9835510253906,
+        346.01654052734375
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note",
+      "properties": {},
+      "widgets_values": [
+        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Parameters | Hugging Face Link |\n|:---|:---:|:---|\n| VoxCPM-0.5B | 0.5B | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n## Support \n\n- Don't know how to update PyTorch?\n- Need help with ComfyUI?\n- Need technical support?\n\n### Or do you just have questions? Then join the [@TokenDiffusion Hub](https://t.me/TokenDiff_hub) group\n\n### AI news [TokenDiffusion](https://t.me/TokenDiff)"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 2,
+      "type": "LoadAudio",
+      "pos": [
+        -1843.4453125,
+        -1058.6048583984375
+      ],
+      "size": [
+        350.4437255859375,
+        136
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "Node name for S&R": "LoadAudio",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "audio": true,
+            "audioUI": true,
+            "upload": true
+          },
+          "version": "7.0.1"
+        }
+      },
+      "widgets_values": [
+        "male_stewie.mp3",
+        null,
+        null
+      ]
+    },
+    {
       "id": 3,
       "type": "VoxCPM_TTS",
       "pos": [
@@ -117,8 +117,8 @@
         -1058.6048583984375
       ],
       "size": [
-        398.18182373046875,
-        512.727294921875
+        399.0082702636719,
+        531.7355346679688
       ],
       "flags": {},
       "order": 2,
@@ -128,7 +128,7 @@
           "name": "prompt_audio",
           "shape": 7,
           "type": "AUDIO",
-          "link": 3
+          "link": 8
         }
       ],
       "outputs": [
@@ -141,7 +141,10 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "VoxCPM_TTS"
+        "cnr_id": "ComfyUI-VoxCPM",
+        "ver": "e9845ede9bc6ad1febd3a9b5104a040315a12d50",
+        "Node name for S&R": "VoxCPM_TTS",
+        "aux_id": "wildminder/ComfyUI-VoxCPM"
       },
       "widgets_values": [
         "VoxCPM-0.5B",
@@ -152,6 +155,7 @@
         779450847354053,
         "fixed",
         false,
+        "cpu",
         "angry kid"
       ],
       "color": "#232",
@@ -168,7 +172,7 @@
       "AUDIO"
     ],
     [
-      3,
+      8,
       2,
       0,
       3,
@@ -180,10 +184,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1,
+      "scale": 1.2100000000000006,
       "offset": [
-        2020.263494318182,
-        1198.968494762074
+        1943.4453125,
+        1158.6048583984375
       ]
     },
     "frontendVersion": "1.26.11",

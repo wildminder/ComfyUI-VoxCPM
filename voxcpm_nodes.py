@@ -50,6 +50,12 @@ class VoxCPMNode(io.ComfyNode):
         if not model_names:
             model_names.append("No models found. Please download VoxCPM-0.5B.")
 
+        available_devices = ["cpu"]
+        default_device = "cpu"
+        if torch.cuda.is_available():
+            available_devices.insert(0, "cuda")
+            default_device = "cuda"
+
         return io.Schema(
             node_id="VoxCPM_TTS",
             display_name="VoxCPM TTS",
@@ -65,6 +71,7 @@ class VoxCPMNode(io.ComfyNode):
                 io.Boolean.Input("normalize_text", default=True, label_on="Normalize", label_off="Raw", tooltip="Enable text normalization (recommended for general text)."),
                 io.Int.Input("seed", default=-1, min=-1, max=0xFFFFFFFFFFFFFFFF, tooltip="Seed for reproducibility. -1 for random."),
                 io.Boolean.Input("force_offload", default=False, label_on="Force Offload", label_off="Auto-Manage", tooltip="Force the model to be offloaded from VRAM after generation."),
+                io.Combo.Input("device", options=available_devices, default=default_device, tooltip="Device to run inference on. Defaults to cuda if available."),				
             ],
             outputs=[
                 io.Audio.Output(display_name="Generated Audio"),
@@ -75,6 +82,7 @@ class VoxCPMNode(io.ComfyNode):
     def execute(
         cls,
         model_name: str,
+        device: str,
         text: str,
         cfg_value: float,
         inference_timesteps: int,
@@ -89,17 +97,26 @@ class VoxCPMNode(io.ComfyNode):
         if is_cloning and not prompt_text:
             raise ValueError("Prompt text is required when providing prompt audio for voice cloning.")
 
-        if model_name not in VOXCPM_PATCHER_CACHE:
+        if device == "cuda":
+            load_device = model_management.get_torch_device()
+            offload_device = model_management.intermediate_device()
+        else:
+            load_device = torch.device("cpu")
+            offload_device = torch.device("cpu")
+
+        # Use a composite key for the patcher cache to include the device
+        cache_key = f"{model_name}_{device}"
+        if cache_key not in VOXCPM_PATCHER_CACHE:
             handler = VoxCPMModelHandler(model_name)
             patcher = VoxCPMPatcher(
                 handler,
-                load_device=model_management.get_torch_device(),
-                offload_device=model_management.intermediate_device(),
+                load_device=load_device,
+                offload_device=offload_device,
                 size=handler.size
             )
-            VOXCPM_PATCHER_CACHE[model_name] = patcher
+            VOXCPM_PATCHER_CACHE[cache_key] = patcher
         
-        patcher = VOXCPM_PATCHER_CACHE[model_name]
+        patcher = VOXCPM_PATCHER_CACHE[cache_key]
         
         model_management.load_model_gpu(patcher)
         voxcpm_model = patcher.model.model
