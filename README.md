@@ -200,7 +200,8 @@ The VoxCPM model and its components are subject to the [Apache-2.0 License](http
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wildminder/ComfyUI-VoxCPM&type=Date)](https://www.star-history.com/#wildminder/ComfyUI-VoxCPM&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=wildminder/ComfyUI-VoxCPM&type=Timeline)](https://www.star-history.com/#wildminder/ComfyUI-VoxCPM&Timeline)
+
 
 <!-- MARKDOWN LINKS & IMAGES -->
 [stars-shield]: https://img.shields.io/github/stars/wildminder/ComfyUI-VoxCPM.svg?style=for-the-badge
