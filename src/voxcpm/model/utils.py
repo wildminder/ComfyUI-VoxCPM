@@ -105,18 +105,53 @@ def mask_multichar_chinese_tokens(tokenizer: PreTrainedTokenizer):
     return CharTokenizerWrapper(tokenizer)
 
 
+def _is_directml_available():
+    """Checks if a DirectML device is available."""
+    try:
+        import torch
+        import platform
+        if platform.system() != "Windows":
+            return False
+        if hasattr(torch.backends, 'directml') and torch.backends.directml.is_available():
+            return True
+        return False
+    except:
+        return False
+
+def _is_hip_available():
+    """Checks if a HIP device is available."""
+    try:
+        import torch
+        if hasattr(torch.version, 'hip') and torch.version.hip is not None:
+             if torch.cuda.is_available() and torch.cuda.get_device_name(0).lower().find('amd') != -1:
+                 return True
+        return False
+    except:
+        return False
+
+
 def get_dtype(dtype: str):
-    if dtype == "bfloat16":
-        return torch.bfloat16
-    elif dtype == "bf16":
-        return torch.bfloat16
-    elif dtype == "float16":
-        return torch.float16
-    elif dtype == "fp16":
-        return torch.float16
-    elif dtype == "float32":
+    """Gets the torch dtype, automatically downgrading for incompatible hardware."""
+    device = "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+        if hasattr(torch.version, 'hip') and torch.version.hip is not None:
+            if torch.cuda.get_device_name(0).lower().find('amd') != -1:
+                device = "hip"
+    elif _is_directml_available():
+        device = "directml"
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        device = "mps"
+
+    if device in ["mps", "directml", "hip"] and dtype in ["bfloat16", "bf16"]:
+        print(f"[ComfyUI-VoxCPM] Warning: Device '{device}' does not fully support {dtype}, falling back to float32.")
         return torch.float32
-    elif dtype == "fp32":
+    
+    if dtype in ["bfloat16", "bf16"]:
+        return torch.bfloat16
+    elif dtype in ["float16", "fp16"]:
+        return torch.float16
+    elif dtype in ["float32", "fp32"]:
         return torch.float32
     else:
         raise ValueError(f"Unsupported dtype: {dtype}")

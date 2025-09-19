@@ -28,11 +28,10 @@ import torchaudio
 from einops import rearrange
 from pydantic import BaseModel
 from tqdm import tqdm
+from transformers import LlamaTokenizerFast
 
 import comfy.model_management as model_management
 from comfy.utils import ProgressBar
-
-from transformers import LlamaTokenizerFast
 
 from ..modules.audiovae import AudioVAE
 from ..modules.layers import ScalarQuantizationLayer
@@ -168,13 +167,19 @@ class VoxCPMModel(nn.Module):
             self.feat_encoder_step = self.feat_encoder
             self.feat_decoder.estimator = self.feat_decoder.estimator
             return self
-
-        logger.info("torch.compile optimization is currently disabled for VoxCPMModel to avoid cudaMallocAsync issues.")
-        # Ensure original methods are used if compile is disabled.
-        self.base_lm.forward_step = self.base_lm.forward_step
-        self.residual_lm.forward_step = self.residual_lm.forward_step
-        self.feat_encoder_step = self.feat_encoder
-        self.feat_decoder.estimator = self.feat_decoder.estimator
+        try:
+            import triton
+            self.base_lm.forward_step = torch.compile(self.base_lm.forward_step, mode="reduce-overhead", fullgraph=True)
+            self.residual_lm.forward_step = torch.compile(self.residual_lm.forward_step, mode="reduce-overhead", fullgraph=True)
+            self.feat_encoder_step = torch.compile(self.feat_encoder, mode="reduce-overhead", fullgraph=True)
+            self.feat_decoder.estimator = torch.compile(self.feat_decoder.estimator, mode="reduce-overhead", fullgraph=True)
+        except Exception as e:
+            logger.error(f"Failed to optimize VoxCPMModel with torch.compile: {e}")
+            logger.warning("Using original forward_step functions without compilation.")
+            self.base_lm.forward_step = self.base_lm.forward_step
+            self.residual_lm.forward_step = self.residual_lm.forward_step
+            self.feat_encoder_step = self.feat_encoder
+            self.feat_decoder.estimator = self.feat_decoder.estimator
         return self
 
 
@@ -269,7 +274,12 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(inference_device)
         text_mask = text_mask.unsqueeze(0).to(inference_device)
-        audio_feat = audio_feat.unsqueeze(0).to(inference_device).to(torch.bfloat16)
+        # Handle data types for different backends
+        if inference_device.type in ["mps", "hip", "directml"]:
+            audio_feat_dtype = torch.float32
+        else:
+            audio_feat_dtype = torch.bfloat16
+        audio_feat = audio_feat.unsqueeze(0).to(inference_device).to(audio_feat_dtype)
         audio_mask = audio_mask.unsqueeze(0).to(inference_device)
 
         target_text_length = len(self.text_tokenizer(target_text))
@@ -295,7 +305,9 @@ class VoxCPMModel(nn.Module):
                     break
             else:
                 break
-        return self.audio_vae.decode(latent_pred.to(torch.float32)).squeeze(1).cpu()
+        decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32)).squeeze(1).cpu()
+        decode_audio = decode_audio[..., 640:-640]
+        return decode_audio
 
     @torch.inference_mode()
     def build_prompt_cache(
@@ -458,7 +470,11 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(inference_device)
         text_mask = text_mask.unsqueeze(0).to(inference_device)
-        audio_feat = audio_feat.unsqueeze(0).to(inference_device).to(torch.bfloat16)
+        if inference_device.type in ["mps", "hip", "directml"]: 
+            audio_feat_dtype = torch.float32
+        else: 
+            audio_feat_dtype = torch.bfloat16
+        audio_feat = audio_feat.unsqueeze(0).to(inference_device).to(audio_feat_dtype)
         audio_mask = audio_mask.unsqueeze(0).to(inference_device)
 
         target_text_length = len(self.text_tokenizer(target_text))
@@ -484,12 +500,8 @@ class VoxCPMModel(nn.Module):
             else:
                 break
         decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32)).squeeze(1).cpu()
-
-        return (
-            decode_audio,
-            target_text_token,
-            pred_audio_feat
-        )
+        decode_audio = decode_audio[..., 640:-640]
+        return (decode_audio, target_text_token, pred_audio_feat)
 
     @torch.inference_mode()
     def inference(
@@ -626,6 +638,10 @@ class VoxCPMModel(nn.Module):
         lm_dtype = get_dtype(config.dtype)
         model = model.to(lm_dtype)
         model.audio_vae = model.audio_vae.to(torch.float32)
+        # Handle data type for non-CUDA devices on initial load
+        if next(model.parameters()).device.type in ["mps", "hip", "directml"]:
+            logger.warning(f"Converting model to float32 for {next(model.parameters()).device.type} compatibility.")
+            model = model.to(torch.float32)
 
         model_state_dict = torch.load(
             os.path.join(path, "pytorch_model.bin"),

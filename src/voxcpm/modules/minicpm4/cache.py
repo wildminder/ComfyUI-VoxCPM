@@ -43,5 +43,16 @@ class StaticKVCache:
         self.current_length = kv_caches[0][0].size(2)
         self.kv_cache.zero_()
         for i in range(self.num_layers):
-            self.kv_cache[0, i, :, :, : self.current_length, :] = kv_caches[i][0]
-            self.kv_cache[1, i, :, :, : self.current_length, :] = kv_caches[i][1]
+            # Handles Grouped Query Attention by repeating KV heads if necessary
+            kv_cache_k = kv_caches[i][0]
+            kv_cache_v = kv_caches[i][1]
+            
+            # The cache shape is [batch, num_heads, seq_len, head_dim]
+            # If the number of heads in the cache is greater than the incoming KV heads, repeat.
+            if self.kv_cache.size(3) > kv_cache_k.size(1):
+                repeat_factor = self.kv_cache.size(3) // kv_cache_k.size(1)
+                kv_cache_k = kv_cache_k.repeat_interleave(repeat_factor, dim=1)
+                kv_cache_v = kv_cache_v.repeat_interleave(repeat_factor, dim=1)
+            
+            self.kv_cache[0, i, :, :, : self.current_length, :] = kv_cache_k
+            self.kv_cache[1, i, :, :, : self.current_length, :] = kv_cache_v
