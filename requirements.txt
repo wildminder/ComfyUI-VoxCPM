@@ -14,4 +14,3 @@ soundfile
 diffusers
 tqdm
 bitsandbytes
-torchcodec

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Global cache for patcher instances to avoid re-creation
 VOXCPM_PATCHER_CACHE = {}
 
+# Helper function to detect all available PyTorch backends
 def get_available_devices():
     """Detects and returns a list of available PyTorch devices in order of preference."""
     devices = []
@@ -54,22 +55,6 @@ def set_seed(seed: int):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-def save_temp_audio(audio_dict: dict | None) -> str | None:
-    if not audio_dict or "waveform" not in audio_dict:
-        return None
-    waveform = cast(torch.Tensor, audio_dict["waveform"])
-    sample_rate = cast(int, audio_dict["sample_rate"])
-    if waveform.numel() == 0:
-        return None
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-        temp_path = tmp_file.name
-    waveform_np = waveform.squeeze().cpu().numpy()
-    if waveform_np.ndim > 1:
-        waveform_np = waveform_np.mean(axis=0)
-    sf.write(temp_path, waveform_np, sample_rate)
-    return temp_path
-
-
 class VoxCPMNode(io.ComfyNode):
     CATEGORY = "audio/tts"
 
@@ -98,6 +83,8 @@ class VoxCPMNode(io.ComfyNode):
                 io.Int.Input("seed", default=-1, min=-1, max=0xFFFFFFFFFFFFFFFF, tooltip="Seed for reproducibility. -1 for random."),
                 io.Boolean.Input("force_offload", default=False, label_on="Force Offload", label_off="Auto-Manage", tooltip="Force the model to be offloaded from VRAM after generation."),
                 io.Combo.Input("device", options=available_devices, default=default_device, tooltip="Device to run inference on. Defaults to the best available."),
+                io.Int.Input("retry_max_attempts", default=3, min=0, max=10, step=1, tooltip="Max retry attempts for bad cases (e.g., babbling). Set to 0 to disable retrying."),
+                io.Float.Input("retry_threshold", default=6.0, min=2.0, max=20.0, step=0.1, tooltip="Audio/text length ratio to trigger a retry. Increase for very slow speakers."),
             ],
             outputs=[
                 io.Audio.Output(display_name="Generated Audio"),
@@ -115,6 +102,8 @@ class VoxCPMNode(io.ComfyNode):
         normalize_text: bool,
         seed: int,
         force_offload: bool,
+        retry_max_attempts: int,
+        retry_threshold: float,
         prompt_audio: dict | None = None,
         prompt_text: str | None = None,
     ) -> io.NodeOutput:
@@ -144,6 +133,7 @@ class VoxCPMNode(io.ComfyNode):
         
         patcher = VOXCPM_PATCHER_CACHE[cache_key]
         
+        # This is the key call to let ComfyUI manage the model's device placement
         model_management.load_model_gpu(patcher)
         voxcpm_model = patcher.model.model
 
@@ -151,23 +141,32 @@ class VoxCPMNode(io.ComfyNode):
             raise RuntimeError(f"Failed to load VoxCPM model '{model_name}'. Check logs for details.")
 
         set_seed(seed)
+        enable_retry = retry_max_attempts > 0
 
-        temp_audio_path = None
+        prompt_waveform = None
+        prompt_sample_rate = None
+        if is_cloning:
+            if prompt_audio and 'waveform' in prompt_audio and 'sample_rate' in prompt_audio:
+                prompt_waveform = prompt_audio['waveform']
+                prompt_sample_rate = prompt_audio['sample_rate']
+                if prompt_waveform.numel() == 0:
+                    raise ValueError("Provided prompt audio is empty.")
+            else:
+                raise ValueError("Provided prompt audio is invalid.")
+
         try:
-            if is_cloning:
-                temp_audio_path = save_temp_audio(prompt_audio)
-                if not temp_audio_path:
-                    raise ValueError("Provided prompt audio is empty or invalid.")
-
-            logger.info("Generating audio...")
+            #logger.info("Generating audio...")
             wav_array = voxcpm_model.generate(
                 text=text,
-                prompt_wav_path=temp_audio_path,
                 prompt_text=prompt_text,
+                prompt_waveform=prompt_waveform,
+                prompt_sample_rate=prompt_sample_rate,
                 cfg_value=cfg_value,
                 inference_timesteps=inference_timesteps,
                 normalize=normalize_text,
-                retry_badcase=True,
+                retry_badcase=enable_retry,
+                retry_badcase_max_times=retry_max_attempts,
+                retry_badcase_ratio_threshold=retry_threshold,
             )
 
             output_tensor = torch.from_numpy(wav_array).float().unsqueeze(0).unsqueeze(0)
@@ -181,6 +180,5 @@ class VoxCPMNode(io.ComfyNode):
                 
             return io.NodeOutput(output_audio, ui=ui.PreviewAudio(output_audio, cls=cls))
 
-        finally:
-            if temp_audio_path and os.path.exists(temp_audio_path):
-                os.remove(temp_audio_path)
+        except Exception as e:
+            raise e
