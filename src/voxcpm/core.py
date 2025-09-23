@@ -1,6 +1,5 @@
 import torch
 import os
-import tempfile
 import logging
 from huggingface_hub import snapshot_download
 from .model.voxcpm import VoxCPMModel
@@ -60,18 +59,21 @@ class VoxCPM:
 
         return cls(voxcpm_model_path=local_path)
 
-    def generate(self, 
-            text : str,
-            prompt_wav_path : str = None,
-            prompt_text : str = None,
-            cfg_value : float = 2.0,    
-            inference_timesteps : int = 10,
-            max_length : int = 4096,
-            normalize : bool = True,
-            retry_badcase : bool = True,
-            retry_badcase_max_times : int = 3,
-            retry_badcase_ratio_threshold : float = 6.0,
-        ):
+    def generate(
+        self, 
+        text : str,
+        prompt_wav_path : str = None,
+        prompt_waveform: torch.Tensor = None,
+        prompt_sample_rate: int = None,
+        prompt_text : str = None,
+        cfg_value : float = 2.0,    
+        inference_timesteps : int = 10,
+        max_length : int = 4096,
+        normalize : bool = True,
+        retry_badcase : bool = True,
+        retry_badcase_max_times : int = 3,
+        retry_badcase_ratio_threshold : float = 6.0,
+    ):
         """Synthesize speech for the given text and return a single waveform.
 
         This method optionally builds and reuses a prompt cache. If an external
@@ -100,13 +102,18 @@ class VoxCPM:
         texts = [t.strip() for t in texts if t.strip()]
         final_wav = []
         
-        if prompt_wav_path is not None and prompt_text is not None:
+        # Check for either waveform or path for cloning
+        is_cloning = prompt_waveform is not None or prompt_wav_path is not None
+        if is_cloning and prompt_text:
             fixed_prompt_cache = self.tts_model.build_prompt_cache(
+                prompt_text=prompt_text,
                 prompt_wav_path=prompt_wav_path,
-                prompt_text=prompt_text
+                prompt_waveform=prompt_waveform,
+                prompt_sample_rate=prompt_sample_rate
             )
         else:
-            fixed_prompt_cache = None  # will be built from the first inference
+            # will be built from the first inference
+            fixed_prompt_cache = None
         
         for i, sub_text in enumerate(texts):
             if sub_text.strip() == "":

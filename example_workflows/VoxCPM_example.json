@@ -1,57 +1,19 @@
 {
   "id": "332f7ac5-c30f-44aa-991a-aff51b05038a",
   "revision": 0,
-  "last_node_id": 4,
-  "last_link_id": 8,
+  "last_node_id": 6,
+  "last_link_id": 11,
   "nodes": [
-    {
-      "id": 1,
-      "type": "SaveAudio",
-      "pos": [
-        -987.0810546875,
-        -1058.6048583984375
-      ],
-      "size": [
-        277.3636474609375,
-        112
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 1
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.52",
-        "Node name for S&R": "SaveAudio",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "filename_prefix": true,
-            "audioUI": true
-          },
-          "version": "7.0.1"
-        }
-      },
-      "widgets_values": [
-        "audio/VoxCPM"
-      ]
-    },
     {
       "id": 4,
       "type": "MarkdownNote",
       "pos": [
-        -1834.9903564453125,
-        -871.060546875
+        -992.263427734375,
+        -871.535400390625
       ],
       "size": [
-        341.9835510253906,
-        346.01654052734375
+        311.074462890625,
+        346.9256286621094
       ],
       "flags": {},
       "order": 0,
@@ -67,33 +29,143 @@
       "bgcolor": "#355"
     },
     {
+      "id": 6,
+      "type": "MarkdownNote",
+      "pos": [
+        -1840.9210205078125,
+        -874.2627563476562
+      ],
+      "size": [
+        360.7866516113281,
+        348.9750061035156
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 🎤 Achieving High-Quality Voice Clones\n\nTo achieve the best voice cloning results, providing an accurate `prompt_text` is **critical**. This text acts as a transcript that aligns the sound of the `prompt_audio` with the words being spoken, teaching the model the speaker's unique vocal characteristics.\n\n### How to Use `prompt_text` Effectively\n\n#### 1. **Provide a Verbatim Transcript**\nThe `prompt_text` must be a word-for-word transcript of the `prompt_audio`. Do not summarize or describe the audio.\n\n✅ **Correct:** `The quick brown fox jumps over the lazy dog.`\n\n❌ **Incorrect:** `A person saying a sentence about a fox.`\n\n#### 2. **Punctuation is Important**\nUse accurate punctuation to capture the speaker's intonation. The model learns how the speaker ends sentences, asks questions, or shows excitement.\n\n-   **For a statement:** `This is a great example.`\n-   **For a question:** `Is this a great example?`\n-   **For excitement:** `This is a great example!`\n\n#### 3. **Match Audio and Text Length**\nThe audio clip should be long enough to capture the speaker's natural pacing and rhythm.\n\n👍 **Good:** A 5-15 second clip of continuous, clear speech.\n\n👌 **Okay:** A 3-5 second clip.\n\n⚠️ **Warning:** Very short clips (< 3 seconds) may result in a less stable or robotic-sounding clone.\n\n\n> **Note:**\n> For the best results, use a clean, high-quality `prompt_audio` with minimal background noise, reverb, or music. The model will try to clone the *entire* acoustic environment, not just the voice."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 1,
+      "type": "SaveAudio",
+      "pos": [
+        -991.1134643554688,
+        -1058.956787109375
+      ],
+      "size": [
+        277.3636474609375,
+        112
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 10
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveAudio",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "filename_prefix": true,
+            "audioUI": true
+          },
+          "version": "7.0.1"
+        }
+      },
+      "widgets_values": [
+        "audio/VoxCPM"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "VoxCPM_TTS",
+      "pos": [
+        -1438.1444091796875,
+        -1058.956787109375
+      ],
+      "size": [
+        399.0082702636719,
+        531.7355346679688
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt_audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Generated Audio",
+          "type": "AUDIO",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VoxCPM_TTS"
+      },
+      "widgets_values": [
+        "VoxCPM-0.5B",
+        "You're baking with ingredients from the Realm of Madness?! I am… impressed. And deeply concerned.",
+        2,
+        20,
+        true,
+        779450847354054,
+        "fixed",
+        false,
+        "cuda",
+        3,
+        5,
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
       "id": 2,
       "type": "LoadAudio",
       "pos": [
         -1843.4453125,
-        -1058.6048583984375
+        -1058.956787109375
       ],
       "size": [
         350.4437255859375,
         136
       ],
       "flags": {},
-      "order": 1,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "AUDIO",
           "type": "AUDIO",
-          "links": [
-            8
-          ]
+          "links": []
         }
       ],
       "properties": {
+        "Node name for S&R": "LoadAudio",
         "cnr_id": "comfy-core",
         "ver": "0.3.52",
-        "Node name for S&R": "LoadAudio",
         "ue_properties": {
           "widget_ue_connectable": {
             "audio": true,
@@ -108,74 +180,14 @@
         null,
         null
       ]
-    },
-    {
-      "id": 3,
-      "type": "VoxCPM_TTS",
-      "pos": [
-        -1438.1444091796875,
-        -1058.6048583984375
-      ],
-      "size": [
-        399.0082702636719,
-        531.7355346679688
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "prompt_audio",
-          "shape": 7,
-          "type": "AUDIO",
-          "link": 8
-        }
-      ],
-      "outputs": [
-        {
-          "name": "Generated Audio",
-          "type": "AUDIO",
-          "links": [
-            1
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "ComfyUI-VoxCPM",
-        "ver": "e9845ede9bc6ad1febd3a9b5104a040315a12d50",
-        "Node name for S&R": "VoxCPM_TTS",
-        "aux_id": "wildminder/ComfyUI-VoxCPM"
-      },
-      "widgets_values": [
-        "VoxCPM-0.5B",
-        "You're baking with ingredients from the Realm of Madness?! I am… impressed. And deeply concerned.",
-        2,
-        20,
-        true,
-        779450847354053,
-        "fixed",
-        false,
-        "cpu",
-        "angry kid"
-      ],
-      "color": "#232",
-      "bgcolor": "#353"
     }
   ],
   "links": [
     [
-      1,
-      3,
+      10,
+      5,
       0,
       1,
-      0,
-      "AUDIO"
-    ],
-    [
-      8,
-      2,
-      0,
-      3,
       0,
       "AUDIO"
     ]
@@ -184,10 +196,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1.2100000000000006,
+      "scale": 1.1,
       "offset": [
         1943.4453125,
-        1158.6048583984375
+        1158.956787109375
       ]
     },
     "frontendVersion": "1.26.11",

@@ -92,6 +92,7 @@ class VoxCPMModel(nn.Module):
 
         # Text-Semantic LM
         self.base_lm = MiniCPMModel(config.lm_config)
+        # Defer cache setup until we know the device
 
         self.text_tokenizer = mask_multichar_chinese_tokens(tokenizer)
         self.audio_start_token = 101
@@ -182,138 +183,39 @@ class VoxCPMModel(nn.Module):
             self.feat_decoder.estimator = self.feat_decoder.estimator
         return self
 
-
     @torch.inference_mode()
     def generate(
-        self,
-        target_text: str,
-        prompt_text: str = "",
-        prompt_wav_path: str = "",
-        min_len: int = 2,
-        max_len: int = 2000,
-        inference_timesteps: int = 10,
-        cfg_value: float = 2.0,
-        retry_badcase: bool = False,
-        retry_badcase_max_times: int = 3,
-        retry_badcase_ratio_threshold: float = 6.0, # setting acceptable ratio of audio length to text length (for badcase detection)
-    ):
-        inference_device = next(self.parameters()).device
-
-        if len(prompt_wav_path) == 0:
-            text = target_text
-            text_token = torch.LongTensor(self.text_tokenizer(text))
-            text_token = torch.cat(
-                [
-                    text_token,
-                    torch.tensor(
-                        [self.audio_start_token],
-                        dtype=torch.int32,
-                        device=text_token.device,
-                    ),
-                ],
-                dim=-1,
-            )
-            text_length = text_token.shape[0]
-
-            audio_feat = torch.zeros(
-                (text_length, self.patch_size, self.audio_vae.latent_dim),
-                dtype=torch.float32,
-                device=text_token.device,
-            )
-            text_mask = torch.ones(text_length).type(torch.int32).to(text_token.device)
-            audio_mask = torch.zeros(text_length).type(torch.int32).to(text_token.device)
-
+	self, 
+	target_text: str, 
+	prompt_text: str = "", 
+	prompt_wav_path: str = None, 
+	prompt_waveform: torch.Tensor = None, 
+	prompt_sample_rate: int = None, 
+	min_len: int = 2, 
+	max_len: int = 2000, 
+	inference_timesteps: int = 10, 
+	cfg_value: float = 2.0, 
+	retry_badcase: bool = False, 
+	retry_badcase_max_times: int = 3, 
+	retry_badcase_ratio_threshold: float = 6.0
+	):
+	
+        is_cloning = (prompt_waveform is not None or prompt_wav_path is not None) and prompt_text is not None
+        if is_cloning:
+            prompt_cache = self.build_prompt_cache(prompt_text, prompt_wav_path, prompt_waveform, prompt_sample_rate)
+            result = self.generate_with_prompt_cache(target_text, prompt_cache, min_len, max_len, inference_timesteps, cfg_value, retry_badcase, retry_badcase_max_times, retry_badcase_ratio_threshold)
+            return result[0]
         else:
-            text = prompt_text + target_text
-            text_token = torch.LongTensor(self.text_tokenizer(text))
-            text_token = torch.cat(
-                [
-                    text_token,
-                    torch.tensor([self.audio_start_token], dtype=torch.int32, device=text_token.device),
-                ],
-                dim=-1,
-            )
-            text_length = text_token.shape[0]
-
-            audio, sr = torchaudio.load(prompt_wav_path)
-            if audio.size(0) > 1:
-                audio = audio.mean(dim=0, keepdim=True)
-
-            if sr != self.sample_rate:
-                audio = torchaudio.functional.resample(audio, sr, self.sample_rate)
-
-            patch_len = self.patch_size * self.chunk_size
-
-            if audio.size(1) % patch_len != 0:
-                audio = torch.nn.functional.pad(audio, (0, patch_len - audio.size(1) % patch_len))
-
-            # (B, D, T)
-            audio_feat = self.audio_vae.encode(audio.to(inference_device), self.sample_rate).cpu()
-
-            audio_feat = audio_feat.view(
-                self.audio_vae.latent_dim,
-                -1,
-                self.patch_size,
-            ).permute(1, 2, 0)
-            audio_feat = audio_feat[:-1, ...] # trick: remove the last padding token
-            audio_length = audio_feat.size(0)
-            text_pad_token = torch.zeros(audio_length, dtype=torch.int32, device=text_token.device)
-            text_token = torch.cat([text_token, text_pad_token])
-            audio_pad_feat = torch.zeros(
-                (text_length, self.patch_size, self.audio_vae.latent_dim),
-                dtype=torch.float32,
-                device=text_token.device,
-            )
-            audio_feat = torch.cat([audio_pad_feat, audio_feat], dim=0)
-            text_mask = (
-                torch.cat([torch.ones(text_length), torch.zeros(audio_length)]).type(torch.int32).to(text_token.device)
-            )
-            audio_mask = (
-                torch.cat([torch.zeros(text_length), torch.ones(audio_length)]).type(torch.int32).to(text_token.device)
-            )
-
-        text_token = text_token.unsqueeze(0).to(inference_device)
-        text_mask = text_mask.unsqueeze(0).to(inference_device)
-        # Handle data types for different backends
-        if inference_device.type in ["mps", "hip", "directml"]:
-            audio_feat_dtype = torch.float32
-        else:
-            audio_feat_dtype = torch.bfloat16
-        audio_feat = audio_feat.unsqueeze(0).to(inference_device).to(audio_feat_dtype)
-        audio_mask = audio_mask.unsqueeze(0).to(inference_device)
-
-        target_text_length = len(self.text_tokenizer(target_text))
-
-        retry_badcase_times = 0
-        while retry_badcase_times < retry_badcase_max_times:
-            latent_pred, pred_audio_feat = self.inference(
-                text_token,
-                text_mask,
-                audio_feat,
-                audio_mask,
-                min_len=min_len,
-                max_len=int(target_text_length * retry_badcase_ratio_threshold + 10) if retry_badcase else max_len,
-                inference_timesteps=inference_timesteps,
-                cfg_value=cfg_value,
-            )
-            if retry_badcase:
-                if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
-                    logger.warning(f"Bad case detected (audio/text ratio too high), retrying... ({retry_badcase_times+1}/{retry_badcase_max_times})")
-                    retry_badcase_times += 1
-                    continue
-                else:
-                    break
-            else:
-                break
-        decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32)).squeeze(1).cpu()
-        decode_audio = decode_audio[..., 640:-640]
-        return decode_audio
+            result = self.generate_with_prompt_cache(target_text, None, min_len, max_len, inference_timesteps, cfg_value, retry_badcase, retry_badcase_max_times, retry_badcase_ratio_threshold)
+            return result[0]
 
     @torch.inference_mode()
     def build_prompt_cache(
         self,
         prompt_text: str,
-        prompt_wav_path: str,
+        prompt_wav_path: str = None,
+        prompt_waveform: torch.Tensor = None,
+        prompt_sample_rate: int = None,
     ):
         """
         Build prompt cache for subsequent fast generation.
@@ -325,29 +227,38 @@ class VoxCPMModel(nn.Module):
         Returns:
             prompt_cache: dict with text tokens and audio features
         """
-        if not prompt_text or not prompt_wav_path:
-            raise ValueError("prompt_text and prompt_wav_path are required")
-
         inference_device = next(self.parameters()).device
+        
+        if not prompt_text:
+            raise ValueError("prompt_text is required to build a prompt cache.")
+        if prompt_waveform is None and prompt_wav_path is None:
+            raise ValueError("Either prompt_waveform or prompt_wav_path must be provided.")
 
-        # build text tokens
+        # Handle audio input directly from a tensor
+        if prompt_waveform is not None:
+            audio = prompt_waveform.clone() # Use a clone to avoid modifying the original
+            sr = prompt_sample_rate
+        else:
+            # Fallback to loading from path if tensor is not provided
+            audio, sr = torchaudio.load(prompt_wav_path)
+
         text_token = torch.LongTensor(self.text_tokenizer(prompt_text))
+        
+        # The audio tensor shape is [batch_size, channels, samples].
+        # We check the channel dimension (dim=1).
+        if audio.shape[1] > 1:
+            audio = audio.mean(dim=1, keepdim=True)
 
-        # load audio
-        audio, sr = torchaudio.load(prompt_wav_path)
-        if audio.size(0) > 1:
-            audio = audio.mean(dim=0, keepdim=True)
-            
         if sr != self.sample_rate:
             audio = torchaudio.functional.resample(audio, sr, self.sample_rate)
 
         patch_len = self.patch_size * self.chunk_size
 
-        if audio.size(1) % patch_len != 0:
-            audio = torch.nn.functional.pad(audio, (0, patch_len - audio.size(1) % patch_len))
+        if audio.size(-1) % patch_len != 0:
+            audio = torch.nn.functional.pad(audio, (0, patch_len - audio.size(-1) % patch_len))
 
         # (B, D, T)
-        audio_feat = self.audio_vae.encode(audio.to(inference_device), self.sample_rate).cpu()
+        audio_feat = self.audio_vae.encode(audio.to(inference_device), self.sample_rate)
 
         audio_feat = audio_feat.view(
             self.audio_vae.latent_dim,
@@ -435,73 +346,84 @@ class VoxCPMModel(nn.Module):
 				
         # get prompt from cache
         if prompt_cache is None:
-            prompt_text_token = torch.empty(0, dtype=torch.int32)
-            prompt_audio_feat = torch.empty((0, self.patch_size, self.audio_vae.latent_dim), dtype=torch.float32)
+            # If no cache, create empty tensors directly on the target device
+            prompt_text_token = torch.empty(0, dtype=torch.int32, device=inference_device)
+            prompt_audio_feat = torch.empty((0, self.patch_size, self.audio_vae.latent_dim), dtype=torch.float32, device=inference_device)
         else:
-            prompt_text_token = prompt_cache["text_token"]
-            prompt_audio_feat = prompt_cache["audio_feat"]
-        # build target text tokens
-        target_text_token = torch.LongTensor(self.text_tokenizer(target_text))
+            # If cache exists, move its tensors to the target device
+            prompt_text_token = prompt_cache["text_token"].to(inference_device)
+            prompt_audio_feat = prompt_cache["audio_feat"].to(inference_device)
+        
+        # Create new text tokens on CPU first (as tokenizer does), then move to target device
+        target_text_token = torch.LongTensor(self.text_tokenizer(target_text)).to(inference_device)
+        
+        # Concatenate text tokens on the target device
         text_token = torch.cat([prompt_text_token, target_text_token], dim=0)
-        text_token = torch.cat(
-            [
-                text_token,
-                torch.tensor(
-                    [self.audio_start_token],
-                    dtype=torch.int32,
-                    device=text_token.device,
-                ),
-            ],
-            dim=-1,
-        )
+        start_token = torch.tensor([self.audio_start_token], dtype=torch.int32, device=inference_device)
+        text_token = torch.cat([text_token, start_token], dim=-1)
 
         audio_length = prompt_audio_feat.size(0)
         text_length = text_token.shape[0]
-        text_pad_token = torch.zeros(audio_length, dtype=torch.int32, device=text_token.device)
-        audio_pad_feat = torch.zeros(
-            (text_token.shape[0], self.patch_size, self.audio_vae.latent_dim),
-            dtype=torch.float32,
-            device=text_token.device,
-        )
+        
+        # Create padding tensors directly on the target device
+        text_pad_token = torch.zeros(audio_length, dtype=torch.int32, device=inference_device)
+        audio_pad_feat = torch.zeros((text_length, self.patch_size, self.audio_vae.latent_dim), dtype=torch.float32, device=inference_device)
+        
+        # Now, all concatenations will succeed as all tensors are on the same device
         text_token = torch.cat([text_token, text_pad_token])
         audio_feat = torch.cat([audio_pad_feat, prompt_audio_feat], dim=0)
-        text_mask = torch.cat([torch.ones(text_length), torch.zeros(audio_length)]).type(torch.int32).to(text_token.device)
-        audio_mask = torch.cat([torch.zeros(text_length), torch.ones(audio_length)]).type(torch.int32).to(text_token.device)
+        text_mask = torch.cat([torch.ones(text_length), torch.zeros(audio_length)]).type(torch.int32).to(inference_device)
+        audio_mask = torch.cat([torch.zeros(text_length), torch.ones(audio_length)]).type(torch.int32).to(inference_device)
 
-        text_token = text_token.unsqueeze(0).to(inference_device)
-        text_mask = text_mask.unsqueeze(0).to(inference_device)
-        if inference_device.type in ["mps", "hip", "directml"]: 
+        text_token = text_token.unsqueeze(0)
+        text_mask = text_mask.unsqueeze(0)
+        audio_mask = audio_mask.unsqueeze(0)
+        
+        if inference_device.type in ["mps", "hip", "directml"]:
             audio_feat_dtype = torch.float32
-        else: 
+        else:
             audio_feat_dtype = torch.bfloat16
-        audio_feat = audio_feat.unsqueeze(0).to(inference_device).to(audio_feat_dtype)
-        audio_mask = audio_mask.unsqueeze(0).to(inference_device)
+        audio_feat = audio_feat.unsqueeze(0).to(audio_feat_dtype)
 
         target_text_length = len(self.text_tokenizer(target_text))
-        retry_badcase_times = 0
-        while retry_badcase_times < retry_badcase_max_times:
+        
+        # Calculate a dynamic, safe maximum length based on the text.
+        # This prevents runaway generation even if retries are disabled.
+        dynamic_max_len = int(target_text_length * retry_badcase_ratio_threshold + 10)
+        # Use the smaller of the hard limit (max_len) and our dynamic safety limit.
+        effective_max_len = min(max_len, dynamic_max_len)
+
+        retry_count = 0
+        while True:
             latent_pred, pred_audio_feat = self.inference(
-                text_token,
-                text_mask,
-                audio_feat,
-                audio_mask,
-                min_len=min_len,
-                max_len=int(target_text_length * retry_badcase_ratio_threshold + 10) if retry_badcase else max_len,
-                inference_timesteps=inference_timesteps,
-                cfg_value=cfg_value,
+                text_token, 
+				text_mask, 
+				audio_feat, 
+				audio_mask, 
+                min_len=min_len, 
+                max_len=effective_max_len,
+                inference_timesteps=inference_timesteps, 
+                cfg_value=cfg_value
             )
-            if retry_badcase:
-                if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
-                    logger.warning(f"Bad case detected (audio/text ratio too high), retrying... ({retry_badcase_times+1}/{retry_badcase_max_times})")
-                    retry_badcase_times += 1
-                    continue
-                else:
-                    break
-            else:
+            retry_count += 1
+            
+            is_good_case = pred_audio_feat.shape[0] < target_text_length * retry_badcase_ratio_threshold
+            
+            if is_good_case:
                 break
+            
+            if not retry_badcase:
+                break
+            
+            if retry_count >= retry_badcase_max_times:
+                break
+            
+            # If we reach here, it means the case was bad and we have more retries left.
+            logger.warning(f"Bad case detected (audio/text ratio too high), retrying... ({retry_count}/{retry_badcase_max_times})")
+
         decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32)).squeeze(1).cpu()
         decode_audio = decode_audio[..., 640:-640]
-        return (decode_audio, target_text_token, pred_audio_feat)
+        return (decode_audio, target_text_token.cpu(), pred_audio_feat)
 
     @torch.inference_mode()
     def inference(
