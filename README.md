@@ -107,9 +107,36 @@ This node automatically downloads the required model files.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## 👩‍🍳 A Voice Chef's Guide
+## 🎤 Achieving High-Quality Voice Clones
 
----
+To achieve the best voice cloning results, providing an accurate `prompt_text` is **critical**. This text acts as a transcript that aligns the sound of the `prompt_audio` with the words being spoken, teaching the model the speaker's unique vocal characteristics.
+
+> [!Warning]
+> `prompt_text` is the exact transcript of the prompt_audio. It's not a general description of the voice, nor is it for providing emotional cues. Its job is to create a precise, moment-by-moment alignment between the words being spoken and the sounds being made.
+
+#### 1. **Provide a Verbatim Transcript**
+The `prompt_text` must be a word-for-word transcript of the `prompt_audio`. Do not summarize or describe the audio.
+
+-   ✅ **Correct:** `The quick brown fox jumps over the lazy dog.`
+-   ❌ **Incorrect:** `A person saying a sentence about a fox.`
+
+#### 2. **Punctuation is Important**
+Use accurate punctuation to capture the speaker's intonation. The model learns how the speaker ends sentences, asks questions, or shows excitement.
+
+-   **For a statement:** `This is a great example.`
+-   **For a question:** `Is this a great example?`
+-   **For excitement:** `This is a great example!`
+
+#### 3. **Match Audio and Text Length**
+The audio clip should be long enough to capture the speaker's natural pacing and rhythm.
+
+-   👍 **Good:** A 5-15 second clip of continuous, clear speech.
+-   👌 **Okay:** A 3-5 second clip.
+-   ⚠️ **Warning:** Very short clips (< 3 seconds) may result in a less stable or robotic-sounding clone.
+
+<br/>
+
+## 👩‍🍳 A Voice Chef's Guide
 
 ### 🥚 Step 1: Prepare Your Base Ingredients (Content)
 
@@ -141,8 +168,6 @@ For master chefs who want to tweak the flavor, here are two key spices:
     *   **Lower (e.g., 5-10):** For a quick snack. Perfect for fast drafts and experiments.
     *   **Higher (e.g., 15-25):** For a gourmet meal. This lets the model "simmer" longer, refining the audio for superior detail and naturalness.
 
----
-Happy creating! 🎉 Start with the default settings and tweak from there. The kitchen is yours!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
