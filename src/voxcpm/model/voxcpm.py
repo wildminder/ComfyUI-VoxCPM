@@ -311,6 +311,7 @@ class VoxCPMModel(nn.Module):
         return merged_cache
     
     @torch.inference_mode()
+    @torch.autocast(device_type="cuda")
     def generate_with_prompt_cache(
         self,
         target_text: str,
@@ -379,7 +380,7 @@ class VoxCPMModel(nn.Module):
         text_mask = text_mask.unsqueeze(0)
         audio_mask = audio_mask.unsqueeze(0)
         
-        if inference_device.type in ["mps", "hip", "directml"]:
+        if inference_device.type in ["mps", "hip", "directml", "cpu"]:
             audio_feat_dtype = torch.float32
         else:
             audio_feat_dtype = torch.bfloat16
