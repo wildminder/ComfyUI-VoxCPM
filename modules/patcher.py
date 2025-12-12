@@ -16,7 +16,7 @@ class VoxCPMPatcher(comfy.model_patcher.ModelPatcher):
     """
     def __init__(self, model, *args, **kwargs):
         super().__init__(model, *args, **kwargs)
-        self.cache_key = model.model_name
+        self.cache_key = getattr(model, 'model_name', 'VoxCPM_Unknown')
 
     @property
     def is_loaded(self) -> bool:
@@ -27,13 +27,13 @@ class VoxCPMPatcher(comfy.model_patcher.ModelPatcher):
         """
         Called by ComfyUI's model manager to load the model onto the GPU.
         """
-        target_device = self.load_device
+        target_device = self.load_device if device_to is None else device_to
+        
         if self.model.model is None:
-            logger.info(f"Loading VoxCPM model '{self.model.model_name}' to {target_device}...")
+            logger.info(f"Loading VoxCPM model '{self.model.model_name}' into RAM...")
             self.model.model = VoxCPMLoader.load_model(self.model.model_name)
 
         self.model.model.tts_model.to(target_device)
-        logger.info(f"VoxCPM model '{self.model.model_name}' moved to {target_device}.")
 
         return super().patch_model(device_to=target_device, *args, **kwargs)
 
@@ -42,16 +42,15 @@ class VoxCPMPatcher(comfy.model_patcher.ModelPatcher):
         Called by ComfyUI's model manager to offload the model.
         """
         if unpatch_weights:
-            logger.info(f"Offloading VoxCPM model '{self.model.model_name}' to {self.offload_device}...")
             if self.is_loaded:
-                self.model.model.tts_model.to(self.offload_device)
+                try:
+                    self.model.model.tts_model.to(self.offload_device)
+                except Exception:
+                    pass
             
             self.model.model = None
 
-            if self.cache_key in LOADED_MODELS_CACHE:
-                del LOADED_MODELS_CACHE[self.cache_key]
-                logger.info(f"Cleared global model cache for: {self.cache_key}")
-            
+
             gc.collect()
             model_management.soft_empty_cache()
 

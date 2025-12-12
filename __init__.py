@@ -47,7 +47,7 @@ for search_path in voxcpm_search_paths:
         item_path = os.path.join(search_path, item)
         if os.path.isdir(item_path) and item not in AVAILABLE_VOXCPM_MODELS:
             config_exists = os.path.exists(os.path.join(item_path, "config.json"))
-            weights_exist = os.path.exists(os.path.join(item_path, "pytorch_model.bin"))
+            weights_exist = os.path.exists(os.path.join(item_path, "pytorch_model.bin")) or os.path.exists(os.path.join(item_path, "model.safetensors"))
 
             if config_exists and weights_exist:
                 AVAILABLE_VOXCPM_MODELS[item] = {
@@ -55,20 +55,6 @@ for search_path in voxcpm_search_paths:
                     "path": item_path
                 }
 
-#logger.info(f"Available VoxCPM models: {sorted(list(AVAILABLE_VOXCPM_MODELS.keys()))}")
+from .voxcpm_nodes import comfy_entrypoint
 
-from .voxcpm_nodes import ComfyExtension, VoxCPMNode
-
-NODE_CLASS_MAPPINGS = {
-    "VoxCPM_TTS": VoxCPMNode,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "VoxCPM_TTS": "VoxCPM TTS",
-}
-
-async def comfy_entrypoint() -> ComfyExtension:
-    """ComfyUI V3 entrypoint."""
-    return ComfyExtension(node_list=[VoxCPMNode])
-
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+__all__ = ['comfy_entrypoint']

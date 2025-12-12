@@ -52,6 +52,22 @@ def load_model(args) -> VoxCPM:
         "ZIPENHANCER_MODEL_PATH", None
     )
 
+    # Build LoRA config if lora_path is provided
+    lora_config = None
+    lora_weights_path = getattr(args, "lora_path", None)
+    if lora_weights_path:
+        from voxcpm.model.voxcpm import LoRAConfig
+        lora_config = LoRAConfig(
+            enable_lm=getattr(args, "lora_enable_lm", True),
+            enable_dit=getattr(args, "lora_enable_dit", True),
+            enable_proj=getattr(args, "lora_enable_proj", False),
+            r=getattr(args, "lora_r", 32),
+            alpha=getattr(args, "lora_alpha", 16),
+            dropout=getattr(args, "lora_dropout", 0.0),
+        )
+        print(f"LoRA config: r={lora_config.r}, alpha={lora_config.alpha}, "
+              f"lm={lora_config.enable_lm}, dit={lora_config.enable_dit}, proj={lora_config.enable_proj}")
+
     # Load from local path if provided
     if getattr(args, "model_path", None):
         try:
@@ -59,6 +75,8 @@ def load_model(args) -> VoxCPM:
                 voxcpm_model_path=args.model_path,
                 zipenhancer_model_path=zipenhancer_path,
                 enable_denoiser=not getattr(args, "no_denoiser", False),
+                lora_config=lora_config,
+                lora_weights_path=lora_weights_path,
             )
             print("Model loaded (local).")
             return model
@@ -69,11 +87,13 @@ def load_model(args) -> VoxCPM:
     # Otherwise, try from_pretrained (Hub); exit on failure
     try:
         model = VoxCPM.from_pretrained(
-            hf_model_id=getattr(args, "hf_model_id", "openbmb/VoxCPM-0.5B"),
+            hf_model_id=getattr(args, "hf_model_id", "openbmb/VoxCPM1.5"),
             load_denoiser=not getattr(args, "no_denoiser", False),
             zipenhancer_model_id=zipenhancer_path,
             cache_dir=getattr(args, "cache_dir", None),
             local_files_only=getattr(args, "local_files_only", False),
+            lora_config=lora_config,
+            lora_weights_path=lora_weights_path,
         )
         print("Model loaded (from_pretrained).")
         return model
@@ -120,11 +140,11 @@ def cmd_clone(args):
     )
     
     # Save audio
-    sf.write(str(output_path), audio_array, 16000)
+    sf.write(str(output_path), audio_array, model.tts_model.sample_rate)
     print(f"Saved audio to: {output_path}")
     
     # Stats
-    duration = len(audio_array) / 16000
+    duration = len(audio_array) / model.tts_model.sample_rate
     print(f"Duration: {duration:.2f}s")
 
 
@@ -152,11 +172,11 @@ def cmd_synthesize(args):
     )
     
     # Save audio
-    sf.write(str(output_path), audio_array, 16000)
+    sf.write(str(output_path), audio_array, model.tts_model.sample_rate)
     print(f"Saved audio to: {output_path}")
     
     # Stats
-    duration = len(audio_array) / 16000
+    duration = len(audio_array) / model.tts_model.sample_rate
     print(f"Duration: {duration:.2f}s")
 
 
@@ -198,9 +218,9 @@ def cmd_batch(args):
                 denoise=args.denoise and prompt_audio_path is not None
             )
             output_file = output_dir / f"output_{i:03d}.wav"
-            sf.write(str(output_file), audio_array, 16000)
+            sf.write(str(output_file), audio_array, model.tts_model.sample_rate)
             
-            duration = len(audio_array) / 16000
+            duration = len(audio_array) / model.tts_model.sample_rate
             print(f"  Saved: {output_file} ({duration:.2f}s)")
             success_count += 1
             
@@ -240,6 +260,7 @@ Examples:
     # Prompt audio (for voice cloning)
     parser.add_argument("--prompt-audio", "-pa", help="Reference audio file path")
     parser.add_argument("--prompt-text", "-pt", help="Reference text corresponding to the audio")
+    parser.add_argument("--prompt-file", "-pf", help="Reference text file corresponding to the audio")
     parser.add_argument("--denoise", action="store_true", help="Enable prompt speech enhancement (denoising)")
 
     # Generation parameters
@@ -249,11 +270,20 @@ Examples:
 
     # Model loading parameters
     parser.add_argument("--model-path", type=str, help="Local VoxCPM model path (overrides Hub download)")
-    parser.add_argument("--hf-model-id", type=str, default="openbmb/VoxCPM-0.5B", help="Hugging Face repo id (e.g., openbmb/VoxCPM-0.5B)")
+    parser.add_argument("--hf-model-id", type=str, default="openbmb/VoxCPM1.5", help="Hugging Face repo id (e.g., openbmb/VoxCPM1.5 or openbmb/VoxCPM-0.5B)")
     parser.add_argument("--cache-dir", type=str, help="Cache directory for Hub downloads")
     parser.add_argument("--local-files-only", action="store_true", help="Use only local files (no network)")
     parser.add_argument("--no-denoiser", action="store_true", help="Disable denoiser model loading")
     parser.add_argument("--zipenhancer-path", type=str, default="iic/speech_zipenhancer_ans_multiloss_16k_base", help="ZipEnhancer model id or local path (default reads from env)")
+
+    # LoRA parameters
+    parser.add_argument("--lora-path", type=str, help="Path to LoRA weights (.pth file or directory containing lora_weights.ckpt)")
+    parser.add_argument("--lora-r", type=int, default=32, help="LoRA rank (default: 32)")
+    parser.add_argument("--lora-alpha", type=int, default=16, help="LoRA alpha scaling factor (default: 16)")
+    parser.add_argument("--lora-dropout", type=float, default=0.0, help="LoRA dropout rate (default: 0.0)")
+    parser.add_argument("--lora-enable-lm", action="store_true", default=True, help="Apply LoRA to LM layers (default: True)")
+    parser.add_argument("--lora-enable-dit", action="store_true", default=True, help="Apply LoRA to DiT layers (default: True)")
+    parser.add_argument("--lora-enable-proj", action="store_true", default=False, help="Apply LoRA to projection layers (default: False)")
 
     return parser
 
@@ -279,6 +309,12 @@ def main():
 
     # If prompt audio+text provided → voice cloning
     if args.prompt_audio or args.prompt_text:
+        if not args.prompt_text and args.prompt_file:
+            assert os.path.isfile(args.prompt_file), "Prompt file does not exist or is not accessible."
+        
+            with open(args.prompt_file, 'r', encoding='utf-8') as f:
+                args.prompt_text = f.read()
+
         if not args.prompt_audio or not args.prompt_text:
             print("Error: Voice cloning requires both --prompt-audio and --prompt-text")
             sys.exit(1)
