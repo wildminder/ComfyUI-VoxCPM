@@ -1,13 +1,11 @@
 <!-- Improved compatibility of back to top link -->
-<a id="readme-top"></a>
 
-<div align="center">
+<div id="readme-top" align="center">
   <h1 align="center">ComfyUI-VoxCPM</h1>
 
   <a href="https://github.com/wildminder/ComfyUI-VoxCPM">    
-    <img src="https://github.com/user-attachments/assets/3f8a9544-6893-4893-8b3e-ac58dc6d0f95" alt="ComfyUI-VoxCPM" width="70%">
+    <img alt="ComfyUI-VoxCPM" src="https://github.com/user-attachments/assets/037e8e89-bab1-4b86-8377-3be2a1139cf5" />
   </a>
-  
 
   <p align="center">
     A custom node for ComfyUI that integrates <strong>VoxCPM</strong>, a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.
