@@ -1,33 +1,9 @@
 {
   "id": "332f7ac5-c30f-44aa-991a-aff51b05038a",
   "revision": 0,
-  "last_node_id": 6,
-  "last_link_id": 11,
+  "last_node_id": 10,
+  "last_link_id": 21,
   "nodes": [
-    {
-      "id": 4,
-      "type": "MarkdownNote",
-      "pos": [
-        -992.263427734375,
-        -871.535400390625
-      ],
-      "size": [
-        311.074462890625,
-        346.9256286621094
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Note",
-      "properties": {},
-      "widgets_values": [
-        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Parameters | Hugging Face Link |\n|:---|:---:|:---|\n| VoxCPM-0.5B | 0.5B | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n## Support \n\n- Don't know how to update PyTorch?\n- Need help with ComfyUI?\n- Need technical support?\n\n### Or do you just have questions? Then join the [@TokenDiffusion Hub](https://t.me/TokenDiff_hub) group\n\n### AI news [TokenDiffusion](https://t.me/TokenDiff)"
-      ],
-      "color": "#233",
-      "bgcolor": "#355"
-    },
     {
       "id": 6,
       "type": "MarkdownNote",
@@ -40,7 +16,7 @@
         348.9750061035156
       ],
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -50,6 +26,59 @@
       ],
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": 7,
+      "type": "VoxCPM_TTS",
+      "pos": [
+        -1438.1444091796875,
+        -1058.956787109375
+      ],
+      "size": [
+        399.0082702636719,
+        531.7355346679688
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt_audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Generated Audio",
+          "type": "AUDIO",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-VoxCPM",
+        "ver": "214648f54b58310b0c97a1d24d604746fea776d7",
+        "Node name for S&R": "VoxCPM_TTS"
+      },
+      "widgets_values": [
+        "VoxCPM1.5",
+        "You're baking with ingredients from the Realm of Madness?! I am… impressed. And deeply concerned.",
+        2,
+        20,
+        true,
+        779450847354056,
+        "fixed",
+        false,
+        "cuda",
+        3,
+        5,
+        "Hope I'm not bothering you. Just doing some stretching. Maybe a few poses. You'll tell me if I'm bothering you, right?"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
     },
     {
       "id": 1,
@@ -69,14 +98,14 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 10
+          "link": 16
         }
       ],
       "outputs": [],
       "properties": {
-        "Node name for S&R": "SaveAudio",
         "cnr_id": "comfy-core",
         "ver": "0.3.52",
+        "Node name for S&R": "SaveAudio",
         "ue_properties": {
           "widget_ue_connectable": {
             "filename_prefix": true,
@@ -90,82 +119,57 @@
       ]
     },
     {
-      "id": 5,
-      "type": "VoxCPM_TTS",
+      "id": 4,
+      "type": "MarkdownNote",
       "pos": [
-        -1438.1444091796875,
-        -1058.956787109375
+        -992.263427734375,
+        -871.535400390625
       ],
       "size": [
-        399.0082702636719,
-        531.7355346679688
+        304.7108265269885,
+        347.83471957120037
       ],
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "prompt_audio",
-          "shape": 7,
-          "type": "AUDIO",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "Generated Audio",
-          "type": "AUDIO",
-          "links": [
-            10
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VoxCPM_TTS"
-      },
+      "inputs": [],
+      "outputs": [],
+      "title": "Note",
+      "properties": {},
       "widgets_values": [
-        "VoxCPM-0.5B",
-        "You're baking with ingredients from the Realm of Madness?! I am… impressed. And deeply concerned.",
-        2,
-        20,
-        true,
-        779450847354054,
-        "fixed",
-        false,
-        "cuda",
-        3,
-        5,
-        ""
+        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Hugging Face Link |\n|:---|:---|\n| **VoxCPM1.5** | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |\n| VoxCPM-0.5B  | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n\n## Support \n\n- Don't know how to update PyTorch?\n- Need help with ComfyUI?\n- Need technical support?\n\n### Or do you just have questions? Then join the [@TokenDiffusion Hub](https://t.me/TokenDiff_hub) group\n\n### AI news [TokenDiffusion](https://t.me/TokenDiff)"
       ],
-      "color": "#232",
-      "bgcolor": "#353"
+      "color": "#233",
+      "bgcolor": "#355"
     },
     {
       "id": 2,
       "type": "LoadAudio",
       "pos": [
-        -1843.4453125,
-        -1058.956787109375
+        -1850.7180397727268,
+        -1064.4113325639207
       ],
       "size": [
         350.4437255859375,
         136
       ],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "AUDIO",
           "type": "AUDIO",
-          "links": []
+          "links": [
+            21
+          ]
         }
       ],
       "properties": {
-        "Node name for S&R": "LoadAudio",
         "cnr_id": "comfy-core",
         "ver": "0.3.52",
+        "Node name for S&R": "LoadAudio",
         "ue_properties": {
           "widget_ue_connectable": {
             "audio": true,
@@ -184,10 +188,18 @@
   ],
   "links": [
     [
-      10,
-      5,
+      16,
+      7,
       0,
       1,
+      0,
+      "AUDIO"
+    ],
+    [
+      21,
+      2,
+      0,
+      7,
       0,
       "AUDIO"
     ]
@@ -196,13 +208,14 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1.1,
+      "scale": 1,
       "offset": [
-        1943.4453125,
-        1158.956787109375
+        2238.718039772727,
+        1246.4113325639207
       ]
     },
-    "frontendVersion": "1.26.11",
+    "workflowRendererVersion": "LG",
+    "frontendVersion": "1.33.10",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": true,
