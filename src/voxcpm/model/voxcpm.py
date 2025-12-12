@@ -126,7 +126,6 @@ class VoxCPMModel(nn.Module):
                 self.device = "mps"
             else:
                 self.device = "cpu"
-        # print(f"Running on device: {self.device}, dtype: {self.config.dtype}")
 
         # Text-Semantic LM
         self.base_lm = MiniCPMModel(config.lm_config)
@@ -337,14 +336,8 @@ class VoxCPMModel(nn.Module):
             # Mix down to mono if needed
             if audio.dim() > 1 and audio.size(0) > 1:
                 audio = audio.mean(dim=0, keepdim=True)
-            elif audio.dim() > 1 and audio.size(1) > 1 and prompt_waveform is not None:
-                 # Handle ComfyUI tensor shape [batch, channels, samples] or [channels, samples]
-                 if audio.size(0) == 1 and audio.size(1) > 1:
-                     # e.g. [1, 2, N] -> [1, 1, N]
-                     audio = audio.mean(dim=1, keepdim=True)
-                 elif audio.size(0) > 1: 
-                     # [2, N] -> [1, N]
-                     audio = audio.mean(dim=0, keepdim=True)
+            
+            # Note: If Mono [1, Samples], the above check fails (1 is not > 1), so it remains [1, Samples]. Correct.
 
             if sr != self.sample_rate:
                 audio = torchaudio.functional.resample(audio, sr, self.sample_rate)
@@ -449,14 +442,9 @@ class VoxCPMModel(nn.Module):
         else:
             audio, sr = torchaudio.load(prompt_wav_path)
             
+        # Simplified standard mix logic here as well
         if audio.dim() > 1 and audio.size(0) > 1:
             audio = audio.mean(dim=0, keepdim=True)
-        elif audio.dim() > 1 and audio.size(1) > 1 and prompt_waveform is not None:
-             # Handle ComfyUI tensor shape
-             if audio.size(0) == 1 and audio.size(1) > 1:
-                 audio = audio.mean(dim=1, keepdim=True)
-             elif audio.size(0) > 1:
-                 audio = audio.mean(dim=0, keepdim=True)
             
         if sr != self.sample_rate:
             audio = torchaudio.functional.resample(audio, sr, self.sample_rate)
