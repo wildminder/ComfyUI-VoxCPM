@@ -41,12 +41,13 @@ VoxCPM is a novel tokenizer-free Text-to-Speech system that redefines realism in
 This custom node handles everything from model downloading and memory management to audio processing, allowing you to generate high-quality speech directly from a text script and optional reference audio files.
 
 **✨ Key Features:**
+*   **High-Fidelity Audio (v1.5):** Supports 44.1kHz sampling rate, preserving high-frequency details for clearer, richer audio.
 *   **Context-Aware Expressive Speech:** The model understands text context to generate appropriate prosody and vocal expression.
 *   **True-to-Life Voice Cloning:** Clone a voice's timbre, accent, and emotional tone from a short audio sample.
 *   **Zero-Shot TTS:** Generate high-quality speech without any reference audio.
-*   **Automatic Model Management:** The required VoxCPM model is downloaded automatically and managed efficiently by ComfyUI to save VRAM.
-*   **Fine-Grained Control:** Adjust parameters like CFG scale and inference steps to tune the performance and style of the generated speech.
-*   **High-Efficiency Synthesis:** VoxCPM is designed for speed, enabling fast generation even on consumer-grade hardware.
+*   **Automatic Model Management:** Required models are downloaded automatically and managed efficiently by ComfyUI to save VRAM.
+*   **Fine-Grained Control:** Adjust parameters like CFG scale and inference steps to tune the performance and style.
+*   **High-Efficiency Synthesis:** VoxCPM 1.5 reduces the token rate (6.25Hz), enabling faster generation even on consumer-grade hardware.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -73,11 +74,12 @@ Alternatively, to install manually:
     Launch ComfyUI. The "VoxCPM TTS" node will appear under the `audio/tts` category. The first time you use the node, it will automatically download the selected model to your `ComfyUI/models/tts/VoxCPM/` folder.
 
 ## Models
-This node automatically downloads the required model files.
+This node automatically downloads the required model files. You can select the specific version in the node settings.
 
-| Model | Parameters | Hugging Face Link |
-|:---|:---:|:---|
-| VoxCPM-0.5B | 0.5B | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |
+| Model | Parameters | Sampling Rate | Description | Hugging Face Link |
+|:---|:---:|:---:|:---|:---|
+| **VoxCPM1.5** | 800M | 44.1kHz | **Recommended.** Latest version with improved fidelity and efficiency. | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |
+| VoxCPM-0.5B | 640M | 16kHz | Original version. | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -91,25 +93,30 @@ This node automatically downloads the required model files.
 4.  **Generate:** Queue the prompt. The node will process the text and generate a single audio file.
 
 > [!NOTE]
-> **Denoising:** The original VoxCPM library includes a built-in denoiser (ZipEnhancer). This feature has been intentionally removed from the node. The ComfyUI philosophy encourages modular, single-purpose nodes. For denoising, please use a dedicated audio processing node before passing the `prompt_audio` to this one. This keeps the workflow clean and flexible.
+> **Denoising:** The original VoxCPM library includes a built-in denoiser (ZipEnhancer). This feature is disabled in this node to keep dependencies light and allow users to choose their own audio preprocessing workflow within ComfyUI.
 
 ### Node Inputs
 
-*   **`model_name`**: Select the VoxCPM model to use. Official models are downloaded automatically.
+*   **`model_name`**: Select the VoxCPM model to use (v1.5 recommended).
 *   **`text`**: The target text to synthesize into speech.
 *   **`prompt_audio` (Optional)**: A reference audio clip for voice cloning.
-*   **`prompt_text` (Optional)**: The exact transcript of the `prompt_audio`. This is **required** for voice cloning.
-*   **`cfg_value`**: Classifier-Free Guidance scale. Higher values increase adherence to the voice prompt but may reduce naturalness.
-*   **`inference_timesteps`**: Number of diffusion steps for audio generation. More steps can improve quality but take longer.
-*   **`normalize_text`**: Enable to automatically process numbers, abbreviations, and punctuation. Disable for precise control with phoneme inputs like `{ni3}{hao3}`.
+*   **`prompt_text` (Optional)**: The exact transcript of the `prompt_audio`. This is **required** if `prompt_audio` is connected.
+*   **`cfg_value`**: Classifier-Free Guidance scale. Higher values increase adherence to the voice prompt but may reduce naturalness. Default is 2.0.
+*   **`inference_timesteps`**: Number of diffusion steps for audio generation. More steps can improve quality but take longer. Default is 10.
+*   **`normalize_text`**: Enable to automatically process numbers, abbreviations, and punctuation. Disable for precise control with phoneme inputs.
 *   **`seed`**: A seed for reproducibility. Set to -1 for a random seed on each run.
 *   **`force_offload`**: Forces the model to be completely offloaded from VRAM after generation.
+*   **`device`**: Select the inference device (cuda, cpu, mps, directml). Defaults to the best available.
+*   **`retry_max_attempts`**: Maximum number of auto-retries if the generation fails (e.g., babbling or silence).
+*   **`retry_threshold`**: Threshold for detecting bad generations based on audio/text length ratio.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## 🎤 Achieving High-Quality Voice Clones
 
 To achieve the best voice cloning results, providing an accurate `prompt_text` is **critical**. This text acts as a transcript that aligns the sound of the `prompt_audio` with the words being spoken, teaching the model the speaker's unique vocal characteristics.
+
+**With VoxCPM 1.5**, the model supports 44.1kHz sampling. This means the quality of your input reference audio directly impacts the output. High-quality, clean input audio will yield significantly better results than low-fidelity recordings.
 
 > [!Warning]
 > `prompt_text` is the exact transcript of the prompt_audio. It's not a general description of the voice, nor is it for providing emotional cues. Its job is to create a precise, moment-by-moment alignment between the words being spoken and the sounds being made.
@@ -123,15 +130,10 @@ The `prompt_text` must be a word-for-word transcript of the `prompt_audio`. Do n
 #### 2. **Punctuation is Important**
 Use accurate punctuation to capture the speaker's intonation. The model learns how the speaker ends sentences, asks questions, or shows excitement.
 
--   **For a statement:** `This is a great example.`
--   **For a question:** `Is this a great example?`
--   **For excitement:** `This is a great example!`
-
 #### 3. **Match Audio and Text Length**
 The audio clip should be long enough to capture the speaker's natural pacing and rhythm.
 
 -   👍 **Good:** A 5-15 second clip of continuous, clear speech.
--   👌 **Okay:** A 3-5 second clip.
 -   ⚠️ **Warning:** Very short clips (< 3 seconds) may result in a less stable or robotic-sounding clone.
 
 <br/>
@@ -168,35 +170,6 @@ For master chefs who want to tweak the flavor, here are two key spices:
     *   **Lower (e.g., 5-10):** For a quick snack. Perfect for fast drafts and experiments.
     *   **Higher (e.g., 15-25):** For a gourmet meal. This lets the model "simmer" longer, refining the audio for superior detail and naturalness.
 
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-## 📊 Performance Benchmarks
-<details>
-<summary>Click to view model performance highlights</summary>
-
-VoxCPM achieves competitive results on public zero-shot TTS benchmarks:
-
-### Seed-TTS-eval Benchmark
-
-| Model | Parameters | Open-Source | test-EN | | test-ZH | | test-Hard | |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| | | | WER/%⬇ | SIM/%⬆| CER/%⬇| SIM/%⬆ | CER/%⬇ | SIM/%⬆ |
-| **VoxCPM** | 0.5B | ✅ | **1.85** | **72.9** | **0.93** | **77.2** | 8.87 | 73.0 |
-| MegaTTS3 | 0.5B | ❌ | 2.79 | 77.1 | 1.52 | 79.0 | - | - |
-| DiTAR | 0.6B | ❌ | 1.69 | 73.5 | 1.02 | 75.3 | - | - |
-
-###  CV3-eval Benchmark
-
-| Model | zh | en | hard-zh | | | hard-en | | |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| | CER/%⬇ | WER/%⬇ | CER/%⬇ | SIM/%⬆ | DNSMOS⬆ | WER/%⬇ | SIM/%⬆ | DNSMOS⬆ |
-| **VoxCPM** | **3.40** | **4.04** | 12.9 | 66.1 | 3.59 | **7.89** | 64.3 | 3.74 |
-| CosyVoice2 | 4.08 | 6.32 | 12.58 | 72.6 | 3.81 | 11.96 | 66.7 | 3.95 |
-| IndexTTS2 | 3.58 | 4.45 | 12.8 | 74.6 | 3.65 | - | - | - |
-
-</details>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
