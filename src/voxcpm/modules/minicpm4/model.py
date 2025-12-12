@@ -153,17 +153,18 @@ class MiniCPMAttention(nn.Module):
         cos, sin = position_emb
 
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
-
-        # Handle GQA by repeating KV heads to match query heads
-        if self.num_heads != self.num_key_value_heads:
-            key_states = key_states.repeat_interleave(self.num_key_value_groups, dim=1)
-            value_states = value_states.repeat_interleave(self.num_key_value_groups, dim=1)
-            
+        
+        # ref: https://github.com/pytorch/pytorch/issues/163597
+        # there is a bug in MPS for non-contiguous tensors, so we need to make them contiguous
+        query_states = query_states.contiguous()
+        key_states = key_states.contiguous()
+        value_states = value_states.contiguous()
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
             key_states,
             value_states,
             is_causal=is_causal,
+            enable_gqa=True,
         )
 
         attn_output = attn_output.transpose(1, 2).contiguous()
@@ -178,7 +179,7 @@ class MiniCPMAttention(nn.Module):
         self,
         hidden_states: torch.Tensor,
         position_emb: Tuple[torch.Tensor, torch.Tensor],
-        position_id: torch.Tensor,
+        position_id: int,
         kv_cache: Tuple[torch.Tensor, torch.Tensor],
     ) -> torch.Tensor:
         bsz, _ = hidden_states.size()
@@ -197,31 +198,22 @@ class MiniCPMAttention(nn.Module):
 
         key_cache, value_cache = kv_cache
 
-        # Some fixes I guess: Convert the position_id tensor to a Python integer for robust indexing
-        pos_id_int = position_id.item()
+        key_cache[:, :, position_id, :] = key_states
+        value_cache[:, :, position_id, :] = value_states
 
-        # Another fix: Explicitly squeeze the singleton dimension (dim 2) before assignment
-        # This makes the assignment robust across different PyTorch versions.
-        # Updated GQA handling for cache
-        if self.num_heads != self.num_key_value_heads:
-            key_states_expanded = key_states.repeat_interleave(self.num_key_value_groups, dim=1)
-            value_states_expanded = value_states.repeat_interleave(self.num_key_value_groups, dim=1)
-            key_cache[:, :, pos_id_int, :] = key_states_expanded.squeeze(2)
-            value_cache[:, :, pos_id_int, :] = value_states_expanded.squeeze(2)
-        else:
-            key_cache[:, :, pos_id_int, :] = key_states.squeeze(2)
-            value_cache[:, :, pos_id_int, :] = value_states.squeeze(2)
+        attn_mask = torch.arange(key_cache.size(2), device=key_cache.device) <= position_id
 
-        attn_mask = torch.arange(key_cache.size(2), device=key_cache.device) <= pos_id_int
-        # Reshape the mask to be explicitly 4D to avoid broadcasting issues in newer PyTorch versions.
-        attn_mask = attn_mask.view(1, 1, 1, -1)
-
-
+        # ref: https://github.com/pytorch/pytorch/issues/163597
+        # there is a bug in MPS for non-contiguous tensors, so we need to make them contiguous
+        query_states = query_states.contiguous()
+        key_cache = key_cache.contiguous()
+        value_cache = value_cache.contiguous()
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
             key_cache,
             value_cache,
             attn_mask=attn_mask,
+            enable_gqa=True,
         )
 
         attn_output = attn_output.transpose(1, 2).contiguous()
@@ -418,10 +410,9 @@ class MiniCPMModel(nn.Module):
         return hidden_states
 
     def setup_cache(self, batch_size: int, max_length: int, device, dtype: torch.dtype):
-        # Correctly set cache to use num_attention_heads to match query heads, as KV heads are repeated.
         self.kv_cache = StaticKVCache(
             num_layers=self.config.num_hidden_layers,
-            num_kv_heads=self.config.num_attention_heads,
+            num_kv_heads=self.config.num_key_value_heads,
             dim_kv_head=self.config.hidden_size // self.config.num_attention_heads if self.config.kv_channels is None else self.config.kv_channels,
             batch_size=batch_size,
             device=device,

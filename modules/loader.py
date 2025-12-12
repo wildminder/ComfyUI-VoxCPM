@@ -5,6 +5,7 @@ from huggingface_hub import snapshot_download
 
 import folder_paths
 
+# Import the VoxCPM library from the src directory
 from ..src.voxcpm.core import VoxCPM
 from .model_info import AVAILABLE_VOXCPM_MODELS
 
@@ -23,7 +24,9 @@ class VoxCPMModelHandler(torch.nn.Module):
         super().__init__()
         self.model_name = model_name
         self.model = None  # This will hold the actual loaded VoxCPM instance
-        self.size = int(2 * (1024**3))
+        # Estimate size (VoxCPM1.5 is ~800M params in bf16 -> ~1.6GB + buffers)
+        # We allocate 2.5GB to be safe for offloading calculations
+        self.size = int(2.5 * (1024**3))
 
 class VoxCPMLoader:
     @staticmethod
@@ -50,10 +53,13 @@ class VoxCPMLoader:
             voxcpm_models_dir = os.path.join(base_tts_path, "VoxCPM")
             os.makedirs(voxcpm_models_dir, exist_ok=True)
             
-            # Handle VoxCPM model download
             voxcpm_path = os.path.join(voxcpm_models_dir, model_name)
-            if not os.path.exists(os.path.join(voxcpm_path, "pytorch_model.bin")):
-                logger.info(f"Downloading official VoxCPM model '{model_name}'...")
+            
+            has_bin = os.path.exists(os.path.join(voxcpm_path, "pytorch_model.bin"))
+            has_safe = os.path.exists(os.path.join(voxcpm_path, "model.safetensors"))
+            
+            if not (has_bin or has_safe):
+                logger.info(f"Downloading official VoxCPM model '{model_name}' from {model_info['repo_id']}...")
                 snapshot_download(
                     repo_id=model_info["repo_id"],
                     local_dir=voxcpm_path,
@@ -64,7 +70,11 @@ class VoxCPMLoader:
              raise RuntimeError(f"Could not determine path for model '{model_name}'")
 
         logger.info("Instantiating VoxCPM model...")
-        model_instance = VoxCPM(voxcpm_model_path=voxcpm_path)
+        model_instance = VoxCPM(
+            voxcpm_model_path=voxcpm_path,
+            enable_denoiser=False, 
+            optimize=False 
+        )
 
         LOADED_MODELS_CACHE[model_name] = model_instance
         return model_instance

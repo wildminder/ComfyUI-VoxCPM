@@ -4,7 +4,7 @@ import logging
 import tempfile
 import os
 import soundfile as sf
-from typing import cast
+from typing import cast, List, Optional
 
 import comfy.model_management as model_management
 from comfy_api.latest import ComfyExtension, io, ui
@@ -15,17 +15,14 @@ from .modules.patcher import VoxCPMPatcher
 
 logger = logging.getLogger(__name__)
 
-# Global cache for patcher instances to avoid re-creation
 VOXCPM_PATCHER_CACHE = {}
 
-# Helper function to detect all available PyTorch backends
 def get_available_devices():
     """Detects and returns a list of available PyTorch devices in order of preference."""
     devices = []
     if torch.cuda.is_available():
         devices.append("cuda")
     
-    # Check for DirectML on Windows
     try:
         import platform
         if platform.system() == "Windows" and hasattr(torch.backends, 'directml') and torch.backends.directml.is_available():
@@ -33,7 +30,6 @@ def get_available_devices():
     except:
         pass
 
-    # Check for HIP on AMD
     if hasattr(torch.version, 'hip') and torch.version.hip is not None:
         try:
             if torch.cuda.is_available() and torch.cuda.get_device_name(0).lower().find('amd') != -1:
@@ -41,7 +37,6 @@ def get_available_devices():
         except:
             pass
 
-    # Check for MPS on Apple Silicon
     if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
         devices.append("mps")
         
@@ -62,7 +57,7 @@ class VoxCPMNode(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         model_names = list(AVAILABLE_VOXCPM_MODELS.keys())
         if not model_names:
-            model_names.append("No models found. Please download VoxCPM-0.5B.")
+            model_names.append("No models found. Please download VoxCPM1.5.")
 
         available_devices = get_available_devices()
         default_device = available_devices[0]
@@ -71,7 +66,7 @@ class VoxCPMNode(io.ComfyNode):
             node_id="VoxCPM_TTS",
             display_name="VoxCPM TTS",
             category=cls.CATEGORY,
-            description="Generate speech or clone voices using the VoxCPM model.",
+            description="Generate speech or clone voices using the VoxCPM model (v1.5).",
             inputs=[
                 io.Combo.Input("model_name", options=model_names, default=model_names[0], tooltip="Select the VoxCPM model to use."),
                 io.String.Input("text", multiline=True, default="VoxCPM is an innovative TTS model designed to generate highly expressive speech.", tooltip="Text to synthesize. Each line is processed as a separate chunk."),
@@ -104,12 +99,13 @@ class VoxCPMNode(io.ComfyNode):
         force_offload: bool,
         retry_max_attempts: int,
         retry_threshold: float,
-        prompt_audio: dict | None = None,
-        prompt_text: str | None = None,
+        prompt_audio: Optional[io.Audio.Type] = None,
+        prompt_text: Optional[str] = None,
     ) -> io.NodeOutput:
         
         is_cloning = prompt_audio is not None
-        if is_cloning and not prompt_text:
+        
+        if is_cloning and prompt_text is None:
             raise ValueError("Prompt text is required when providing prompt audio for voice cloning.")
 
         if device == "cuda":
@@ -119,7 +115,6 @@ class VoxCPMNode(io.ComfyNode):
             load_device = torch.device("cpu")
             offload_device = torch.device("cpu")
 
-        # Use a composite key for the patcher cache to include the device
         cache_key = f"{model_name}_{device}"
         if cache_key not in VOXCPM_PATCHER_CACHE:
             handler = VoxCPMModelHandler(model_name)
@@ -133,7 +128,6 @@ class VoxCPMNode(io.ComfyNode):
         
         patcher = VOXCPM_PATCHER_CACHE[cache_key]
         
-        # This is the key call to let ComfyUI manage the model's device placement
         model_management.load_model_gpu(patcher)
         voxcpm_model = patcher.model.model
 
@@ -145,17 +139,24 @@ class VoxCPMNode(io.ComfyNode):
 
         prompt_waveform = None
         prompt_sample_rate = None
+        
         if is_cloning:
-            if prompt_audio and 'waveform' in prompt_audio and 'sample_rate' in prompt_audio:
+            if isinstance(prompt_audio, dict) and 'waveform' in prompt_audio and 'sample_rate' in prompt_audio:
                 prompt_waveform = prompt_audio['waveform']
+                
+                if prompt_waveform.dim() == 3:
+                    prompt_waveform = prompt_waveform[0]
+                elif prompt_waveform.dim() == 2:
+                    pass
+                
                 prompt_sample_rate = prompt_audio['sample_rate']
+                
                 if prompt_waveform.numel() == 0:
                     raise ValueError("Provided prompt audio is empty.")
             else:
-                raise ValueError("Provided prompt audio is invalid.")
+                raise ValueError("Provided prompt audio format is invalid.")
 
         try:
-            #logger.info("Generating audio...")
             wav_array = voxcpm_model.generate(
                 text=text,
                 prompt_text=prompt_text,
@@ -167,10 +168,14 @@ class VoxCPMNode(io.ComfyNode):
                 retry_badcase=enable_retry,
                 retry_badcase_max_times=retry_max_attempts,
                 retry_badcase_ratio_threshold=retry_threshold,
+                denoise=False # Explicitly disable denoiser for Tensor inputs
             )
 
             output_tensor = torch.from_numpy(wav_array).float().unsqueeze(0).unsqueeze(0)
-            output_audio = {"waveform": output_tensor, "sample_rate": 16000}
+            
+            output_sr = voxcpm_model.tts_model.sample_rate
+            
+            output_audio = {"waveform": output_tensor, "sample_rate": output_sr}
 
             logger.info("Audio generation complete.")
 
@@ -181,4 +186,12 @@ class VoxCPMNode(io.ComfyNode):
             return io.NodeOutput(output_audio, ui=ui.PreviewAudio(output_audio, cls=cls))
 
         except Exception as e:
+            logger.error(f"Generation error: {e}")
             raise e
+
+class VoxCPMExtension(ComfyExtension):
+    async def get_node_list(self) -> List[type[io.ComfyNode]]:
+        return [VoxCPMNode]
+
+async def comfy_entrypoint() -> VoxCPMExtension:
+    return VoxCPMExtension()

@@ -1,1 +1,1 @@
-from .audio_vae import AudioVAE
+from .audio_vae import AudioVAE, AudioVAEConfig

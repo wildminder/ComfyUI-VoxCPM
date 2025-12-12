@@ -1,11 +1,12 @@
 import math
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm
+from pydantic import BaseModel
 
 
 def WNConv1d(*args, **kwargs):
@@ -266,6 +267,17 @@ class CausalDecoder(nn.Module):
         return self.model(x)
 
 
+class AudioVAEConfig(BaseModel):
+    encoder_dim: int = 128
+    encoder_rates: List[int] = [2, 5, 8, 8]
+    latent_dim: int = 64
+    decoder_dim: int = 1536
+    decoder_rates: List[int] = [8, 8, 5, 2]
+    depthwise: bool = True
+    sample_rate: int = 16000
+    use_noise_block: bool = False
+
+
 class AudioVAE(nn.Module):
     """
     Args:
@@ -273,17 +285,23 @@ class AudioVAE(nn.Module):
 
     def __init__(
         self,
-        encoder_dim: int = 128,
-        encoder_rates: List[int] = [2, 5, 8, 8],
-        latent_dim: int = 64,
-        decoder_dim: int = 1536,
-        decoder_rates: List[int] = [8, 8, 5, 2],
-        depthwise: bool = True,
-        sample_rate: int = 16000,
-        use_noise_block: bool = False,
+        config: Optional[AudioVAEConfig] = None,
     ):
+        # 如果没有传入config，使用默认配置
+        if config is None:
+            config = AudioVAEConfig()
+        
         super().__init__()
 
+        encoder_dim = config.encoder_dim
+        encoder_rates = config.encoder_rates
+        latent_dim = config.latent_dim
+        decoder_dim = config.decoder_dim
+        decoder_rates = config.decoder_rates
+        depthwise = config.depthwise
+        sample_rate = config.sample_rate
+        use_noise_block = config.use_noise_block
+        
         self.encoder_dim = encoder_dim
         self.encoder_rates = encoder_rates
         self.decoder_dim = decoder_dim
