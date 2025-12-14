@@ -1,9 +1,33 @@
 {
   "id": "332f7ac5-c30f-44aa-991a-aff51b05038a",
   "revision": 0,
-  "last_node_id": 10,
-  "last_link_id": 21,
+  "last_node_id": 11,
+  "last_link_id": 23,
   "nodes": [
+    {
+      "id": 4,
+      "type": "MarkdownNote",
+      "pos": [
+        -995.2686869379813,
+        -900.085362824885
+      ],
+      "size": [
+        307.71608573059484,
+        376.3846820054604
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note",
+      "properties": {},
+      "widgets_values": [
+        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Hugging Face Link |\n|:---|:---|\n| **VoxCPM1.5** | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |\n| VoxCPM-0.5B  | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n\n## Support \n\n- Don't know how to update PyTorch?\n- Need help with ComfyUI?\n- Need technical support?\n\n### Or do you just have questions? Then join the [@TokenDiffusion Hub](https://t.me/TokenDiff_hub) group\n\n### AI news [TokenDiffusion](https://t.me/TokenDiff)"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
     {
       "id": 6,
       "type": "MarkdownNote",
@@ -16,7 +40,7 @@
         348.9750061035156
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -28,15 +52,58 @@
       "bgcolor": "#653"
     },
     {
-      "id": 7,
+      "id": 2,
+      "type": "LoadAudio",
+      "pos": [
+        -1850.7180397727268,
+        -1064.4113325639207
+      ],
+      "size": [
+        350.4437255859375,
+        136
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "Node name for S&R": "LoadAudio",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "audio": true,
+            "audioUI": true,
+            "upload": true
+          },
+          "version": "7.0.1"
+        }
+      },
+      "widgets_values": [
+        "male_stewie.mp3",
+        null,
+        null
+      ]
+    },
+    {
+      "id": 11,
       "type": "VoxCPM_TTS",
       "pos": [
         -1438.1444091796875,
         -1058.956787109375
       ],
       "size": [
-        399.0082702636719,
-        531.7355346679688
+        399.5867768595042,
+        527.4710743801652
       ],
       "flags": {},
       "order": 3,
@@ -46,7 +113,7 @@
           "name": "prompt_audio",
           "shape": 7,
           "type": "AUDIO",
-          "link": 21
+          "link": 22
         }
       ],
       "outputs": [
@@ -54,22 +121,25 @@
           "name": "Generated Audio",
           "type": "AUDIO",
           "links": [
-            16
+            23
           ]
         }
       ],
       "properties": {
         "cnr_id": "ComfyUI-VoxCPM",
-        "ver": "214648f54b58310b0c97a1d24d604746fea776d7",
+        "ver": "788f117f9db15ef8a0110a8529fb252a556b34cf",
         "Node name for S&R": "VoxCPM_TTS"
       },
       "widgets_values": [
         "VoxCPM1.5",
+        "None",
         "You're baking with ingredients from the Realm of Madness?! I am… impressed. And deeply concerned.",
         2,
-        20,
+        50,
+        8,
+        3000,
         true,
-        779450847354056,
+        42,
         "fixed",
         false,
         "cuda",
@@ -98,7 +168,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 16
+          "link": 23
         }
       ],
       "outputs": [],
@@ -117,89 +187,22 @@
       "widgets_values": [
         "audio/VoxCPM"
       ]
-    },
-    {
-      "id": 4,
-      "type": "MarkdownNote",
-      "pos": [
-        -992.263427734375,
-        -871.535400390625
-      ],
-      "size": [
-        304.7108265269885,
-        347.83471957120037
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Note",
-      "properties": {},
-      "widgets_values": [
-        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Hugging Face Link |\n|:---|:---|\n| **VoxCPM1.5** | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |\n| VoxCPM-0.5B  | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n\n## Support \n\n- Don't know how to update PyTorch?\n- Need help with ComfyUI?\n- Need technical support?\n\n### Or do you just have questions? Then join the [@TokenDiffusion Hub](https://t.me/TokenDiff_hub) group\n\n### AI news [TokenDiffusion](https://t.me/TokenDiff)"
-      ],
-      "color": "#233",
-      "bgcolor": "#355"
-    },
-    {
-      "id": 2,
-      "type": "LoadAudio",
-      "pos": [
-        -1850.7180397727268,
-        -1064.4113325639207
-      ],
-      "size": [
-        350.4437255859375,
-        136
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "AUDIO",
-          "type": "AUDIO",
-          "links": [
-            21
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.52",
-        "Node name for S&R": "LoadAudio",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "audio": true,
-            "audioUI": true,
-            "upload": true
-          },
-          "version": "7.0.1"
-        }
-      },
-      "widgets_values": [
-        "male_stewie.mp3",
-        null,
-        null
-      ]
     }
   ],
   "links": [
     [
-      16,
-      7,
+      22,
+      2,
       0,
-      1,
+      11,
       0,
       "AUDIO"
     ],
     [
-      21,
-      2,
+      23,
+      11,
       0,
-      7,
+      1,
       0,
       "AUDIO"
     ]
@@ -208,10 +211,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1,
+      "scale": 1.1,
       "offset": [
-        2238.718039772727,
-        1246.4113325639207
+        2121.6271306818185,
+        1256.2295143821025
       ]
     },
     "workflowRendererVersion": "LG",

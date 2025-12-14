@@ -311,7 +311,9 @@ class VoxCPMModel(nn.Module):
             audio_mask = torch.zeros(text_length).type(torch.int32).to(text_token.device)
 
         else:
-            text = prompt_text + target_text
+            # Need to test: Only use target_text to avoid repeating the prompt. Gives better output
+            text = target_text 
+            
             text_token = torch.LongTensor(self.text_tokenizer(text))
             text_token = torch.cat(
                 [
@@ -323,6 +325,7 @@ class VoxCPMModel(nn.Module):
             text_length = text_token.shape[0]
 
             # ComfyUI Modification: Load from tensor if available, else path
+            # ... do not like path stuff
             if prompt_waveform is not None:
                 audio = prompt_waveform.clone()
                 sr = prompt_sample_rate
@@ -532,7 +535,8 @@ class VoxCPMModel(nn.Module):
         else:
             prompt_audio_feat = prompt_cache["audio_feat"]
             prompt_text = prompt_cache["prompt_text"]
-            text = prompt_text + target_text
+            # again: Do not append prompt_text to target_text
+            text = target_text 
         
         text_token = torch.LongTensor(self.text_tokenizer(text))
         text_token = torch.cat(
@@ -818,9 +822,10 @@ class VoxCPMModel(nn.Module):
             ckpt_file = lora_path if lora_path.suffix in [".ckpt", ".pth"] else None
         
         if safetensors_file and safetensors_file.exists() and SAFETENSORS_AVAILABLE:
-            state_dict = load_file(str(safetensors_file), device=device)
+            # Load to CPU first to avoid device incompatibility in safetensors loading
+            state_dict = load_file(str(safetensors_file), device="cpu")
         elif ckpt_file and ckpt_file.exists():
-            ckpt = torch.load(ckpt_file, map_location=device, weights_only=False)
+            ckpt = torch.load(ckpt_file, map_location="cpu", weights_only=False)
             state_dict = ckpt.get("state_dict", ckpt)
         else:
             raise FileNotFoundError(

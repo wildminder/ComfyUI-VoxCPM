@@ -34,6 +34,7 @@ class VoxCPMPatcher(comfy.model_patcher.ModelPatcher):
             self.model.model = VoxCPMLoader.load_model(self.model.model_name)
 
         self.model.model.tts_model.to(target_device)
+        # logger.info(f"VoxCPM model moved to {target_device}.")
 
         return super().patch_model(device_to=target_device, *args, **kwargs)
 
@@ -42,15 +43,18 @@ class VoxCPMPatcher(comfy.model_patcher.ModelPatcher):
         Called by ComfyUI's model manager to offload the model.
         """
         if unpatch_weights:
+            # logger.info(f"Offloading VoxCPM model...")
             if self.is_loaded:
                 try:
                     self.model.model.tts_model.to(self.offload_device)
                 except Exception:
                     pass
             
+            # Clear the reference to the model to allow garbage collection
             self.model.model = None
 
-
+            # The cache is managed in loader.py or explicit cleanup if needed.
+            
             gc.collect()
             model_management.soft_empty_cache()
 

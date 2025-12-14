@@ -5,8 +5,9 @@ from huggingface_hub import snapshot_download
 
 import folder_paths
 
-# Import the VoxCPM library from the src directory
+# Import the VoxCPM library and config
 from ..src.voxcpm.core import VoxCPM
+from ..src.voxcpm.model.voxcpm import LoRAConfig
 from .model_info import AVAILABLE_VOXCPM_MODELS
 
 logger = logging.getLogger(__name__)
@@ -70,10 +71,22 @@ class VoxCPMLoader:
              raise RuntimeError(f"Could not determine path for model '{model_name}'")
 
         logger.info("Instantiating VoxCPM model...")
+        
+        # Create default LoRA config to initialize layers for hot-swapping
+        # Using standard defaults: r=32, alpha=16
+        default_lora_config = LoRAConfig(
+            enable_lm=True,
+            enable_dit=True,
+            enable_proj=False,
+            r=32,
+            alpha=16
+        )
+
         model_instance = VoxCPM(
             voxcpm_model_path=voxcpm_path,
             enable_denoiser=False, 
-            optimize=False 
+            optimize=False,
+            lora_config=default_lora_config
         )
 
         LOADED_MODELS_CACHE[model_name] = model_instance
