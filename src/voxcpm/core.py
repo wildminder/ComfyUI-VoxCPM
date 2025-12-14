@@ -26,6 +26,7 @@ class VoxCPM:
             lora_config: LoRA configuration for fine-tuning.
             lora_weights_path: Path to pre-trained LoRA weights.
         """
+        # If lora_weights_path is provided but no lora_config, create a default one
         if lora_weights_path is not None and lora_config is None:
             lora_config = LoRAConfig(
                 enable_lm=True,
@@ -36,20 +37,24 @@ class VoxCPM:
         
         self.tts_model = VoxCPMModel.from_local(voxcpm_model_path, optimize=optimize, lora_config=lora_config)
         
+        # Load LoRA weights if path is provided
+        # todo: add logger
         if lora_weights_path is not None:
-            print(f"[ComfyUI-VoxCPM] Loading LoRA weights from: {lora_weights_path}")
+            # print(f"[ComfyUI-VoxCPM] Loading LoRA weights from: {lora_weights_path}")
             loaded_keys, skipped_keys = self.tts_model.load_lora_weights(lora_weights_path)
-            print(f"[ComfyUI-VoxCPM] Loaded {len(loaded_keys)} LoRA parameters, skipped {len(skipped_keys)}")
+            # print(f"[ComfyUI-VoxCPM] Loaded {len(loaded_keys)} LoRA parameters, skipped {len(skipped_keys)}")
         
         self.text_normalizer = None
         
+        # Denoiser handling: largely disabled for ComfyUI to keep dependencies light
+        # unless specifically requested and available.
         self.denoiser = None
         if enable_denoiser and zipenhancer_model_path is not None:
             try:
                 from .zipenhancer import ZipEnhancer
                 self.denoiser = ZipEnhancer(zipenhancer_model_path)
             except ImportError:
-                print("[ComfyUI-VoxCPM] Warning: ZipEnhancer dependencies not found. Denoiser disabled.")
+                # print("[ComfyUI-VoxCPM] Warning: ZipEnhancer dependencies not found. Denoiser disabled.")
                 self.denoiser = None
 
         if optimize:
@@ -74,9 +79,12 @@ class VoxCPM:
         if not repo_id:
             raise ValueError("You must provide hf_model_id")
         
+        # Load from local path if provided
+        # todo: align with comfy codebase
         if os.path.isdir(repo_id):
             local_path = repo_id
         else:
+            # Otherwise, try from_pretrained (Hub); exit on failure
             local_path = snapshot_download(
                 repo_id=repo_id,
                 cache_dir=cache_dir,

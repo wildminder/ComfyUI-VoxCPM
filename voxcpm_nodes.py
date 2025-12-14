@@ -6,6 +6,7 @@ import os
 import soundfile as sf
 from typing import cast, List, Optional
 
+import folder_paths
 import comfy.model_management as model_management
 from comfy_api.latest import ComfyExtension, io, ui
 
@@ -61,19 +62,24 @@ class VoxCPMNode(io.ComfyNode):
 
         available_devices = get_available_devices()
         default_device = available_devices[0]
+        
+        lora_list = ["None"] + folder_paths.get_filename_list("loras")
 
         return io.Schema(
             node_id="VoxCPM_TTS",
             display_name="VoxCPM TTS",
             category=cls.CATEGORY,
-            description="Generate speech or clone voices using the VoxCPM model (v1.5).",
+            description="Generate speech or clone voices using the VoxCPM model (v1.5) with LoRA support.",
             inputs=[
                 io.Combo.Input("model_name", options=model_names, default=model_names[0], tooltip="Select the VoxCPM model to use."),
+                io.Combo.Input("lora_name", options=lora_list, default="None", tooltip="Select a LoRA to apply for style/fine-tuning. Requires model initialization with matching rank (default r=32)."),
                 io.String.Input("text", multiline=True, default="VoxCPM is an innovative TTS model designed to generate highly expressive speech.", tooltip="Text to synthesize. Each line is processed as a separate chunk."),
                 io.Audio.Input("prompt_audio", optional=True, tooltip="Reference audio for voice cloning."),
                 io.String.Input("prompt_text", multiline=True, optional=True, tooltip="The transcript of the reference audio. Required for voice cloning."),
                 io.Float.Input("cfg_value", default=2.0, min=1.0, max=10.0, step=0.1, tooltip="Guidance scale. Higher values adhere more to the prompt but may sound less natural."),
                 io.Int.Input("inference_timesteps", default=10, min=1, max=100, step=1, tooltip="Number of diffusion steps. Higher values may improve quality but are slower."),
+                io.Int.Input("min_tokens", default=2, min=1, max=100, tooltip="Minimum length of generated audio tokens."),
+                io.Int.Input("max_tokens", default=2048, min=64, max=8192, tooltip="Maximum length of generated audio tokens."),
                 io.Boolean.Input("normalize_text", default=True, label_on="Normalize", label_off="Raw", tooltip="Enable text normalization (recommended for general text)."),
                 io.Int.Input("seed", default=-1, min=-1, max=0xFFFFFFFFFFFFFFFF, tooltip="Seed for reproducibility. -1 for random."),
                 io.Boolean.Input("force_offload", default=False, label_on="Force Offload", label_off="Auto-Manage", tooltip="Force the model to be offloaded from VRAM after generation."),
@@ -90,10 +96,13 @@ class VoxCPMNode(io.ComfyNode):
     def execute(
         cls,
         model_name: str,
+        lora_name: str,
         device: str,
         text: str,
         cfg_value: float,
         inference_timesteps: int,
+        min_tokens: int,
+        max_tokens: int,
         normalize_text: bool,
         seed: int,
         force_offload: bool,
@@ -104,7 +113,6 @@ class VoxCPMNode(io.ComfyNode):
     ) -> io.NodeOutput:
         
         is_cloning = prompt_audio is not None
-        
         if is_cloning and prompt_text is None:
             raise ValueError("Prompt text is required when providing prompt audio for voice cloning.")
 
@@ -127,12 +135,29 @@ class VoxCPMNode(io.ComfyNode):
             VOXCPM_PATCHER_CACHE[cache_key] = patcher
         
         patcher = VOXCPM_PATCHER_CACHE[cache_key]
-        
         model_management.load_model_gpu(patcher)
         voxcpm_model = patcher.model.model
 
         if not voxcpm_model:
             raise RuntimeError(f"Failed to load VoxCPM model '{model_name}'. Check logs for details.")
+
+        #  LoRA
+        if lora_name != "None":
+            lora_path = folder_paths.get_full_path("loras", lora_name)
+            if not lora_path:
+                raise FileNotFoundError(f"LoRA file not found: {lora_name}")
+            
+            # Note: We load every time to ensure the selected LoRA is active.
+            # Maybe Optimization: could check if current LoRA is already loaded, but safe to reload.
+            try:
+                # logger.info(f"Loading LoRA: {lora_name}")
+                voxcpm_model.load_lora(lora_path)
+                voxcpm_model.set_lora_enabled(True)
+            except Exception as e:
+                raise RuntimeError(f"Failed to load LoRA '{lora_name}'. Ensure model was initialized with compatible LoRA config (default r=32). Error: {e}")
+        else:
+            # Disable LoRA layers if None selected
+            voxcpm_model.set_lora_enabled(False)
 
         set_seed(seed)
         enable_retry = retry_max_attempts > 0
@@ -143,12 +168,8 @@ class VoxCPMNode(io.ComfyNode):
         if is_cloning:
             if isinstance(prompt_audio, dict) and 'waveform' in prompt_audio and 'sample_rate' in prompt_audio:
                 prompt_waveform = prompt_audio['waveform']
-                
                 if prompt_waveform.dim() == 3:
                     prompt_waveform = prompt_waveform[0]
-                elif prompt_waveform.dim() == 2:
-                    pass
-                
                 prompt_sample_rate = prompt_audio['sample_rate']
                 
                 if prompt_waveform.numel() == 0:
@@ -164,17 +185,17 @@ class VoxCPMNode(io.ComfyNode):
                 prompt_sample_rate=prompt_sample_rate,
                 cfg_value=cfg_value,
                 inference_timesteps=inference_timesteps,
+                min_len=min_tokens,
+                max_len=max_tokens,
                 normalize=normalize_text,
                 retry_badcase=enable_retry,
                 retry_badcase_max_times=retry_max_attempts,
                 retry_badcase_ratio_threshold=retry_threshold,
-                denoise=False # Explicitly disable denoiser for Tensor inputs
+                denoise=False
             )
 
             output_tensor = torch.from_numpy(wav_array).float().unsqueeze(0).unsqueeze(0)
-            
-            output_sr = voxcpm_model.tts_model.sample_rate
-            
+            output_sr = voxcpm_model.tts_model.sample_rate 
             output_audio = {"waveform": output_tensor, "sample_rate": output_sr}
 
             logger.info("Audio generation complete.")
