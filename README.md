@@ -40,6 +40,7 @@ This custom node handles everything from model downloading and memory management
 
 **✨ Key Features:**
 *   **High-Fidelity Audio (v1.5):** Supports 44.1kHz sampling rate, preserving high-frequency details for clearer, richer audio.
+*   **LoRA Support:** Load fine-tuned LoRA checkpoints to apply specific voice styles or improvements.
 *   **Context-Aware Expressive Speech:** The model understands text context to generate appropriate prosody and vocal expression.
 *   **True-to-Life Voice Cloning:** Clone a voice's timbre, accent, and emotional tone from a short audio sample.
 *   **Zero-Shot TTS:** Generate high-quality speech without any reference audio.
@@ -76,7 +77,7 @@ This node automatically downloads the required model files. You can select the s
 
 | Model | Parameters | Sampling Rate | Description | Hugging Face Link |
 |:---|:---:|:---:|:---|:---|
-| **VoxCPM1.5** | 800M | 44.1kHz | **Recommended.** Latest version with improved fidelity and efficiency. | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |
+| **VoxCPM1.5** | 800M | 44.1kHz | **Recommended.** Latest version with LoRA support, improved fidelity and efficiency. | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |
 | VoxCPM-0.5B | 640M | 16kHz | Original version. | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -88,7 +89,8 @@ This node automatically downloads the required model files. You can select the s
 3.  **Write Text:**
     *   For **voice cloning**, provide the transcript of your reference audio in the `prompt_text` field.
     *   Enter the text you want to generate in the main `text` field.
-4.  **Generate:** Queue the prompt. The node will process the text and generate a single audio file.
+4.  **Select LoRA (Optional):** Choose a LoRA from the dropdown if you have one installed in `models/loras`.
+5.  **Generate:** Queue the prompt. The node will process the text and generate a single audio file.
 
 > [!NOTE]
 > **Denoising:** The original VoxCPM library includes a built-in denoiser (ZipEnhancer). This feature is disabled in this node to keep dependencies light and allow users to choose their own audio preprocessing workflow within ComfyUI.
@@ -96,17 +98,35 @@ This node automatically downloads the required model files. You can select the s
 ### Node Inputs
 
 *   **`model_name`**: Select the VoxCPM model to use (v1.5 recommended).
+*   **`lora_name`**: Select a LoRA checkpoint from your `ComfyUI/models/loras` folder to apply style transfer or fine-tuning. Set to "None" to disable.
 *   **`text`**: The target text to synthesize into speech.
 *   **`prompt_audio` (Optional)**: A reference audio clip for voice cloning.
 *   **`prompt_text` (Optional)**: The exact transcript of the `prompt_audio`. This is **required** if `prompt_audio` is connected.
 *   **`cfg_value`**: Classifier-Free Guidance scale. Higher values increase adherence to the voice prompt but may reduce naturalness. Default is 2.0.
 *   **`inference_timesteps`**: Number of diffusion steps for audio generation. More steps can improve quality but take longer. Default is 10.
+*   **`min_tokens`**: Minimum length of generated audio tokens (default: 2).
+*   **`max_tokens`**: Maximum length of generated audio tokens (default: 2048).
 *   **`normalize_text`**: Enable to automatically process numbers, abbreviations, and punctuation. Disable for precise control with phoneme inputs.
 *   **`seed`**: A seed for reproducibility. Set to -1 for a random seed on each run.
 *   **`force_offload`**: Forces the model to be completely offloaded from VRAM after generation.
 *   **`device`**: Select the inference device (cuda, cpu, mps, directml). Defaults to the best available.
 *   **`retry_max_attempts`**: Maximum number of auto-retries if the generation fails (e.g., babbling or silence).
 *   **`retry_threshold`**: Threshold for detecting bad generations based on audio/text length ratio.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## 🎨 Using LoRA (Fine-Tuning)
+
+VoxCPM 1.5 supports LoRA to alter the voice style or improve specific characteristics.
+
+1.  **Installation:** Place your `.safetensors` LoRA files in `ComfyUI/models/loras/`.
+2.  **Selection:** Refresh the node, then select your file in the `lora_name` dropdown.
+
+### 💡 LoRA + Voice Cloning Observations
+While LoRA is often used for specific trained styles, combining it with **Voice Cloning** (`prompt_audio`) can yield superior results:
+
+*   **Enhanced Clarity:** Using a LoRA alongside a reference audio clip (`prompt_audio`) often produces clearer speech with significantly fewer artifacts compared to using the audio prompt alone.
+*   **"Warm-up" Effect:** Observations suggest that even after setting the LoRA input back to "None", subsequent generations using `prompt_audio` often maintain higher quality compared to a fresh cold start. This implies the model may benefit from a "warm-up" with LoRA weights loaded. If you are getting average results, try loading a LoRA once, generating a sound, and then disabling it.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
