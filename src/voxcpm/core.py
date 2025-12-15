@@ -33,7 +33,7 @@ class VoxCPM:
                 enable_dit=True,
                 enable_proj=False,
             )
-            print(f"[ComfyUI-VoxCPM] Auto-created default LoRAConfig for loading weights from: {lora_weights_path}")
+            # print(f"[ComfyUI-VoxCPM] Auto-created default LoRAConfig for loading weights from: {lora_weights_path}")
         
         self.tts_model = VoxCPMModel.from_local(voxcpm_model_path, optimize=optimize, lora_config=lora_config)
         
@@ -80,7 +80,6 @@ class VoxCPM:
             raise ValueError("You must provide hf_model_id")
         
         # Load from local path if provided
-        # todo: align with comfy codebase
         if os.path.isdir(repo_id):
             local_path = repo_id
         else:
