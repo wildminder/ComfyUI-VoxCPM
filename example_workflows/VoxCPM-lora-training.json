@@ -1,0 +1,245 @@
+{
+  "id": "332f7ac5-c30f-44aa-991a-aff51b05038a",
+  "revision": 0,
+  "last_node_id": 20,
+  "last_link_id": 33,
+  "nodes": [
+    {
+      "id": 6,
+      "type": "MarkdownNote",
+      "pos": [
+        -2303.648293235085,
+        -848.8082108931109
+      ],
+      "size": [
+        658.2711970658736,
+        696.1395515580612
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# VoxCPM LoRA Training Guide\n\nThis guide explains the parameters for fine-tuning VoxCPM v1.5 models using LoRA (Low-Rank Adaptation) within ComfyUI.\n\n## 1. Data Preparation (Dataset Maker)\n*   **Audio Directory**: Path to a folder containing pairs of `.wav` audio files and `.txt` transcripts (filenames must match, e.g., `001.wav` & `001.txt`).\n*   **Output Filename**: Name of the generated manifest (default: `train.jsonl`).\n\n## 2. Configuration (Train Config)\n\n### Core Parameters\n*   **Learning Rate**: Controls how fast the model learns. Default `1e-4`. Lower values (e.g., `5e-5`) are safer for small datasets; higher values (e.g., `2e-4`) learn faster but may be unstable.\n*   **LoRA Rank (r)**: The \"capacity\" of the fine-tune.\n    *   `32` (Default): Good balance for voice cloning.\n    *   `64-128`: Higher fidelity but uses more VRAM and disk space.\n    *   `8-16`: Lower VRAM, sufficient for simple style changes.\n*   **LoRA Alpha**: Scaling factor. Usually set to `Rank / 2` or `Rank`. Higher alpha = stronger LoRA influence.\n*   **Batch Size (Max Tokens)**: Instead of a fixed batch size, VoxCPM uses `Max Batch Tokens` (default `8192`) to dynamically batch audio of varying lengths. Reduce to `4096` if hitting OOM.\n\n### Architecture Targeting\n*   **Enable LM LoRA**: (Default: True) Adapts the Language Model (semantic understanding/prosody). Critical for text adherence.\n*   **Enable DiT LoRA**: (Default: True) Adapts the Diffusion Transformer (acoustic details/timbre). Critical for voice likeness.\n*   **Enable Proj LoRA**: (Default: False) Adapts projection layers. Generally not needed unless the base model and target voice are extremely different.\n\n### Optimization\n*   **Grad Accum Steps**: Simulates a larger batch size. `1` is standard. Increase (e.g., `4`) if training is unstable.\n*   **Warmup Steps**: Number of steps to ramp up learning rate. `100` is standard. Prevents early \"shock\" to the model.\n\n## 3. Training Execution (LoRA Trainer)\n*   **Max Steps**: Total training duration.\n    *   `1000-2000`: Often sufficient for single-speaker cloning (10-20 mins of data).\n    *   `5000+`: For larger datasets or complex styles.\n*   **Save Every Steps**: Frequency of saving checkpoints.\n*   **Num Workers**: Data loading threads. Set to `0` if experiencing crashes; `2-4` speeds up data loading.\n*   **Output Name**: Subfolder name in `models/loras` where results will be saved.\n\n## Tips for Success\n1.  **Dataset Quality**: 15-30 minutes of clean, high-quality audio is better than hours of noisy audio.\n2.  **Transcripts**: Ensure text matches audio exactly. Mismatches confuse the model.\n3.  **Monitoring**: Watch the Loss in the console. It should generally decrease. If it stays at `0.000`, something is wrong (check console for `grad_fn` warnings). If it explodes (NaN), lower the Learning Rate."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 18,
+      "type": "VoxCPM_DatasetMaker",
+      "pos": [
+        -1607.731772755444,
+        -456.9635662754167
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "Dataset Path",
+          "type": "STRING",
+          "links": [
+            32
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-VoxCPM",
+        "ver": "13752fac60417ac20e304a692bcbbadf0f1a027d",
+        "Node name for S&R": "VoxCPM_DatasetMaker"
+      },
+      "widgets_values": [
+        "C:\\_Dev\\lora",
+        "train.jsonl"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "easy showAnything",
+      "pos": [
+        -950.1122678718972,
+        -837.7801538035909
+      ],
+      "size": [
+        373,
+        120
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 33
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "e900c2ca9c0d90b0896881910ca7f3f02d88ebd8",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        "C:\\_Dev\\ComfyUI_t291c130\\ComfyUI\\models\\loras\\my_lora_v1"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "VoxCPM_TrainConfig",
+      "pos": [
+        -1605.079631508261,
+        -840.4421538035903
+      ],
+      "size": [
+        270,
+        322
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "Train Config",
+          "type": "*",
+          "links": [
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-VoxCPM",
+        "ver": "13752fac60417ac20e304a692bcbbadf0f1a027d",
+        "Node name for S&R": "VoxCPM_TrainConfig"
+      },
+      "widgets_values": [
+        0.0001,
+        32,
+        16,
+        0,
+        100,
+        1,
+        8192,
+        44100,
+        0.01,
+        true,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 19,
+      "type": "VoxCPM_LoraTrainer",
+      "pos": [
+        -1277.4805405991697,
+        -839.467790167227
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "train_config",
+          "type": "*",
+          "link": 31
+        },
+        {
+          "name": "dataset_path",
+          "type": "STRING",
+          "widget": {
+            "name": "dataset_path"
+          },
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LoRA Output Path",
+          "type": "STRING",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-VoxCPM",
+        "ver": "13752fac60417ac20e304a692bcbbadf0f1a027d",
+        "Node name for S&R": "VoxCPM_LoraTrainer"
+      },
+      "widgets_values": [
+        "VoxCPM1.5",
+        "",
+        "my_lora_v1",
+        1000,
+        200,
+        0
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    }
+  ],
+  "links": [
+    [
+      31,
+      20,
+      0,
+      19,
+      0,
+      "*"
+    ],
+    [
+      32,
+      18,
+      0,
+      19,
+      1,
+      "STRING"
+    ],
+    [
+      33,
+      19,
+      0,
+      16,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6830134553650705,
+      "offset": [
+        2746.2476932350855,
+        1200.633410893111
+      ]
+    },
+    "workflowRendererVersion": "LG",
+    "frontendVersion": "1.33.13",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
