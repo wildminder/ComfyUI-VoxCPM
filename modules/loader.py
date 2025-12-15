@@ -5,7 +5,6 @@ from huggingface_hub import snapshot_download
 
 import folder_paths
 
-# Import the VoxCPM library and config
 from ..src.voxcpm.core import VoxCPM
 from ..src.voxcpm.model.voxcpm import LoRAConfig
 from .model_info import AVAILABLE_VOXCPM_MODELS
@@ -72,8 +71,6 @@ class VoxCPMLoader:
 
         logger.info("Instantiating VoxCPM model...")
         
-        # Create default LoRA config to initialize layers for hot-swapping
-        # Using standard defaults: r=32, alpha=16
         default_lora_config = LoRAConfig(
             enable_lm=True,
             enable_dit=True,

@@ -14,6 +14,8 @@ from .modules.model_info import AVAILABLE_VOXCPM_MODELS
 from .modules.loader import VoxCPMModelHandler
 from .modules.patcher import VoxCPMPatcher
 
+from .voxcpm_train_nodes import VoxCPM_TrainConfig, VoxCPM_DatasetMaker, VoxCPM_LoraTrainer
+
 logger = logging.getLogger(__name__)
 
 VOXCPM_PATCHER_CACHE = {}
@@ -141,22 +143,17 @@ class VoxCPMNode(io.ComfyNode):
         if not voxcpm_model:
             raise RuntimeError(f"Failed to load VoxCPM model '{model_name}'. Check logs for details.")
 
-        #  LoRA
         if lora_name != "None":
             lora_path = folder_paths.get_full_path("loras", lora_name)
             if not lora_path:
                 raise FileNotFoundError(f"LoRA file not found: {lora_name}")
             
-            # Note: We load every time to ensure the selected LoRA is active.
-            # Maybe Optimization: could check if current LoRA is already loaded, but safe to reload.
             try:
-                # logger.info(f"Loading LoRA: {lora_name}")
                 voxcpm_model.load_lora(lora_path)
                 voxcpm_model.set_lora_enabled(True)
             except Exception as e:
                 raise RuntimeError(f"Failed to load LoRA '{lora_name}'. Ensure model was initialized with compatible LoRA config (default r=32). Error: {e}")
         else:
-            # Disable LoRA layers if None selected
             voxcpm_model.set_lora_enabled(False)
 
         set_seed(seed)
@@ -212,7 +209,12 @@ class VoxCPMNode(io.ComfyNode):
 
 class VoxCPMExtension(ComfyExtension):
     async def get_node_list(self) -> List[type[io.ComfyNode]]:
-        return [VoxCPMNode]
+        return [
+            VoxCPMNode,
+            VoxCPM_TrainConfig,
+            VoxCPM_DatasetMaker,
+            VoxCPM_LoraTrainer
+        ]
 
 async def comfy_entrypoint() -> VoxCPMExtension:
     return VoxCPMExtension()

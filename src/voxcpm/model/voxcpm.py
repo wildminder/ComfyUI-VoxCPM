@@ -194,15 +194,15 @@ class VoxCPMModel(nn.Module):
     def to(self, *args, **kwargs):
         # Override to setup cache when moving to device
         super().to(*args, **kwargs)
-        # Identify the device and dtype from the first parameter
-        device = next(self.parameters()).device
-        dtype = next(self.parameters()).dtype
-        
-        # Re-setup caches with correct device/dtype
-        # This is critical for ComfyUI as it moves models between CPU and GPU
-        self.base_lm.setup_cache(1, self.config.max_length, device, dtype)
-        self.residual_lm.setup_cache(1, self.config.max_length, device, dtype)
-        self.device = device
+        # Use simple try-except to safely get device/dtype if model has params
+        try:
+            device = next(self.parameters()).device
+            dtype = next(self.parameters()).dtype
+            self.base_lm.setup_cache(1, self.config.max_length, device, dtype)
+            self.residual_lm.setup_cache(1, self.config.max_length, device, dtype)
+            self.device = device
+        except StopIteration:
+            pass # No params yet
         return self
 
     def _apply_lora(self):
@@ -253,6 +253,103 @@ class VoxCPMModel(nn.Module):
 
     def _dtype(self):
         return get_dtype(self.config.dtype)
+
+    def forward(
+        self,
+        text_tokens: torch.Tensor,
+        text_mask: torch.Tensor,
+        audio_feats: torch.Tensor,
+        audio_mask: torch.Tensor,
+        loss_mask: torch.Tensor,
+        position_ids: torch.Tensor,
+        labels: torch.Tensor,
+        *,
+        progress: float = 0.0,
+        sample_generate: bool = False,
+    ):
+        del position_ids  # not used yet
+
+        # Ensure inputs are on correct device/dtype
+        text_tokens = text_tokens.to(self.device, dtype=torch.long)
+        text_mask = text_mask.to(self.device, dtype=self._dtype())
+        audio_feats = audio_feats.to(self.device, dtype=self._dtype())
+        audio_mask = audio_mask.to(self.device, dtype=self._dtype())
+        loss_mask = loss_mask.to(self.device, dtype=self._dtype())
+        labels = labels.to(self.device, dtype=torch.long)
+
+        B, T, P, D = audio_feats.shape
+        feat_embed = self.feat_encoder(audio_feats)
+        feat_embed = self.enc_to_lm_proj(feat_embed)
+
+        scale_emb = getattr(self.config.lm_config, "scale_emb", 1.0)
+        if not getattr(self.config.lm_config, "use_mup", False):
+            scale_emb = 1.0
+        text_embed = self.base_lm.embed_tokens(text_tokens) * scale_emb
+        combined_embed = text_mask.unsqueeze(-1) * text_embed + audio_mask.unsqueeze(-1) * feat_embed
+
+        enc_outputs, _ = self.base_lm(inputs_embeds=combined_embed, is_causal=True)
+        enc_outputs = enc_outputs.to(self._dtype())
+        enc_outputs = self.fsq_layer(enc_outputs) * audio_mask.unsqueeze(-1) + enc_outputs * text_mask.unsqueeze(-1)
+        lm_hidden = torch.cat((torch.zeros_like(enc_outputs[:, 0:1, :]), enc_outputs[:, :-1, :]), dim=1)
+
+        residual_inputs = enc_outputs + audio_mask.unsqueeze(-1) * feat_embed
+        residual_outputs, _ = self.residual_lm(inputs_embeds=residual_inputs, is_causal=True)
+        residual_outputs = residual_outputs.to(self._dtype())
+        residual_hidden = torch.cat(
+            (torch.zeros_like(residual_outputs[:, 0:1, :]), residual_outputs[:, :-1, :]),
+            dim=1,
+        )
+
+        dit_hidden = self.lm_to_dit_proj(lm_hidden) + self.res_to_dit_proj(residual_hidden)
+        dit_hidden = rearrange(dit_hidden, "b t c -> (b t) c")
+
+        # Keep diffusion inputs in the same dtype as the model (e.g., bfloat16)
+        target_dtype = self._dtype()
+
+        feat_gt = rearrange(audio_feats.to(target_dtype), "b t p d -> (b t) p d")
+        feat_cond = torch.cat(
+            (torch.zeros_like(audio_feats[:, 0:1, ...]), audio_feats[:, :-1, ...]),
+            dim=1,
+        )
+        feat_cond = rearrange(feat_cond.to(target_dtype), "b t p d -> (b t) p d")
+
+        loss_seq_mask = loss_mask.unsqueeze(-1).repeat(1, 1, self.patch_size)
+        loss_seq_mask = rearrange(loss_seq_mask, "b t p -> (b t) p 1").to(target_dtype)
+
+        diff_loss = self.feat_decoder.compute_loss(
+            feat_gt.transpose(1, 2).contiguous(),
+            dit_hidden,
+            cond=feat_cond.transpose(1, 2).contiguous(),
+            tgt_mask=loss_seq_mask.transpose(1, 2).contiguous(),
+            progress=progress,
+        )
+
+        stop_logits = self.stop_head(self.stop_actn(self.stop_proj(lm_hidden)))
+        stop_losses = self.stop_loss(stop_logits.transpose(1, 2), labels)
+        denom = torch.clamp(loss_mask.sum(), min=1.0)
+        stop_loss = (stop_losses * loss_mask).sum() / denom
+
+        feat_pred = None
+        if sample_generate:
+            feat_cond_for_sample = feat_cond.transpose(1, 2).contiguous()
+            feat_pred_seq = self.feat_decoder(
+                mu=dit_hidden,
+                patch_size=self.patch_size,
+                cond=feat_cond_for_sample,
+                n_timesteps=self.config.dit_config.cfm_config.inference_cfg_rate
+                if hasattr(self.config.dit_config.cfm_config, "inference_cfg_rate")
+                else 10,
+            )
+            feat_pred = rearrange(feat_pred_seq.transpose(1, 2), "(b t) d p -> b d (t p)", b=B, p=self.patch_size)
+
+        feat_gt_tensor = rearrange(feat_gt, "(b t) p d -> b d (t p)", b=B, p=self.patch_size)
+
+        return {
+            "loss/diff": diff_loss,
+            "loss/stop": stop_loss,
+            "feat_gt": feat_gt_tensor,
+            "feat_pred": feat_pred,
+        }
 
     def generate(self, *args, **kwargs) -> torch.Tensor:
         return next(self._generate(*args, streaming=False, **kwargs))
@@ -311,8 +408,7 @@ class VoxCPMModel(nn.Module):
             audio_mask = torch.zeros(text_length).type(torch.int32).to(text_token.device)
 
         else:
-            # Need to test: Only use target_text to avoid repeating the prompt. Gives better output
-            text = target_text 
+            text = prompt_text + target_text 
             
             text_token = torch.LongTensor(self.text_tokenizer(text))
             text_token = torch.cat(
@@ -325,7 +421,6 @@ class VoxCPMModel(nn.Module):
             text_length = text_token.shape[0]
 
             # ComfyUI Modification: Load from tensor if available, else path
-            # ... do not like path stuff
             if prompt_waveform is not None:
                 audio = prompt_waveform.clone()
                 sr = prompt_sample_rate
@@ -535,8 +630,7 @@ class VoxCPMModel(nn.Module):
         else:
             prompt_audio_feat = prompt_cache["audio_feat"]
             prompt_text = prompt_cache["prompt_text"]
-            # again: Do not append prompt_text to target_text
-            text = target_text 
+            text = prompt_text + target_text 
         
         text_token = torch.LongTensor(self.text_tokenizer(text))
         text_token = torch.cat(
@@ -745,8 +839,10 @@ class VoxCPMModel(nn.Module):
             weights_only=True,
         )["state_dict"]
         model = cls(config, tokenizer, audio_vae, lora_config)
+        
+        lm_dtype = get_dtype(model.config.dtype)
+
         if not training:
-            lm_dtype = get_dtype(model.config.dtype)
             model = model.to(lm_dtype)
         else: # training mode
             for name, param in model.named_parameters():
