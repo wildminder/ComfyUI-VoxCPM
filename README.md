@@ -33,7 +33,9 @@
 VoxCPM is a novel tokenizer-free Text-to-Speech system that redefines realism in speech synthesis by modeling speech in a continuous space. Built on the MiniCPM-4 backbone, it excels at generating highly expressive speech and performing accurate zero-shot voice cloning.
 
 <div align="center">
-      <img src="./example_workflows/VoxCPM_example.png" alt="ComfyUI-VoxCPM example workflow">
+
+  <img  alt="ComfyUI-VoxCPM example workflow" src="https://github.com/user-attachments/assets/9e5bc5a3-f5bb-4184-b5a9-d57db3acb6aa" />
+
   </div>
   
 This custom node handles everything from model downloading and memory management to audio processing, allowing you to generate high-quality speech directly from a text script and optional reference audio files.
