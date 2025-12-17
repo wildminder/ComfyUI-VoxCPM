@@ -5,9 +5,25 @@ from comfy_api.latest import ComfyExtension, io, ui
 
 from .modules.model_info import AVAILABLE_VOXCPM_MODELS
 from .modules.dataset_utils import create_jsonl_dataset
-from .modules.trainer import run_lora_training
 
 logger = logging.getLogger(__name__)
+# The training module imports 'argbind' and 'datasets'. 
+# We wrap this so the main inference node works without them.
+TRAINING_IMPORT_ERROR = None
+try:
+    from .modules.trainer import run_lora_training
+except ImportError as e:
+    run_lora_training = None
+    TRAINING_IMPORT_ERROR = str(e)
+    # Check specifically for the likely missing packages to give a better error
+    missing = []
+    try: import argbind
+    except ImportError: missing.append("argbind")
+    try: import datasets
+    except ImportError: missing.append("datasets")
+    
+    if missing:
+        TRAINING_IMPORT_ERROR = f"Missing required packages for training: {', '.join(missing)}. Please run: pip install {' '.join(missing)}"
 
 class VoxCPM_TrainConfig(io.ComfyNode):
     CATEGORY = "audio/tts/training"
@@ -102,10 +118,16 @@ class VoxCPM_LoraTrainer(io.ComfyNode):
 
     @classmethod
     def execute(cls, base_model_name, train_config, dataset_path, output_name, max_steps, save_every_steps, num_workers):
+        # Guard: Check if training module loaded successfully
+        if run_lora_training is None:
+            raise RuntimeError(f"Training functionality unavailable. {TRAINING_IMPORT_ERROR}")
+
+        # Determine output directory using ComfyUI's standard paths
         lora_base_dir = folder_paths.get_folder_paths("loras")[0]
         output_dir = os.path.join(lora_base_dir, output_name)
         
         try:
+            # Delegate to trainer module
             final_output_dir = run_lora_training(
                 base_model_name=base_model_name,
                 train_config=train_config,
