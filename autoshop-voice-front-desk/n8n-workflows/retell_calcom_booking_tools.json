@@ -1,0 +1,680 @@
+{
+  "name": "retell_calcom_booking_tools",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Find Appointment\nRetell custom tool: looks up existing booking by email.\nReturns booking_id if found, 400 if not.",
+        "height": 480,
+        "width": 1400,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-400, -100],
+      "typeVersion": 1,
+      "id": "note-find-appt",
+      "name": "Sticky Note - Find"
+    },
+    {
+      "parameters": {
+        "content": "## Cancel Appointment\nRetell custom tool: cancels a booking by ID.\nReturns status cancelled or error.",
+        "height": 480,
+        "width": 1200,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-400, 500],
+      "typeVersion": 1,
+      "id": "note-cancel-appt",
+      "name": "Sticky Note - Cancel"
+    },
+    {
+      "parameters": {
+        "content": "## Reschedule Appointment\nRetell custom tool: reschedules booking to a new time.\nReturns rescheduled status or error.",
+        "height": 480,
+        "width": 1400,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-400, 1100],
+      "typeVersion": 1,
+      "id": "note-reschedule-appt",
+      "name": "Sticky Note - Reschedule"
+    },
+    {
+      "parameters": {
+        "content": "## Check Availability\nRetell custom tool: checks Cal.com availability for a date range.\nReturns available time slots.",
+        "height": 480,
+        "width": 1400,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-400, 1700],
+      "typeVersion": 1,
+      "id": "note-availability",
+      "name": "Sticky Note - Availability"
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "find-appointment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-320, 100],
+      "id": "node-find-webhook",
+      "name": "Find Appointment",
+      "webhookId": "find-appointment-hook"
+    },
+    {
+      "parameters": {
+        "url": "https://api.cal.com/v2/bookings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "attendeeEmail",
+              "value": "={{ $json.body.args.user_email.toLowerCase() }}"
+            },
+            {
+              "name": "status",
+              "value": "upcoming"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "cal-api-version",
+              "value": "2024-08-13"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-80, 100],
+      "id": "node-get-bookings",
+      "name": "Get Bookings",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "CALCOM_BEARER_ID",
+          "name": "Cal.com API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [160, 100],
+      "id": "node-if-found",
+      "name": "If found"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [380, 0],
+      "id": "node-split-out",
+      "name": "Split Out",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "createdAt",
+              "order": "descending"
+            }
+          ]
+        },
+        "options": {
+          "disableDotNotation": false
+        }
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [580, 0],
+      "id": "node-sort",
+      "name": "Sort"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [760, 0],
+      "id": "node-limit",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-uid",
+              "leftValue": "={{ $json.uid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [940, 0],
+      "id": "node-has-uid",
+      "name": "Has UID?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"booking_id\": \"{{ $json.uid }}\", \"start\": \"{{ $json.startTime || $json.start }}\", \"end\": \"{{ $json.endTime || $json.end }}\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1160, -50],
+      "id": "node-find-success",
+      "name": "Respond Success (Found)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"Appointment not found.\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [600, 250],
+      "id": "node-find-not-found",
+      "name": "Respond Not Found"
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cancel-appointment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-320, 700],
+      "id": "node-cancel-webhook",
+      "name": "Cancel Appointment Webhook",
+      "webhookId": "cancel-appointment-hook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cancel-booking-id",
+              "name": "bookingid",
+              "value": "={{ $json.body.args.booking_id }}",
+              "type": "string"
+            },
+            {
+              "id": "cancel-reason",
+              "name": "cancelReason",
+              "value": "={{ $json.body.args.cancel_reason || 'Cancelled via phone' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-80, 700],
+      "id": "node-set-cancel-fields",
+      "name": "Set Cancel Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.cal.com/v2/bookings/{{ $json.bookingid }}/cancel",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "cal-api-version",
+              "value": "2024-09-13"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "cancellationReason",
+              "value": "={{ $json.cancelReason }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [160, 700],
+      "id": "node-delete-booking",
+      "name": "Cancel Booking",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "CALCOM_BEARER_ID",
+          "name": "Cal.com API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cancel-success",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [400, 700],
+      "id": "node-cancel-success-check",
+      "name": "Cancel Success?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"cancelled\"}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [640, 600],
+      "id": "node-cancel-success-response",
+      "name": "Respond Cancelled"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"Booking already cancelled or not found.\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [640, 850],
+      "id": "node-cancel-fail-response",
+      "name": "Respond Cancel Failed"
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reschedule-appointment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-320, 1300],
+      "id": "node-reschedule-webhook",
+      "name": "Reschedule Appointment Webhook",
+      "webhookId": "reschedule-appointment-hook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "reschedule-time",
+              "name": "new_booking_time",
+              "value": "={{ $json.body.args.new_booking_time }}",
+              "type": "string"
+            },
+            {
+              "id": "reschedule-booking-id",
+              "name": "bookingid",
+              "value": "={{ $json.body.args.booking_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-80, 1300],
+      "id": "node-set-reschedule-fields",
+      "name": "Set Reschedule Fields"
+    },
+    {
+      "parameters": {
+        "operation": "formatDate",
+        "date": "={{ $json.new_booking_time }}",
+        "format": "custom",
+        "customFormat": "yyyy-LL-dd'T'HH:mm:ss'Z'",
+        "outputFieldName": "startTimeModified",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [160, 1300],
+      "id": "node-format-date",
+      "name": "Format Date Time"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.cal.com/v2/bookings/{{ $('Set Reschedule Fields').item.json.bookingid }}/reschedule",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "cal-api-version",
+              "value": "2024-08-13"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "start",
+              "value": "={{ $json.startTimeModified }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 1300],
+      "id": "node-reschedule-booking",
+      "name": "Reschedule Booking",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "CALCOM_BEARER_ID",
+          "name": "Cal.com API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"rescheduled\"}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [700, 1200],
+      "id": "node-reschedule-success",
+      "name": "Respond Rescheduled"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"There was an error when trying to reschedule.\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [700, 1400],
+      "id": "node-reschedule-fail",
+      "name": "Respond Reschedule Failed"
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "check-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-320, 1900],
+      "id": "node-availability-webhook",
+      "name": "Check Availability Webhook",
+      "webhookId": "check-availability-hook"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cal.com/v2/slots/available",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "startTime",
+              "value": "={{ $json.body.args.start_date }}"
+            },
+            {
+              "name": "endTime",
+              "value": "={{ $json.body.args.end_date }}"
+            },
+            {
+              "name": "eventTypeId",
+              "value": "={{ $json.body.args.event_type_id || $env.CALCOM_EVENT_TYPE_ID }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "cal-api-version",
+              "value": "2024-08-13"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-80, 1900],
+      "id": "node-get-availability",
+      "name": "Get Available Slots",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "CALCOM_BEARER_ID",
+          "name": "Cal.com API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst slots = data.data?.slots || data.slots || {};\n\n// Flatten slot data into a readable list\nconst available = [];\nfor (const [date, times] of Object.entries(slots)) {\n  if (Array.isArray(times)) {\n    for (const slot of times) {\n      available.push({\n        date: date,\n        time: slot.time || slot.start || slot\n      });\n    }\n  }\n}\n\nif (available.length === 0) {\n  return { available: false, message: 'No available slots found for the requested dates.', slots: [] };\n}\n\n// Format for voice agent consumption (readable times)\nconst formatted = available.slice(0, 20).map(s => {\n  const dt = new Date(s.time);\n  const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n  const dateStr = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });\n  return `${dateStr} at ${timeStr}`;\n});\n\nreturn {\n  available: true,\n  count: available.length,\n  slots: formatted\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [160, 1900],
+      "id": "node-format-slots",
+      "name": "Format Available Slots"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [400, 1900],
+      "id": "node-availability-response",
+      "name": "Respond Availability"
+    }
+  ],
+  "connections": {
+    "Find Appointment": {
+      "main": [[{ "node": "Get Bookings", "type": "main", "index": 0 }]]
+    },
+    "Get Bookings": {
+      "main": [
+        [{ "node": "If found", "type": "main", "index": 0 }],
+        [{ "node": "Respond Not Found", "type": "main", "index": 0 }]
+      ]
+    },
+    "If found": {
+      "main": [
+        [{ "node": "Split Out", "type": "main", "index": 0 }],
+        [{ "node": "Respond Not Found", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Out": {
+      "main": [[{ "node": "Sort", "type": "main", "index": 0 }]]
+    },
+    "Sort": {
+      "main": [[{ "node": "Limit", "type": "main", "index": 0 }]]
+    },
+    "Limit": {
+      "main": [[{ "node": "Has UID?", "type": "main", "index": 0 }]]
+    },
+    "Has UID?": {
+      "main": [
+        [{ "node": "Respond Success (Found)", "type": "main", "index": 0 }],
+        [{ "node": "Respond Not Found", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Cancel Appointment Webhook": {
+      "main": [[{ "node": "Set Cancel Fields", "type": "main", "index": 0 }]]
+    },
+    "Set Cancel Fields": {
+      "main": [[{ "node": "Cancel Booking", "type": "main", "index": 0 }]]
+    },
+    "Cancel Booking": {
+      "main": [
+        [{ "node": "Cancel Success?", "type": "main", "index": 0 }],
+        [{ "node": "Respond Cancel Failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Cancel Success?": {
+      "main": [
+        [{ "node": "Respond Cancelled", "type": "main", "index": 0 }],
+        [{ "node": "Respond Cancel Failed", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Reschedule Appointment Webhook": {
+      "main": [[{ "node": "Set Reschedule Fields", "type": "main", "index": 0 }]]
+    },
+    "Set Reschedule Fields": {
+      "main": [[{ "node": "Format Date Time", "type": "main", "index": 0 }]]
+    },
+    "Format Date Time": {
+      "main": [[{ "node": "Reschedule Booking", "type": "main", "index": 0 }]]
+    },
+    "Reschedule Booking": {
+      "main": [
+        [{ "node": "Respond Rescheduled", "type": "main", "index": 0 }],
+        [{ "node": "Respond Reschedule Failed", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Check Availability Webhook": {
+      "main": [[{ "node": "Get Available Slots", "type": "main", "index": 0 }]]
+    },
+    "Get Available Slots": {
+      "main": [
+        [{ "node": "Format Available Slots", "type": "main", "index": 0 }],
+        [{ "node": "Respond Availability", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Available Slots": {
+      "main": [[{ "node": "Respond Availability", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    { "name": "autoshop" },
+    { "name": "retell" },
+    { "name": "calcom" },
+    { "name": "booking" }
+  ]
+}

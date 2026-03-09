@@ -161,7 +161,138 @@ POST {N8N_BASE_URL}/webhook/shop-config-sync
 
 ---
 
-## 4. Retell Call Analysis Schema
+## 4. Retell Custom Tool Webhooks (Cal.com Booking)
+
+These endpoints are called by the Retell voice agent during a live call as custom tools. They enable real-time booking operations when `booking_mode = 'calcom_live'`.
+
+### 4a. Find Appointment
+
+```
+POST {N8N_BASE_URL}/webhook/find-appointment
+```
+
+**Request (from Retell custom tool):**
+```json
+{
+  "call": { "call_id": "call_abc123" },
+  "args": {
+    "user_email": "john@example.com"
+  }
+}
+```
+
+**Response — Found:**
+```json
+{
+  "booking_id": "booking-uid-string",
+  "start": "2025-03-15T09:00:00Z",
+  "end": "2025-03-15T10:00:00Z"
+}
+```
+
+**Response — Not Found (400):**
+```json
+{
+  "error": "Appointment not found."
+}
+```
+
+### 4b. Cancel Appointment
+
+```
+POST {N8N_BASE_URL}/webhook/cancel-appointment
+```
+
+**Request:**
+```json
+{
+  "call": { "call_id": "call_abc123" },
+  "args": {
+    "booking_id": "booking-uid-string",
+    "cancel_reason": "Customer requested cancellation"
+  }
+}
+```
+
+**Response — Success:**
+```json
+{
+  "status": "cancelled"
+}
+```
+
+**Response — Failed (400):**
+```json
+{
+  "error": "Booking already cancelled or not found."
+}
+```
+
+### 4c. Reschedule Appointment
+
+```
+POST {N8N_BASE_URL}/webhook/reschedule-appointment
+```
+
+**Request:**
+```json
+{
+  "call": { "call_id": "call_abc123" },
+  "args": {
+    "booking_id": "booking-uid-string",
+    "new_booking_time": "2025-03-18T14:00:00"
+  }
+}
+```
+
+**Response — Success:**
+```json
+{
+  "status": "rescheduled"
+}
+```
+
+**Response — Failed (400):**
+```json
+{
+  "error": "There was an error when trying to reschedule."
+}
+```
+
+### 4d. Check Availability
+
+```
+POST {N8N_BASE_URL}/webhook/check-availability
+```
+
+**Request:**
+```json
+{
+  "call": { "call_id": "call_abc123" },
+  "args": {
+    "start_date": "2025-03-17T00:00:00Z",
+    "end_date": "2025-03-21T23:59:59Z",
+    "event_type_id": "12345"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "available": true,
+  "count": 15,
+  "slots": [
+    "Monday, March 17 at 9:00 AM",
+    "Monday, March 17 at 10:00 AM",
+    "Tuesday, March 18 at 2:00 PM"
+  ]
+}
+```
+
+---
+
+## 5. Retell Call Analysis Schema (Post-Call Extraction)
 
 Configure this in Retell's agent settings under "Post Call Analysis" to have Retell automatically extract structured fields from the transcript.
 
@@ -249,7 +380,7 @@ Configure this in Retell's agent settings under "Post Call Analysis" to have Ret
 
 ---
 
-## 5. Twilio SMS API (Outbound)
+## 6. Twilio SMS API (Outbound)
 
 Used internally by n8n via the Twilio node. No external API endpoint exposed.
 

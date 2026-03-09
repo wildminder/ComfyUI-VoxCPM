@@ -8,8 +8,8 @@
 4. Postgres (or Supabase) is the single source of truth for shops, callers, vehicles, calls, tasks, and messages.
 5. Twilio Messaging API is used for all outbound SMS.
 6. Shop hours are stored as JSON keyed by day-of-week with open/close times in the shop's local timezone.
-7. Booking mode is `request_only` — the system creates appointment requests, not confirmed bookings.
-8. No real-time calendar integration in V1; human staff confirm appointments.
+7. Booking mode supports `request_only` (default) or `calcom_live` — when Cal.com is configured, the voice agent can check availability, book, cancel, and reschedule in real time via custom tool webhooks.
+8. Cal.com integration is optional. Without it, the system creates appointment requests for human confirmation.
 9. After-hours calls are still answered by the voice agent, but outcomes route to callback tasks instead of live transfers.
 10. Multi-language support is config-driven; V1 defaults to English.
 
@@ -77,7 +77,8 @@ Inbound Call (Twilio → Retell)
 | ---------------- | ---------------- | ------------------------------------------ |
 | Voice agent      | Retell           | Live conversational AI on inbound calls    |
 | Phone/SMS        | Twilio           | Inbound DID routing, outbound SMS          |
-| Orchestration    | n8n              | 4 workflows: routing, processing, SLA, sync|
+| Scheduling       | Cal.com (opt.)   | Real-time booking, cancel, reschedule      |
+| Orchestration    | n8n              | 5 workflows: routing, processing, SLA, sync, booking tools|
 | Database         | Postgres/Supabase| Shops, callers, vehicles, calls, tasks     |
 | Admin UI         | Next.js (opt.)   | Dashboard for shop staff                   |
 
@@ -133,6 +134,27 @@ Inbound Call (Twilio → Retell)
 3. `Build Agent Config` — map DB fields to Retell agent dynamic variables
 4. `Push to Retell` — PATCH Retell agent via API
 5. `Log Sync` — record sync timestamp
+
+### Workflow 5: retell_calcom_booking_tools
+
+**Trigger:** Retell custom tool webhooks (4 separate webhook endpoints)
+
+This workflow provides real-time booking capabilities that the Retell voice agent calls as custom tools during a live conversation. Modeled after the AmplifyAutomation/n8n-templates receptionist pattern.
+
+**Endpoints:**
+1. `POST /webhook/find-appointment` — look up existing booking by attendee email
+2. `POST /webhook/cancel-appointment` — cancel a booking by ID with reason
+3. `POST /webhook/reschedule-appointment` — reschedule a booking to a new time
+4. `POST /webhook/check-availability` — check Cal.com slot availability for a date range
+
+**Node patterns:**
+- Each endpoint uses `respondToWebhook` with success/failure branches
+- Cal.com API v2 with Bearer auth and `cal-api-version` header
+- `onError: continueErrorOutput` for graceful failure handling
+- Date formatting via `dateTime` node for ISO 8601 conversion
+- Slot formatting via Code node for voice-friendly output
+
+**When to enable:** Set `booking_mode = 'calcom_live'` in shop config and configure `CALCOM_API_KEY` + `CALCOM_EVENT_TYPE_ID` environment variables.
 
 ## Security Considerations
 

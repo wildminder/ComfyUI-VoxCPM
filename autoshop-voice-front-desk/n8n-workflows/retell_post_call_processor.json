@@ -8,21 +8,22 @@
         "responseMode": "lastNode",
         "options": {}
       },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [240, 300],
       "id": "node-webhook",
       "name": "Retell Post-Call Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [240, 300]
+      "webhookId": "retell-post-call-hook"
     },
     {
       "parameters": {
-        "functionCode": "// Extract structured data from the Retell post-call payload\nconst body = $json.body || $json;\nconst callData = body.call || body;\nconst transcript = callData.transcript || '';\nconst customData = callData.call_analysis || callData.custom_analysis_data || {};\nconst metadata = callData.metadata || callData.dynamic_variables || {};\n\n// Fields to extract — these come from Retell's call_analysis if configured,\n// or we parse from transcript in the next LLM node.\nconst extracted = {\n  retell_call_id: callData.call_id || '',\n  from_number: callData.from_number || metadata.caller_phone || '',\n  to_number: callData.to_number || '',\n  started_at: callData.start_timestamp || null,\n  ended_at: callData.end_timestamp || null,\n  duration_sec: callData.duration_ms ? Math.round(callData.duration_ms / 1000) : null,\n  transcript: transcript,\n  recording_url: callData.recording_url || '',\n  transferred: callData.call_status === 'transferred' || false,\n  \n  // From call_analysis (Retell structured extraction)\n  intent: customData.intent || 'unknown',\n  urgency: customData.urgency || 'low',\n  customer_name: customData.customer_name || metadata.customer_name || '',\n  phone: callData.from_number || metadata.caller_phone || '',\n  year: customData.vehicle_year || null,\n  make: customData.vehicle_make || '',\n  model: customData.vehicle_model || '',\n  issue_summary: customData.issue_summary || '',\n  vehicle_drivable: customData.vehicle_drivable || 'unknown',\n  preferred_day: customData.preferred_day || '',\n  preferred_time: customData.preferred_time || '',\n  needs_tow: customData.needs_tow || false,\n  existing_customer: metadata.returning_customer === 'yes',\n  human_transfer_requested: customData.human_transfer_requested || false,\n  sentiment: customData.sentiment || 'neutral',\n  follow_up_type: customData.follow_up_type || 'none',\n  \n  // Shop context\n  shop_name: metadata.shop_name || '',\n  shop_number: callData.to_number || '',\n  after_hours: metadata.shop_is_open === 'false'\n};\n\nreturn { json: extracted };"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst callData = body.call || body;\nconst customData = callData.call_analysis || {};\nconst metadata = callData.retell_llm_dynamic_variables || callData.metadata || {};\nconst transcript = callData.transcript || '';\n\nreturn {\n  retell_call_id: callData.call_id || '',\n  from_number: callData.from_number || metadata.caller_phone || '',\n  to_number: callData.to_number || '',\n  started_at: callData.start_timestamp ? new Date(callData.start_timestamp).toISOString() : null,\n  ended_at: callData.end_timestamp ? new Date(callData.end_timestamp).toISOString() : null,\n  duration_sec: callData.duration_ms ? Math.round(callData.duration_ms / 1000) : null,\n  transcript: transcript,\n  recording_url: callData.recording_url || '',\n  transferred: callData.call_status === 'transferred',\n  call_status: callData.call_status || 'ended',\n  \n  intent: customData.intent || 'unknown',\n  urgency: customData.urgency || 'low',\n  customer_name: customData.customer_name || metadata.customer_name || '',\n  phone: callData.from_number || metadata.caller_phone || '',\n  year: customData.vehicle_year || null,\n  make: customData.vehicle_make || '',\n  model: customData.vehicle_model || '',\n  issue_summary: customData.issue_summary || '',\n  vehicle_drivable: customData.vehicle_drivable || 'unknown',\n  preferred_day: customData.preferred_day || '',\n  preferred_time: customData.preferred_time || '',\n  needs_tow: customData.needs_tow || false,\n  existing_customer: metadata.returning_customer === 'yes',\n  human_transfer_requested: customData.human_transfer_requested || false,\n  sentiment: customData.sentiment || 'neutral',\n  follow_up_type: customData.follow_up_type || 'none',\n  \n  shop_name: metadata.shop_name || '',\n  shop_number: callData.to_number || '',\n  after_hours: metadata.shop_is_open === 'false'\n};"
       },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
       "id": "node-extract",
-      "name": "Extract Call Fields",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [460, 300]
+      "name": "Extract Call Fields"
     },
     {
       "parameters": {
@@ -30,11 +31,11 @@
         "query": "SELECT id FROM shops WHERE main_number = '{{ $json.shop_number }}' LIMIT 1;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 300],
       "id": "node-shop-lookup",
       "name": "Get Shop ID",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [680, 300],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -45,14 +46,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO callers (phone, name)\nVALUES (\n  '{{ $node[\"Extract Call Fields\"].json.phone }}',\n  '{{ $node[\"Extract Call Fields\"].json.customer_name }}'\n)\nON CONFLICT (phone) DO UPDATE SET\n  name = COALESCE(NULLIF('{{ $node[\"Extract Call Fields\"].json.customer_name }}', ''), callers.name),\n  updated_at = now()\nRETURNING id;",
+        "query": "INSERT INTO callers (phone, name)\nVALUES (\n  '{{ $node['Extract Call Fields'].json.phone }}',\n  '{{ $node['Extract Call Fields'].json.customer_name }}'\n)\nON CONFLICT (phone) DO UPDATE SET\n  name = COALESCE(NULLIF('{{ $node['Extract Call Fields'].json.customer_name }}', ''), callers.name),\n  updated_at = now()\nRETURNING id;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 300],
       "id": "node-upsert-caller",
       "name": "Upsert Caller",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [900, 300],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -62,42 +63,47 @@
     },
     {
       "parameters": {
-        "functionCode": "const extracted = $node['Extract Call Fields'].json;\n\n// Only upsert vehicle if we have at least make or model\nif (!extracted.make && !extracted.model) {\n  return { json: { vehicle_id: null, skip: true } };\n}\n\nreturn { json: { \n  caller_id: $node['Upsert Caller'].json[0]?.id || $node['Upsert Caller'].json.id,\n  year: extracted.year,\n  make: extracted.make,\n  model: extracted.model,\n  drivable_status: extracted.vehicle_drivable,\n  skip: false\n} };"
-      },
-      "id": "node-vehicle-check",
-      "name": "Prepare Vehicle Data",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [1120, 300]
-    },
-    {
-      "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.skip }}",
-              "value2": false
+              "id": "has-vehicle",
+              "leftValue": "={{ $node['Extract Call Fields'].json.make }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "id": "node-has-vehicle",
-      "name": "Has Vehicle Data?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1340, 300]
+      "typeVersion": 2.2,
+      "position": [1120, 300],
+      "id": "node-has-vehicle",
+      "name": "Has Vehicle Data?"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO vehicles (caller_id, year, make, model, drivable_status)\nVALUES (\n  '{{ $json.caller_id }}',\n  {{ $json.year || 'NULL' }},\n  '{{ $json.make }}',\n  '{{ $json.model }}',\n  '{{ $json.drivable_status }}'\n)\nRETURNING id;",
+        "query": "INSERT INTO vehicles (caller_id, year, make, model, drivable_status)\nVALUES (\n  '{{ $node['Upsert Caller'].json.id }}',\n  {{ $node['Extract Call Fields'].json.year || 'NULL' }},\n  '{{ $node['Extract Call Fields'].json.make }}',\n  '{{ $node['Extract Call Fields'].json.model }}',\n  '{{ $node['Extract Call Fields'].json.vehicle_drivable }}'\n)\nRETURNING id;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1340, 200],
       "id": "node-upsert-vehicle",
       "name": "Insert Vehicle",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1560, 200],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -108,59 +114,73 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO calls (\n  shop_id, caller_id, retell_call_id, from_number, to_number,\n  started_at, ended_at, duration_sec, intent, urgency,\n  summary, transcript, transferred, sentiment, recording_url,\n  human_transfer_requested, after_hours, extracted_data\n) VALUES (\n  '{{ $node[\"Get Shop ID\"].json[0]?.id || $node[\"Get Shop ID\"].json.id }}',\n  '{{ $node[\"Upsert Caller\"].json[0]?.id || $node[\"Upsert Caller\"].json.id }}',\n  '{{ $node[\"Extract Call Fields\"].json.retell_call_id }}',\n  '{{ $node[\"Extract Call Fields\"].json.from_number }}',\n  '{{ $node[\"Extract Call Fields\"].json.to_number }}',\n  {{ $node[\"Extract Call Fields\"].json.started_at ? \"'\" + $node[\"Extract Call Fields\"].json.started_at + \"'\" : 'NULL' }},\n  {{ $node[\"Extract Call Fields\"].json.ended_at ? \"'\" + $node[\"Extract Call Fields\"].json.ended_at + \"'\" : 'NULL' }},\n  {{ $node[\"Extract Call Fields\"].json.duration_sec || 'NULL' }},\n  '{{ $node[\"Extract Call Fields\"].json.intent }}',\n  '{{ $node[\"Extract Call Fields\"].json.urgency }}',\n  '{{ $node[\"Extract Call Fields\"].json.issue_summary }}',\n  '{{ $node[\"Extract Call Fields\"].json.transcript }}',\n  {{ $node[\"Extract Call Fields\"].json.transferred }},\n  '{{ $node[\"Extract Call Fields\"].json.sentiment }}',\n  '{{ $node[\"Extract Call Fields\"].json.recording_url }}',\n  {{ $node[\"Extract Call Fields\"].json.human_transfer_requested }},\n  {{ $node[\"Extract Call Fields\"].json.after_hours }},\n  '{{ JSON.stringify($node[\"Extract Call Fields\"].json) }}'\n)\nRETURNING id;",
+        "query": "INSERT INTO calls (\n  shop_id, caller_id, retell_call_id, from_number, to_number,\n  started_at, ended_at, duration_sec, intent, urgency,\n  summary, transcript, transferred, sentiment, recording_url,\n  human_transfer_requested, after_hours, extracted_data\n) VALUES (\n  '{{ $node['Get Shop ID'].json.id }}',\n  '{{ $node['Upsert Caller'].json.id }}',\n  '{{ $node['Extract Call Fields'].json.retell_call_id }}',\n  '{{ $node['Extract Call Fields'].json.from_number }}',\n  '{{ $node['Extract Call Fields'].json.to_number }}',\n  {{ $node['Extract Call Fields'].json.started_at ? \"'\" + $node['Extract Call Fields'].json.started_at + \"'\" : 'NULL' }},\n  {{ $node['Extract Call Fields'].json.ended_at ? \"'\" + $node['Extract Call Fields'].json.ended_at + \"'\" : 'NULL' }},\n  {{ $node['Extract Call Fields'].json.duration_sec || 'NULL' }},\n  '{{ $node['Extract Call Fields'].json.intent }}',\n  '{{ $node['Extract Call Fields'].json.urgency }}',\n  '{{ $node['Extract Call Fields'].json.issue_summary }}',\n  '{{ $node['Extract Call Fields'].json.transcript }}',\n  {{ $node['Extract Call Fields'].json.transferred }},\n  '{{ $node['Extract Call Fields'].json.sentiment }}',\n  '{{ $node['Extract Call Fields'].json.recording_url }}',\n  {{ $node['Extract Call Fields'].json.human_transfer_requested }},\n  {{ $node['Extract Call Fields'].json.after_hours }},\n  '{{ JSON.stringify($node['Extract Call Fields'].json) }}'\n)\nRETURNING id;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1560, 300],
       "id": "node-insert-call",
       "name": "Insert Call Record",
-      "type": "n8n-nodes-base.postgres",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const extracted = $('Extract Call Fields').first().json;\nconst intent = extracted.intent;\nconst urgency = extracted.urgency;\nconst shopId = $('Get Shop ID').first().json.id;\nconst callerId = $('Upsert Caller').first().json.id;\nconst callId = $('Insert Call Record').first().json.id;\n\nconst result = {\n  intent,\n  urgency,\n  shop_id: shopId,\n  caller_id: callerId,\n  call_id: callId,\n  create_appointment: false,\n  create_task: false,\n  task_type: null,\n  task_priority: 'medium',\n  sms_template: null,\n  alert_staff: false\n};\n\nswitch (intent) {\n  case 'new_appointment':\n    result.create_appointment = true;\n    result.create_task = true;\n    result.task_type = 'appointment_confirm';\n    result.sms_template = 'booking_request_captured';\n    if (extracted.preferred_day && extracted.preferred_day.toLowerCase().includes('today')) {\n      result.task_priority = 'high';\n    }\n    break;\n  case 'existing_status':\n    result.create_task = true;\n    result.task_type = 'status_followup';\n    result.task_priority = 'medium';\n    result.sms_template = 'status_request_received';\n    break;\n  case 'price_question':\n    result.create_appointment = !!extracted.make;\n    result.create_task = true;\n    result.task_type = 'callback';\n    result.sms_template = 'booking_request_captured';\n    break;\n  case 'urgent_breakdown':\n  case 'tow_request':\n    result.create_task = true;\n    result.task_type = 'urgent_callback';\n    result.task_priority = 'urgent';\n    result.sms_template = 'urgent_callback';\n    result.alert_staff = true;\n    break;\n  case 'angry_customer':\n    result.create_task = true;\n    result.task_type = 'callback';\n    result.task_priority = 'high';\n    result.sms_template = 'urgent_callback';\n    result.alert_staff = true;\n    break;\n  case 'hours_address':\n    result.sms_template = 'hours_address_reply';\n    break;\n  case 'vendor_sales':\n  case 'wrong_number':\n    break;\n  default:\n    result.create_task = true;\n    result.task_type = 'callback';\n    break;\n}\n\nif (extracted.after_hours && result.create_task) {\n  if (result.task_type === 'appointment_confirm') {\n    result.sms_template = 'after_hours_intake_confirmation';\n  }\n}\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1780, 300],
-      "credentials": {
-        "postgres": {
-          "id": "POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "functionCode": "const extracted = $node['Extract Call Fields'].json;\nconst intent = extracted.intent;\nconst urgency = extracted.urgency;\nconst shopId = $node['Get Shop ID'].json[0]?.id || $node['Get Shop ID'].json.id;\nconst callerId = $node['Upsert Caller'].json[0]?.id || $node['Upsert Caller'].json.id;\nconst callId = $node['Insert Call Record'].json[0]?.id || $node['Insert Call Record'].json.id;\n\nconst result = {\n  intent,\n  urgency,\n  shop_id: shopId,\n  caller_id: callerId,\n  call_id: callId,\n  create_appointment: false,\n  create_task: false,\n  task_type: null,\n  task_priority: 'medium',\n  sms_template: null,\n  alert_staff: false\n};\n\n// Route by intent\nswitch (intent) {\n  case 'new_appointment':\n    result.create_appointment = true;\n    result.create_task = true;\n    result.task_type = 'appointment_confirm';\n    result.sms_template = 'booking_request_captured';\n    if (extracted.preferred_day && extracted.preferred_day.toLowerCase().includes('today')) {\n      result.task_priority = 'high';\n    }\n    break;\n\n  case 'existing_status':\n    result.create_task = true;\n    result.task_type = 'status_followup';\n    result.task_priority = 'medium';\n    result.sms_template = 'status_request_received';\n    break;\n\n  case 'price_question':\n    result.create_appointment = !!extracted.make; // only if vehicle captured\n    result.create_task = true;\n    result.task_type = 'callback';\n    result.sms_template = 'booking_request_captured';\n    break;\n\n  case 'urgent_breakdown':\n  case 'tow_request':\n    result.create_task = true;\n    result.task_type = 'urgent_callback';\n    result.task_priority = 'urgent';\n    result.sms_template = 'urgent_callback';\n    result.alert_staff = true;\n    break;\n\n  case 'angry_customer':\n    result.create_task = true;\n    result.task_type = 'callback';\n    result.task_priority = 'high';\n    result.sms_template = 'urgent_callback';\n    result.alert_staff = true;\n    break;\n\n  case 'hours_address':\n    result.sms_template = 'hours_address_reply';\n    break;\n\n  case 'vendor_sales':\n  case 'wrong_number':\n    // No action needed\n    break;\n\n  default:\n    result.create_task = true;\n    result.task_type = 'callback';\n    break;\n}\n\n// After-hours override: tasks become callbacks\nif (extracted.after_hours && result.create_task) {\n  if (result.task_type === 'appointment_confirm') {\n    result.sms_template = 'after_hours_intake_confirmation';\n  }\n}\n\nreturn { json: result };"
-      },
       "id": "node-route-intent",
-      "name": "Route by Intent",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [2000, 300]
+      "name": "Route by Intent"
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.create_appointment }}",
-              "value2": true
+              "id": "create-appt-check",
+              "leftValue": "={{ $json.create_appointment }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "id": "node-create-appt-check",
-      "name": "Create Appointment?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [2220, 200]
+      "typeVersion": 2.2,
+      "position": [2000, 150],
+      "id": "node-create-appt-check",
+      "name": "Create Appointment?"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO appointment_requests (\n  shop_id, caller_id, call_id, vehicle_id,\n  requested_service, requested_day, requested_time, source\n) VALUES (\n  '{{ $node[\"Route by Intent\"].json.shop_id }}',\n  '{{ $node[\"Route by Intent\"].json.caller_id }}',\n  '{{ $node[\"Route by Intent\"].json.call_id }}',\n  {{ $node[\"Insert Vehicle\"].json[0]?.id ? \"'\" + $node[\"Insert Vehicle\"].json[0].id + \"'\" : 'NULL' }},\n  '{{ $node[\"Extract Call Fields\"].json.issue_summary }}',\n  '{{ $node[\"Extract Call Fields\"].json.preferred_day }}',\n  '{{ $node[\"Extract Call Fields\"].json.preferred_time }}',\n  'voice_intake'\n)\nRETURNING id;",
+        "query": "INSERT INTO appointment_requests (\n  shop_id, caller_id, call_id, vehicle_id,\n  requested_service, requested_day, requested_time, source\n) VALUES (\n  '{{ $node['Route by Intent'].json.shop_id }}',\n  '{{ $node['Route by Intent'].json.caller_id }}',\n  '{{ $node['Route by Intent'].json.call_id }}',\n  {{ $node['Insert Vehicle'].json ? \"'\" + $node['Insert Vehicle'].json.id + \"'\" : 'NULL' }},\n  '{{ $node['Extract Call Fields'].json.issue_summary }}',\n  '{{ $node['Extract Call Fields'].json.preferred_day }}',\n  '{{ $node['Extract Call Fields'].json.preferred_time }}',\n  'voice_intake'\n)\nRETURNING id;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2220, 50],
       "id": "node-insert-appt",
       "name": "Insert Appointment Request",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [2440, 100],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -171,31 +191,45 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ $node['Route by Intent'].json.create_task }}",
-              "value2": true
+              "id": "create-task-check",
+              "leftValue": "={{ $json.create_task }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "id": "node-create-task-check",
-      "name": "Create Task?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [2220, 400]
+      "typeVersion": 2.2,
+      "position": [2000, 350],
+      "id": "node-create-task-check",
+      "name": "Create Task?"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO tasks (\n  shop_id, caller_id, call_id,\n  task_type, priority, status,\n  due_at, notes\n) VALUES (\n  '{{ $node[\"Route by Intent\"].json.shop_id }}',\n  '{{ $node[\"Route by Intent\"].json.caller_id }}',\n  '{{ $node[\"Route by Intent\"].json.call_id }}',\n  '{{ $node[\"Route by Intent\"].json.task_type }}',\n  '{{ $node[\"Route by Intent\"].json.task_priority }}',\n  'open',\n  CASE\n    WHEN '{{ $node[\"Route by Intent\"].json.task_priority }}' = 'urgent' THEN now() + interval '15 minutes'\n    WHEN '{{ $node[\"Route by Intent\"].json.task_priority }}' = 'high' THEN now() + interval '1 hour'\n    ELSE now() + interval '4 hours'\n  END,\n  '{{ $node[\"Extract Call Fields\"].json.issue_summary }}'\n)\nRETURNING id;",
+        "query": "INSERT INTO tasks (\n  shop_id, caller_id, call_id,\n  task_type, priority, status,\n  due_at, notes\n) VALUES (\n  '{{ $node['Route by Intent'].json.shop_id }}',\n  '{{ $node['Route by Intent'].json.caller_id }}',\n  '{{ $node['Route by Intent'].json.call_id }}',\n  '{{ $node['Route by Intent'].json.task_type }}',\n  '{{ $node['Route by Intent'].json.task_priority }}',\n  'open',\n  CASE\n    WHEN '{{ $node['Route by Intent'].json.task_priority }}' = 'urgent' THEN now() + interval '15 minutes'\n    WHEN '{{ $node['Route by Intent'].json.task_priority }}' = 'high' THEN now() + interval '1 hour'\n    ELSE now() + interval '4 hours'\n  END,\n  '{{ $node['Extract Call Fields'].json.issue_summary }}'\n)\nRETURNING id;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2220, 350],
       "id": "node-insert-task",
       "name": "Insert Task",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [2440, 400],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -205,30 +239,44 @@
     },
     {
       "parameters": {
-        "functionCode": "const route = $node['Route by Intent'].json;\nconst extracted = $node['Extract Call Fields'].json;\nconst template = route.sms_template;\n\nif (!template || !extracted.phone) {\n  return { json: { skip: true } };\n}\n\n// SMS templates\nconst templates = {\n  booking_request_captured: `Hi ${extracted.customer_name || 'there'}, thanks for calling ${extracted.shop_name}! We've received your appointment request for your ${extracted.year || ''} ${extracted.make || ''} ${extracted.model || ''}. We'll confirm your time shortly.`,\n  \n  urgent_callback: `Hi ${extracted.customer_name || 'there'}, we received your call about an urgent issue with your ${extracted.year || ''} ${extracted.make || ''} ${extracted.model || ''}. A team member will call you back as soon as possible. If this is an emergency, please call 911.`,\n  \n  status_request_received: `Hi ${extracted.customer_name || 'there'}, thanks for calling ${extracted.shop_name}. We've noted your request for a status update. A service advisor will reach out to you shortly.`,\n  \n  hours_address_reply: `${extracted.shop_name} is located at ${$node['Extract Call Fields'].json.shop_name ? '' : 'our shop'}. ${extracted.shop_name || 'We'} look forward to seeing you!`,\n  \n  after_hours_intake_confirmation: `Hi ${extracted.customer_name || 'there'}, thanks for calling ${extracted.shop_name} after hours. We've captured your info and someone will reach out when the shop opens. Thanks for your patience!`,\n  \n  missed_call_followup: `Hi, we noticed we missed your call at ${extracted.shop_name}. How can we help? Reply to this message or call us back anytime.`\n};\n\nconst smsBody = templates[template] || `Thanks for calling ${extracted.shop_name}. We'll be in touch!`;\n\nreturn { json: {\n  skip: false,\n  to: extracted.phone,\n  body: smsBody,\n  template: template,\n  shop_id: route.shop_id,\n  caller_id: route.caller_id,\n  call_id: route.call_id\n} };"
+        "jsCode": "const route = $('Route by Intent').first().json;\nconst extracted = $('Extract Call Fields').first().json;\nconst template = route.sms_template;\n\nif (!template || !extracted.phone) {\n  return { skip: true };\n}\n\nconst vehicle = [extracted.year, extracted.make, extracted.model].filter(Boolean).join(' ');\n\nconst templates = {\n  booking_request_captured: `Hi ${extracted.customer_name || 'there'}, thanks for calling ${extracted.shop_name}! We've received your appointment request${vehicle ? ' for your ' + vehicle : ''}. We'll confirm your time shortly.`,\n  urgent_callback: `Hi ${extracted.customer_name || 'there'}, we received your call about an urgent issue${vehicle ? ' with your ' + vehicle : ''}. A team member will call you back as soon as possible. If this is an emergency, please call 911.`,\n  status_request_received: `Hi ${extracted.customer_name || 'there'}, thanks for calling ${extracted.shop_name}. We've noted your request for a status update. A service advisor will reach out to you shortly.`,\n  hours_address_reply: `Thanks for calling ${extracted.shop_name}! We look forward to seeing you.`,\n  after_hours_intake_confirmation: `Hi ${extracted.customer_name || 'there'}, thanks for calling ${extracted.shop_name} after hours. We've captured your info and someone will reach out when the shop opens. Thanks for your patience!`,\n  missed_call_followup: `Hi, we noticed we missed your call at ${extracted.shop_name}. How can we help? Reply to this message or call us back anytime.`\n};\n\nconst smsBody = templates[template] || `Thanks for calling ${extracted.shop_name}. We'll be in touch!`;\n\nreturn {\n  skip: false,\n  to: extracted.phone,\n  body: smsBody,\n  template: template,\n  shop_id: route.shop_id,\n  caller_id: route.caller_id,\n  call_id: route.call_id\n};"
       },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 550],
       "id": "node-build-sms",
-      "name": "Build SMS",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [2660, 300]
+      "name": "Build SMS"
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.skip }}",
-              "value2": false
+              "id": "sms-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "id": "node-sms-check",
-      "name": "Send SMS?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [2880, 300]
+      "typeVersion": 2.2,
+      "position": [2220, 550],
+      "id": "node-sms-check",
+      "name": "Send SMS?"
     },
     {
       "parameters": {
@@ -238,29 +286,30 @@
         "to": "={{ $json.to }}",
         "body": "={{ $json.body }}"
       },
-      "id": "node-send-sms",
-      "name": "Send SMS via Twilio",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [3100, 200],
+      "position": [2440, 450],
+      "id": "node-send-sms",
+      "name": "Send SMS via Twilio",
       "credentials": {
         "twilioApi": {
           "id": "TWILIO_CREDENTIAL_ID",
           "name": "Twilio"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO messages (shop_id, caller_id, call_id, message_type, sms_body, to_number, from_number, twilio_sid)\nVALUES (\n  '{{ $node[\"Build SMS\"].json.shop_id }}',\n  '{{ $node[\"Build SMS\"].json.caller_id }}',\n  '{{ $node[\"Build SMS\"].json.call_id }}',\n  'sms_outbound',\n  '{{ $node[\"Build SMS\"].json.body }}',\n  '{{ $node[\"Build SMS\"].json.to }}',\n  '{{ $env.TWILIO_SMS_FROM }}',\n  '{{ $json.sid || \"\" }}'\n);",
+        "query": "INSERT INTO messages (shop_id, caller_id, call_id, message_type, sms_body, to_number, from_number, twilio_sid)\nVALUES (\n  '{{ $node['Build SMS'].json.shop_id }}',\n  '{{ $node['Build SMS'].json.caller_id }}',\n  '{{ $node['Build SMS'].json.call_id }}',\n  'sms_outbound',\n  '{{ $node['Build SMS'].json.body }}',\n  '{{ $node['Build SMS'].json.to }}',\n  '{{ $env.TWILIO_SMS_FROM }}',\n  '{{ $json.sid || '' }}'\n);",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2660, 450],
       "id": "node-log-sms",
       "name": "Log SMS to DB",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [3320, 200],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -271,19 +320,33 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ $node['Route by Intent'].json.alert_staff }}",
-              "value2": true
+              "id": "alert-check",
+              "leftValue": "={{ $node['Route by Intent'].json.alert_staff }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "id": "node-alert-check",
-      "name": "Alert Staff?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [2880, 500]
+      "typeVersion": 2.2,
+      "position": [2000, 750],
+      "id": "node-alert-check",
+      "name": "Alert Staff?"
     },
     {
       "parameters": {
@@ -293,17 +356,31 @@
         "to": "={{ $env.SHOP_ALERT_PHONE }}",
         "body": "=URGENT: {{ $node['Extract Call Fields'].json.customer_name || 'Unknown caller' }} called about {{ $node['Extract Call Fields'].json.issue_summary || 'an urgent issue' }}. Vehicle: {{ $node['Extract Call Fields'].json.year || '' }} {{ $node['Extract Call Fields'].json.make || '' }} {{ $node['Extract Call Fields'].json.model || '' }}. Call back: {{ $node['Extract Call Fields'].json.phone }}"
       },
-      "id": "node-alert-sms",
-      "name": "Send Staff Alert SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [3100, 500],
+      "position": [2220, 750],
+      "id": "node-alert-sms",
+      "name": "Send Staff Alert SMS",
       "credentials": {
         "twilioApi": {
           "id": "TWILIO_CREDENTIAL_ID",
           "name": "Twilio"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Post-Call Processor\nExtracts structured data from Retell call.\nUpserts caller + vehicle, inserts call record.\nRoutes by intent to create tasks, appointments, SMS.",
+        "height": 200,
+        "width": 500,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [240, 80],
+      "typeVersion": 1,
+      "id": "note-header",
+      "name": "Sticky Note"
     }
   ],
   "connections": {
@@ -317,9 +394,6 @@
       "main": [[{ "node": "Upsert Caller", "type": "main", "index": 0 }]]
     },
     "Upsert Caller": {
-      "main": [[{ "node": "Prepare Vehicle Data", "type": "main", "index": 0 }]]
-    },
-    "Prepare Vehicle Data": {
       "main": [[{ "node": "Has Vehicle Data?", "type": "main", "index": 0 }]]
     },
     "Has Vehicle Data?": {
@@ -364,7 +438,10 @@
       ]
     },
     "Send SMS via Twilio": {
-      "main": [[{ "node": "Log SMS to DB", "type": "main", "index": 0 }]]
+      "main": [
+        [{ "node": "Log SMS to DB", "type": "main", "index": 0 }],
+        []
+      ]
     },
     "Alert Staff?": {
       "main": [
@@ -373,12 +450,64 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "tags": [
     { "name": "autoshop" },
     { "name": "retell" },
     { "name": "post-call" }
-  ]
+  ],
+  "pinData": {
+    "Retell Post-Call Webhook": [
+      {
+        "json": {
+          "headers": {
+            "content-type": "application/json",
+            "x-retell-signature": "v=EXAMPLE_SIGNATURE"
+          },
+          "body": {
+            "event": "call_ended",
+            "call": {
+              "call_id": "test-call-001",
+              "call_type": "phone_call",
+              "from_number": "+15559876543",
+              "to_number": "+15551234567",
+              "call_status": "ended",
+              "start_timestamp": 1710000000000,
+              "end_timestamp": 1710000180000,
+              "duration_ms": 180000,
+              "transcript": "Agent: Hi, thanks for calling Mike's Auto Repair. How can I help you today?\nUser: Hi, my name is John Smith. I have a 2019 Toyota Camry and the check engine light came on. It's also running a bit rough.\nAgent: I'm sorry to hear that, John. Is the vehicle still drivable?\nUser: Yes, it's still drivable, just running rough.\nAgent: Got it. I'd recommend bringing it in for a diagnostic. When would work best for you?\nUser: How about Thursday morning?\nAgent: Thursday morning works. Let me get that set up for you. To confirm: John Smith, 2019 Toyota Camry, check engine light and rough running, Thursday morning. Is that all correct?\nUser: Yes, that's right.\nAgent: We'll send you a text with the details. Thanks for calling!",
+              "recording_url": "",
+              "retell_llm_dynamic_variables": {
+                "shop_name": "Mike's Auto Repair",
+                "customer_name": "",
+                "returning_customer": "no",
+                "shop_is_open": "true",
+                "caller_phone": "+15559876543"
+              },
+              "call_analysis": {
+                "intent": "new_appointment",
+                "urgency": "low",
+                "customer_name": "John Smith",
+                "vehicle_year": 2019,
+                "vehicle_make": "Toyota",
+                "vehicle_model": "Camry",
+                "issue_summary": "Check engine light on, rough idle",
+                "vehicle_drivable": "yes",
+                "preferred_day": "Thursday",
+                "preferred_time": "morning",
+                "needs_tow": false,
+                "human_transfer_requested": false,
+                "sentiment": "neutral",
+                "follow_up_type": "appointment"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
 }

@@ -7,11 +7,11 @@
           "interval": [{ "field": "minutes", "minutesInterval": 5 }]
         }
       },
-      "id": "node-cron",
-      "name": "Every 5 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1,
-      "position": [240, 300]
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "id": "node-cron",
+      "name": "Every 5 Minutes"
     },
     {
       "parameters": {
@@ -19,11 +19,11 @@
         "query": "SELECT\n  t.id AS task_id,\n  t.shop_id,\n  t.caller_id,\n  t.call_id,\n  t.task_type,\n  t.priority,\n  t.assigned_to,\n  t.status,\n  t.due_at,\n  t.escalation_count,\n  t.notes,\n  s.name AS shop_name,\n  s.transfer_number AS shop_phone,\n  s.sms_from_number,\n  c.phone AS caller_phone,\n  c.name AS caller_name\nFROM tasks t\nJOIN shops s ON s.id = t.shop_id\nLEFT JOIN callers c ON c.id = t.caller_id\nWHERE t.status = 'open'\n  AND t.due_at < now()\n  AND t.priority IN ('urgent', 'high')\nORDER BY\n  CASE t.priority\n    WHEN 'urgent' THEN 1\n    WHEN 'high' THEN 2\n    ELSE 3\n  END,\n  t.due_at ASC\nLIMIT 50;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 300],
       "id": "node-query-overdue",
       "name": "Query Overdue Tasks",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [460, 300],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -34,41 +34,55 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.length || 0 }}",
-              "operation": "larger",
-              "value2": 0
+              "id": "has-overdue",
+              "leftValue": "={{ $json.task_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "id": "node-has-overdue",
-      "name": "Any Overdue?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [680, 300]
+      "typeVersion": 2.2,
+      "position": [680, 300],
+      "id": "node-has-overdue",
+      "name": "Any Overdue?"
     },
     {
       "parameters": {
         "batchSize": 1,
         "options": {}
       },
-      "id": "node-loop",
-      "name": "Loop Tasks",
       "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 2,
-      "position": [900, 300]
+      "typeVersion": 3,
+      "position": [900, 200],
+      "id": "node-loop",
+      "name": "Loop Tasks"
     },
     {
       "parameters": {
-        "functionCode": "const task = $json;\nconst escalationCount = (task.escalation_count || 0) + 1;\n\n// Build escalation message\nlet severity = task.priority === 'urgent' ? 'URGENT' : 'HIGH PRIORITY';\nlet message = `${severity} OVERDUE TASK\\n`;\nmessage += `Shop: ${task.shop_name}\\n`;\nmessage += `Caller: ${task.caller_name || 'Unknown'} (${task.caller_phone || 'no phone'})\\n`;\nmessage += `Type: ${task.task_type}\\n`;\nmessage += `Notes: ${task.notes || 'N/A'}\\n`;\nmessage += `Due: ${task.due_at}\\n`;\nmessage += `Escalation #${escalationCount}`;\n\nreturn {\n  json: {\n    task_id: task.task_id,\n    shop_phone: task.shop_phone,\n    sms_from: task.sms_from_number,\n    escalation_message: message,\n    escalation_count: escalationCount,\n    priority: task.priority\n  }\n};"
+        "jsCode": "const task = $input.first().json;\nconst escalationCount = (task.escalation_count || 0) + 1;\n\nlet severity = task.priority === 'urgent' ? 'URGENT' : 'HIGH PRIORITY';\nlet message = `${severity} OVERDUE TASK\\n`;\nmessage += `Shop: ${task.shop_name}\\n`;\nmessage += `Caller: ${task.caller_name || 'Unknown'} (${task.caller_phone || 'no phone'})\\n`;\nmessage += `Type: ${task.task_type}\\n`;\nmessage += `Notes: ${task.notes || 'N/A'}\\n`;\nmessage += `Due: ${task.due_at}\\n`;\nmessage += `Escalation #${escalationCount}`;\n\nreturn {\n  task_id: task.task_id,\n  shop_phone: task.shop_phone,\n  sms_from: task.sms_from_number,\n  escalation_message: message,\n  escalation_count: escalationCount,\n  priority: task.priority\n};"
       },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200],
       "id": "node-build-escalation",
-      "name": "Build Escalation Message",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [1120, 300]
+      "name": "Build Escalation Message"
     },
     {
       "parameters": {
@@ -78,17 +92,18 @@
         "to": "={{ $json.shop_phone }}",
         "body": "={{ $json.escalation_message }}"
       },
-      "id": "node-send-escalation",
-      "name": "Send Escalation SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [1340, 300],
+      "position": [1340, 200],
+      "id": "node-send-escalation",
+      "name": "Send Escalation SMS",
       "credentials": {
         "twilioApi": {
           "id": "TWILIO_CREDENTIAL_ID",
           "name": "Twilio"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -96,11 +111,11 @@
         "query": "UPDATE tasks\nSET\n  escalation_count = {{ $json.escalation_count }},\n  escalated_at = now(),\n  updated_at = now()\nWHERE id = '{{ $json.task_id }}';",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1560, 200],
       "id": "node-update-task",
       "name": "Update Escalation Count",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1560, 300],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -111,20 +126,33 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO messages (shop_id, caller_id, call_id, message_type, sms_body, to_number, from_number)\nSELECT\n  t.shop_id,\n  t.caller_id,\n  t.call_id,\n  'sms_outbound',\n  '{{ $node[\"Build Escalation Message\"].json.escalation_message }}',\n  '{{ $json.shop_phone }}',\n  '{{ $json.sms_from || '' }}'\nFROM tasks t\nWHERE t.id = '{{ $json.task_id }}';",
+        "query": "INSERT INTO messages (shop_id, caller_id, call_id, message_type, sms_body, to_number, from_number)\nSELECT\n  t.shop_id,\n  t.caller_id,\n  t.call_id,\n  'escalation_outbound',\n  '{{ $node['Build Escalation Message'].json.escalation_message }}',\n  '{{ $json.shop_phone }}',\n  '{{ $json.sms_from || '' }}'\nFROM tasks t\nWHERE t.id = '{{ $json.task_id }}';",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1780, 200],
       "id": "node-log-escalation",
       "name": "Log Escalation Message",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1780, 300],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
           "name": "Postgres"
         }
       }
+    },
+    {
+      "parameters": {
+        "content": "## Callback SLA Manager\nRuns every 5 minutes.\nFinds overdue urgent/high tasks.\nSends escalation SMS and updates counter.",
+        "height": 200,
+        "width": 500,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [240, 80],
+      "typeVersion": 1,
+      "id": "note-header",
+      "name": "Sticky Note"
     }
   ],
   "connections": {
@@ -149,7 +177,10 @@
       "main": [[{ "node": "Send Escalation SMS", "type": "main", "index": 0 }]]
     },
     "Send Escalation SMS": {
-      "main": [[{ "node": "Update Escalation Count", "type": "main", "index": 0 }]]
+      "main": [
+        [{ "node": "Update Escalation Count", "type": "main", "index": 0 }],
+        []
+      ]
     },
     "Update Escalation Count": {
       "main": [[{ "node": "Log Escalation Message", "type": "main", "index": 0 }]]
@@ -158,8 +189,10 @@
       "main": [[{ "node": "Loop Tasks", "type": "main", "index": 0 }]]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "tags": [
     { "name": "autoshop" },

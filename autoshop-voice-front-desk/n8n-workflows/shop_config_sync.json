@@ -5,14 +5,15 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "shop-config-sync",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [240, 300],
       "id": "node-webhook",
       "name": "Config Sync Trigger",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [240, 300]
+      "webhookId": "shop-config-sync-hook"
     },
     {
       "parameters": {
@@ -20,11 +21,11 @@
         "query": "SELECT * FROM shops WHERE id = '{{ $json.body.shop_id }}' LIMIT 1;",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 300],
       "id": "node-load-shop",
       "name": "Load Shop Config",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [460, 300],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -35,29 +36,44 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
             {
-              "value1": "={{ ($json.length || 0) > 0 }}",
-              "value2": true
+              "id": "shop-exists",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "id": "node-shop-exists",
-      "name": "Shop Exists?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [680, 300]
+      "typeVersion": 2.2,
+      "position": [680, 300],
+      "id": "node-shop-exists",
+      "name": "Shop Exists?"
     },
     {
       "parameters": {
-        "functionCode": "const shop = $json[0] || $json;\n\n// Build the Retell agent configuration payload\n// This maps shop DB fields to Retell's agent update API\nconst agentConfig = {\n  agent_id: shop.retell_agent_id,\n  agent_name: `${shop.name} Front Desk`,\n  \n  // Dynamic variables that will be injected on each call\n  // These are defaults — the inbound router overrides per-call\n  dynamic_variables: {\n    shop_name: shop.name || '',\n    address: shop.address || '',\n    diag_fee: shop.diag_fee_text || '',\n    services: shop.services_text || '',\n    makes_serviced: shop.makes_serviced_text || '',\n    tow_policy: shop.tow_policy_text || '',\n    transfer_number: shop.transfer_number || ''\n  },\n  \n  // General config\n  language: (shop.supported_languages && shop.supported_languages[0]) || 'en',\n  \n  // Webhook URLs (n8n endpoints)\n  webhook_url: `${$env.N8N_BASE_URL}/webhook/retell-inbound`,\n  post_call_webhook_url: `${$env.N8N_BASE_URL}/webhook/retell-post-call`\n};\n\nreturn { json: agentConfig };"
+        "jsCode": "const shop = $input.first().json;\n\nreturn {\n  agent_id: shop.retell_agent_id,\n  agent_name: `${shop.name} Front Desk`,\n  dynamic_variables: {\n    shop_name: shop.name || '',\n    address: shop.address || '',\n    diag_fee: shop.diag_fee_text || '',\n    services: shop.services_text || '',\n    makes_serviced: shop.makes_serviced_text || '',\n    tow_policy: shop.tow_policy_text || '',\n    transfer_number: shop.transfer_number || ''\n  },\n  language: (shop.supported_languages && shop.supported_languages[0]) || 'en',\n  webhook_url: `${$env.N8N_BASE_URL}/webhook/retell-inbound`,\n  post_call_webhook_url: `${$env.N8N_BASE_URL}/webhook/retell-post-call`\n};"
       },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200],
       "id": "node-build-config",
-      "name": "Build Agent Config",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [900, 200]
+      "name": "Build Agent Config"
     },
     {
       "parameters": {
@@ -84,29 +100,30 @@
         },
         "options": {}
       },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
       "id": "node-push-retell",
       "name": "Push to Retell API",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [1120, 200],
       "credentials": {
         "httpHeaderAuth": {
           "id": "RETELL_AUTH_ID",
           "name": "Retell API Key"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE shops SET\n  retell_agent_version = '{{ $json.agent_version || \"synced\" }}',\n  updated_at = now()\nWHERE retell_agent_id = '{{ $node[\"Build Agent Config\"].json.agent_id }}';",
+        "query": "UPDATE shops SET\n  retell_agent_version = '{{ $json.agent_version || 'synced' }}',\n  updated_at = now()\nWHERE retell_agent_id = '{{ $node['Build Agent Config'].json.agent_id }}';",
         "options": {}
       },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1340, 100],
       "id": "node-log-sync",
       "name": "Log Sync to DB",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1340, 200],
       "credentials": {
         "postgres": {
           "id": "POSTGRES_CREDENTIAL_ID",
@@ -116,23 +133,58 @@
     },
     {
       "parameters": {
-        "functionCode": "return {\n  json: {\n    success: true,\n    shop_id: $node['Config Sync Trigger'].json.body.shop_id,\n    agent_id: $node['Build Agent Config'].json.agent_id,\n    synced_at: new Date().toISOString()\n  }\n};"
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, shop_id: $node['Config Sync Trigger'].json.body.shop_id, agent_id: $node['Build Agent Config'].json.agent_id, synced_at: new Date().toISOString() }) }}",
+        "options": {
+          "responseCode": 200
+        }
       },
-      "id": "node-response",
-      "name": "Build Response",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [1560, 200]
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1560, 100],
+      "id": "node-respond-ok",
+      "name": "Respond 200 Success"
     },
     {
       "parameters": {
-        "functionCode": "return {\n  json: {\n    success: false,\n    error: 'shop_not_found',\n    shop_id: $node['Config Sync Trigger'].json.body.shop_id\n  }\n};"
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'retell_api_error', details: $json }) }}",
+        "options": {
+          "responseCode": 502
+        }
       },
-      "id": "node-not-found",
-      "name": "Shop Not Found Response",
-      "type": "n8n-nodes-base.function",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1340, 300],
+      "id": "node-respond-retell-error",
+      "name": "Respond 502 Retell Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": false, \"error\": \"shop_not_found\"}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [900, 400],
+      "id": "node-respond-404",
+      "name": "Respond 404 Not Found"
+    },
+    {
+      "parameters": {
+        "content": "## Shop Config Sync\nReceives shop_id, loads config from DB,\npushes updated settings to Retell agent API.\nUse after changing shop settings.",
+        "height": 200,
+        "width": 500,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [240, 80],
       "typeVersion": 1,
-      "position": [900, 400]
+      "id": "note-header",
+      "name": "Sticky Note"
     }
   ],
   "connections": {
@@ -145,21 +197,26 @@
     "Shop Exists?": {
       "main": [
         [{ "node": "Build Agent Config", "type": "main", "index": 0 }],
-        [{ "node": "Shop Not Found Response", "type": "main", "index": 0 }]
+        [{ "node": "Respond 404 Not Found", "type": "main", "index": 0 }]
       ]
     },
     "Build Agent Config": {
       "main": [[{ "node": "Push to Retell API", "type": "main", "index": 0 }]]
     },
     "Push to Retell API": {
-      "main": [[{ "node": "Log Sync to DB", "type": "main", "index": 0 }]]
+      "main": [
+        [{ "node": "Log Sync to DB", "type": "main", "index": 0 }],
+        [{ "node": "Respond 502 Retell Error", "type": "main", "index": 0 }]
+      ]
     },
     "Log Sync to DB": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Respond 200 Success", "type": "main", "index": 0 }]]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "tags": [
     { "name": "autoshop" },
