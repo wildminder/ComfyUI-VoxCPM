@@ -2,8 +2,12 @@
  * Shop-Ware DMS Adapter
  *
  * Shop-Ware API: https://api.shop-ware.com
- * Auth: API key + Secret (Basic auth or Bearer)
- * Endpoints: /customers, /vehicles, /repair_orders, /appointments
+ * Docs: https://shop-ware.stoplight.io/docs/public-api
+ * Auth: API key + Secret (Bearer token)
+ * URL pattern: /api/v1/tenants/{tenant_id}/{resource}
+ * Rate limit: Windowed, status in response headers
+ * Pagination: 30/page default, max 100 via per_page param
+ * Webhooks: POST /api/v1/webhooks to register callbacks
  */
 
 import type {
@@ -33,8 +37,16 @@ export class ShopWareAdapter implements DmsAdapter {
     };
   }
 
+  private tenantPath(path: string): string {
+    // Shop-Ware uses tenant-scoped URLs: /api/v1/tenants/{tenant_id}/{resource}
+    if (this.shopId && !path.includes("/tenants/")) {
+      return `/tenants/${this.shopId}${path}`;
+    }
+    return path;
+  }
+
   private async request<T>(path: string, options?: RequestInit): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const url = `${this.baseUrl}${this.tenantPath(path)}`;
     const res = await fetch(url, {
       ...options,
       headers: { ...this.headers, ...options?.headers },
@@ -61,7 +73,6 @@ export class ShopWareAdapter implements DmsAdapter {
 
   async createCustomer(data: Omit<DmsCustomer, "externalId">): Promise<DmsCustomer> {
     const body = {
-      shop_id: Number(this.shopId),
       first_name: data.firstName,
       last_name: data.lastName,
       phone_numbers: [{ number: data.phone, type: "mobile" }],
@@ -80,7 +91,7 @@ export class ShopWareAdapter implements DmsAdapter {
   async findCustomerByPhone(phone: string): Promise<DmsCustomer | null> {
     const cleanPhone = phone.replace(/\D/g, "");
     const res = await this.request<{ results: Array<{ id: number; first_name: string; last_name: string; phone_numbers: Array<{ number: string }>; email_addresses: Array<{ address: string }> }> }>(
-      `/customers?shop_id=${this.shopId}&phone=${cleanPhone}&per_page=1`
+      `/customers?phone=${cleanPhone}&per_page=1`
     );
 
     if (!res.results?.length) return null;
@@ -172,7 +183,6 @@ export class ShopWareAdapter implements DmsAdapter {
 
   async createRepairOrder(data: Omit<DmsRepairOrder, "externalId">): Promise<DmsRepairOrder> {
     const body = {
-      shop_id: Number(this.shopId),
       customer_id: Number(data.customerId),
       vehicle_id: Number(data.vehicleId),
       customer_concern: data.description,
@@ -223,7 +233,6 @@ export class ShopWareAdapter implements DmsAdapter {
 
   async createAppointment(data: Omit<DmsAppointment, "externalId">): Promise<DmsAppointment> {
     const body = {
-      shop_id: Number(this.shopId),
       customer_id: Number(data.customerId),
       vehicle_id: data.vehicleId ? Number(data.vehicleId) : undefined,
       start_at: data.scheduledAt,

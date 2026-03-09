@@ -1,9 +1,10 @@
 /**
- * Mitchell 1 Manager SE DMS Adapter
+ * Mitchell 1 RepairCenter DMS Adapter
  *
- * Mitchell 1 RepairCenter API: https://developer.mitchell.com
- * Auth: Application key (X-Api-Key header)
- * Protocol: OData/REST
+ * Mitchell 1 RepairCenter Transactional API: https://developer.mitchell.com
+ * Auth: apiKey header + shop_id + shop_country headers
+ * Protocol: OData/REST, TLS 1.2 required
+ * Rate limit: 100 rows per call
  * Endpoints: /customers, /vehicles, /jobs (repair orders), /appointments
  */
 
@@ -16,7 +17,7 @@ import type {
   DmsAppointment,
 } from "./types";
 
-const DEFAULT_BASE_URL = "https://api.mitchell1.com/v1";
+const DEFAULT_BASE_URL = "https://api.repaircenter.mitchell.com/api/v2";
 
 export class Mitchell1Adapter implements DmsAdapter {
   readonly provider = "mitchell1" as const;
@@ -28,7 +29,9 @@ export class Mitchell1Adapter implements DmsAdapter {
     this.baseUrl = config.apiUrl || DEFAULT_BASE_URL;
     this.shopId = config.shopExternalId || "";
     this.headers = {
-      "X-Api-Key": config.apiKey,
+      apiKey: config.apiKey,
+      shop_id: this.shopId,
+      shop_country: "US",
       "Content-Type": "application/json",
       Accept: "application/json",
     };
