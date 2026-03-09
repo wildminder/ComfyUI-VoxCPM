@@ -78,8 +78,9 @@ Inbound Call (Twilio → Retell)
 | Voice agent      | Retell           | Live conversational AI on inbound calls    |
 | Phone/SMS        | Twilio           | Inbound DID routing, outbound SMS          |
 | Scheduling       | Cal.com (opt.)   | Real-time booking, cancel, reschedule      |
-| Orchestration    | n8n              | 5 workflows: routing, processing, SLA, sync, booking tools|
-| Database         | Postgres/Supabase| Shops, callers, vehicles, calls, tasks     |
+| Shop Management  | Tekmetric / Mitchell 1 / Shop-Ware | Customer, vehicle, RO, appointment sync |
+| Orchestration    | n8n              | 6 workflows: routing, processing, SLA, sync, booking tools, DMS sync |
+| Database         | Postgres/Supabase| Shops, callers, vehicles, calls, tasks, DMS integrations |
 | Admin UI         | Next.js (opt.)   | Dashboard for shop staff                   |
 
 ## Workflow Details
@@ -155,6 +156,41 @@ This workflow provides real-time booking capabilities that the Retell voice agen
 - Slot formatting via Code node for voice-friendly output
 
 **When to enable:** Set `booking_mode = 'calcom_live'` in shop config and configure `CALCOM_API_KEY` + `CALCOM_EVENT_TYPE_ID` environment variables.
+
+### Workflow 6: dms_sync_handler
+
+**Trigger:** Webhook (`POST /webhook/dms-sync`) — called by post-call processor
+
+This workflow syncs call data (customers, vehicles, repair orders, appointments) to the shop's connected DMS system (Tekmetric, Mitchell 1, or Shop-Ware).
+
+**Node sequence:**
+1. `Webhook` — receive sync payload with `shop_id`, `action`, entity data
+2. `Get DMS Integration` — query `dms_integrations` for the shop's active provider + credentials
+3. `Has DMS Integration?` — if no active integration, respond with `skipped`
+4. `Build DMS API Request` — Code node maps action + provider to provider-specific API endpoint, auth headers, and request body
+5. `Call DMS API` — httpRequest to the DMS provider with `onError: continueErrorOutput`
+6. `Parse Response` — extract external ID from success response, or error from failure
+7. `Log Sync Result` — insert into `dms_sync_log` and update `dms_integrations.last_sync_at`
+8. `Respond 200` — return sync result
+
+**Supported actions:**
+- `sync_customer` — create/find customer in DMS by phone
+- `sync_vehicle` — create vehicle linked to DMS customer
+- `sync_repair_order` — create repair order/estimate/job
+- `sync_appointment` — create appointment in DMS calendar
+
+**Provider API mapping:**
+
+| Action | Tekmetric | Mitchell 1 | Shop-Ware |
+|--------|-----------|------------|-----------|
+| Customer | POST /customers | POST /shops/{id}/customers | POST /customers |
+| Vehicle | POST /vehicles | POST /shops/{id}/vehicles | POST /vehicles |
+| Repair Order | POST /repair-orders | POST /shops/{id}/jobs | POST /repair_orders |
+| Appointment | POST /appointments | POST /shops/{id}/appointments | POST /appointments |
+
+**Database tables:**
+- `dms_integrations` — per-shop provider config, credentials, sync toggles
+- `dms_sync_log` — audit trail of every sync attempt (direction, status, payloads)
 
 ## Security Considerations
 

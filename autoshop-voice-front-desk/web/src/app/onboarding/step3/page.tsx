@@ -81,7 +81,7 @@ export default function Step3() {
           <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
             3
           </span>
-          <span>Step 3 of 4</span>
+          <span>Step 3 of 5</span>
         </div>
         <h1 className="text-2xl font-bold">Services & Policies</h1>
         <p className="text-gray-600 mt-1">

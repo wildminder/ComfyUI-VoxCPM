@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { shops, calls, tasks, appointmentRequests } from "@/lib/schema";
+import { shops, calls, tasks, appointmentRequests, dmsIntegrations, dmsSyncLog } from "@/lib/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 
 export default async function DashboardPage() {
@@ -42,6 +42,34 @@ export default async function DashboardPage() {
     )
     .orderBy(desc(appointmentRequests.createdAt))
     .limit(10);
+
+  // DMS Integration status
+  const [dmsIntegration] = await db
+    .select({
+      id: dmsIntegrations.id,
+      provider: dmsIntegrations.provider,
+      enabled: dmsIntegrations.enabled,
+      lastSyncAt: dmsIntegrations.lastSyncAt,
+      lastSyncError: dmsIntegrations.lastSyncError,
+    })
+    .from(dmsIntegrations)
+    .where(and(eq(dmsIntegrations.shopId, shopId), eq(dmsIntegrations.enabled, true)))
+    .limit(1);
+
+  const [syncStats] = dmsIntegration
+    ? await db
+        .select({
+          totalSyncs: sql<number>`count(*)`,
+          failedSyncs: sql<number>`count(*) filter (where ${dmsSyncLog.status} = 'failed')`,
+        })
+        .from(dmsSyncLog)
+        .where(
+          and(
+            eq(dmsSyncLog.shopId, shopId),
+            sql`${dmsSyncLog.createdAt} > now() - interval '7 days'`
+          )
+        )
+    : [{ totalSyncs: 0, failedSyncs: 0 }];
 
   const [weekStats] = await db
     .select({
@@ -180,6 +208,75 @@ export default async function DashboardPage() {
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* DMS Integration Status */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-lg mb-4">Shop Management Integration</h2>
+            {dmsIntegration ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Provider</span>
+                  <span className="text-sm font-medium capitalize">
+                    {dmsIntegration.provider === "mitchell1"
+                      ? "Mitchell 1"
+                      : dmsIntegration.provider === "shopware"
+                      ? "Shop-Ware"
+                      : "Tekmetric"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      dmsIntegration.lastSyncError
+                        ? "bg-red-100 text-red-700"
+                        : "bg-green-100 text-green-700"
+                    }`}
+                  >
+                    {dmsIntegration.lastSyncError ? "Error" : "Connected"}
+                  </span>
+                </div>
+                {dmsIntegration.lastSyncAt && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Last Sync</span>
+                    <span className="text-sm text-gray-500">
+                      {new Date(dmsIntegration.lastSyncAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Syncs (7d)</span>
+                  <span className="text-sm font-medium">
+                    {syncStats?.totalSyncs ?? 0}
+                    {(syncStats?.failedSyncs ?? 0) > 0 && (
+                      <span className="text-red-600 ml-1">
+                        ({syncStats?.failedSyncs} failed)
+                      </span>
+                    )}
+                  </span>
+                </div>
+                {dmsIntegration.lastSyncError && (
+                  <div className="bg-red-50 rounded-lg p-3 mt-2">
+                    <p className="text-xs text-red-700">
+                      {dmsIntegration.lastSyncError}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm mb-3">
+                  No shop management system connected.
+                </p>
+                <a
+                  href="/onboarding/step-dms"
+                  className="text-sm text-blue-600 font-medium hover:underline"
+                >
+                  Connect Tekmetric, Mitchell 1, or Shop-Ware
+                </a>
               </div>
             )}
           </div>

@@ -1,0 +1,260 @@
+{
+  "name": "dms_sync_handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dms-sync",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [240, 300],
+      "id": "node-webhook",
+      "name": "DMS Sync Webhook",
+      "webhookId": "dms-sync-hook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT di.*, s.name as shop_name, s.timezone\nFROM dms_integrations di\nJOIN shops s ON s.id = di.shop_id\nWHERE di.shop_id = '{{ $json.body.shop_id }}'\n  AND di.enabled = true\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 300],
+      "id": "node-get-integration",
+      "name": "Get DMS Integration",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-integration",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 300],
+      "id": "node-has-integration",
+      "name": "Has DMS Integration?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('DMS Sync Webhook').first().json.body;\nconst integration = $('Get DMS Integration').first().json;\nconst action = body.action;\n\n// Build the DMS API request based on provider and action\nconst provider = integration.provider;\nconst apiKey = integration.api_key || '';\nconst apiUrl = integration.api_url || '';\nconst shopExternalId = integration.shop_external_id || '';\nconst oauthToken = integration.oauth_token || '';\n\n// Provider-specific base URLs\nconst baseUrls = {\n  tekmetric: apiUrl || 'https://shop.tekmetric.com/api/v1',\n  mitchell1: apiUrl || 'https://api.mitchell1.com/v1',\n  shopware: apiUrl || 'https://api.shop-ware.com/api/v1'\n};\n\nconst baseUrl = baseUrls[provider] || '';\n\n// Auth headers per provider\nconst authHeaders = {\n  tekmetric: { 'Authorization': `Bearer ${oauthToken || apiKey}` },\n  mitchell1: { 'X-Api-Key': apiKey },\n  shopware: { 'Authorization': `Bearer ${apiKey}` }\n};\n\nconst headers = {\n  ...authHeaders[provider],\n  'Content-Type': 'application/json',\n  'Accept': 'application/json'\n};\n\nlet endpoint = '';\nlet method = 'POST';\nlet requestBody = {};\n\nswitch (action) {\n  case 'sync_customer': {\n    const caller = body.caller_data || {};\n    const nameParts = (caller.name || '').split(' ');\n    const firstName = nameParts[0] || 'Unknown';\n    const lastName = nameParts.slice(1).join(' ') || '';\n    \n    if (provider === 'tekmetric') {\n      endpoint = '/customers';\n      requestBody = {\n        shopId: Number(shopExternalId),\n        firstName,\n        lastName,\n        phone: [{ number: caller.phone, type: 'Mobile' }]\n      };\n    } else if (provider === 'mitchell1') {\n      endpoint = `/shops/${shopExternalId}/customers`;\n      requestBody = { shopId: shopExternalId, firstName, lastName, phoneNumber: caller.phone };\n    } else if (provider === 'shopware') {\n      endpoint = '/customers';\n      requestBody = {\n        shop_id: Number(shopExternalId),\n        first_name: firstName,\n        last_name: lastName,\n        phone_numbers: [{ number: caller.phone, type: 'mobile' }]\n      };\n    }\n    break;\n  }\n  \n  case 'sync_vehicle': {\n    const v = body.vehicle_data || {};\n    const customerId = body.dms_customer_id || '';\n    \n    if (provider === 'tekmetric') {\n      endpoint = '/vehicles';\n      requestBody = { customerId: Number(customerId), year: v.year, make: v.make, model: v.model, vin: v.vin || '' };\n    } else if (provider === 'mitchell1') {\n      endpoint = `/shops/${shopExternalId}/vehicles`;\n      requestBody = { customerId, year: v.year, make: v.make, model: v.model, vin: v.vin || '' };\n    } else if (provider === 'shopware') {\n      endpoint = '/vehicles';\n      requestBody = { customer_id: Number(customerId), year: v.year, make: v.make, model: v.model, vin: v.vin || '' };\n    }\n    break;\n  }\n  \n  case 'sync_repair_order': {\n    const customerId = body.dms_customer_id || '';\n    const vehicleId = body.dms_vehicle_id || '';\n    const description = body.issue_summary || '';\n    \n    if (provider === 'tekmetric') {\n      endpoint = '/repair-orders';\n      requestBody = {\n        shopId: Number(shopExternalId),\n        customerId: Number(customerId),\n        vehicleId: Number(vehicleId),\n        customerConcern: description\n      };\n    } else if (provider === 'mitchell1') {\n      endpoint = `/shops/${shopExternalId}/jobs`;\n      requestBody = { customerId, vehicleId, concern: description, status: 'Estimate' };\n    } else if (provider === 'shopware') {\n      endpoint = '/repair_orders';\n      requestBody = {\n        shop_id: Number(shopExternalId),\n        customer_id: Number(customerId),\n        vehicle_id: Number(vehicleId),\n        customer_concern: description,\n        state: 'estimate'\n      };\n    }\n    break;\n  }\n  \n  case 'sync_appointment': {\n    const appt = body.appointment_data || {};\n    const customerId = body.dms_customer_id || '';\n    const vehicleId = body.dms_vehicle_id || '';\n    \n    if (provider === 'tekmetric') {\n      endpoint = '/appointments';\n      requestBody = {\n        shopId: Number(shopExternalId),\n        customerId: Number(customerId),\n        vehicleId: vehicleId ? Number(vehicleId) : undefined,\n        startTime: appt.preferred_day + 'T' + (appt.preferred_time || '09:00') + ':00',\n        duration: 60,\n        note: appt.service_description\n      };\n    } else if (provider === 'mitchell1') {\n      endpoint = `/shops/${shopExternalId}/appointments`;\n      requestBody = {\n        customerId,\n        vehicleId,\n        scheduledDateTime: appt.preferred_day + 'T' + (appt.preferred_time || '09:00') + ':00',\n        durationMinutes: 60,\n        serviceDescription: appt.service_description\n      };\n    } else if (provider === 'shopware') {\n      endpoint = '/appointments';\n      requestBody = {\n        shop_id: Number(shopExternalId),\n        customer_id: Number(customerId),\n        vehicle_id: vehicleId ? Number(vehicleId) : undefined,\n        start_at: appt.preferred_day + 'T' + (appt.preferred_time || '09:00') + ':00',\n        duration_minutes: 60,\n        title: appt.service_description\n      };\n    }\n    break;\n  }\n}\n\nreturn {\n  provider,\n  action,\n  base_url: baseUrl,\n  endpoint,\n  method,\n  headers,\n  body: requestBody,\n  full_url: baseUrl + endpoint,\n  integration_id: integration.id,\n  shop_id: body.shop_id,\n  entity_id: body.entity_id || ''\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "id": "node-build-request",
+      "name": "Build DMS API Request"
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.method }}",
+        "url": "={{ $json.full_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "={{ Object.keys($json.headers)[0] }}",
+              "value": "={{ Object.values($json.headers)[0] }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
+      "id": "node-dms-api-call",
+      "name": "Call DMS API",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const buildReq = $('Build DMS API Request').first().json;\nconst response = $input.first().json;\n\n// Extract external ID from the response based on provider\nlet externalId = '';\nif (response.id) externalId = String(response.id);\nelse if (response.customerId) externalId = response.customerId;\nelse if (response.vehicleId) externalId = response.vehicleId;\nelse if (response.jobId) externalId = response.jobId;\nelse if (response.appointmentId) externalId = response.appointmentId;\n\nreturn {\n  status: 'synced',\n  external_id: externalId,\n  integration_id: buildReq.integration_id,\n  shop_id: buildReq.shop_id,\n  entity_id: buildReq.entity_id,\n  action: buildReq.action,\n  provider: buildReq.provider\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 100],
+      "id": "node-parse-success",
+      "name": "Parse Success Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const buildReq = $('Build DMS API Request').first().json;\nconst error = $input.first().json;\n\nreturn {\n  status: 'failed',\n  external_id: '',\n  integration_id: buildReq.integration_id,\n  shop_id: buildReq.shop_id,\n  entity_id: buildReq.entity_id,\n  action: buildReq.action,\n  provider: buildReq.provider,\n  error_message: JSON.stringify(error).substring(0, 500)\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300],
+      "id": "node-parse-error",
+      "name": "Parse Error Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO dms_sync_log (\n  shop_id, integration_id, entity_type, entity_id, external_id,\n  direction, status, request_payload, response_payload, error_message\n) VALUES (\n  '{{ $json.shop_id }}',\n  '{{ $json.integration_id }}',\n  '{{ $json.action.replace('sync_', '') }}',\n  {{ $json.entity_id ? \"'\" + $json.entity_id + \"'\" : 'NULL' }},\n  {{ $json.external_id ? \"'\" + $json.external_id + \"'\" : 'NULL' }},\n  'outbound',\n  '{{ $json.status }}',\n  '{{ JSON.stringify($('Build DMS API Request').first().json.body || {}) }}',\n  '{{ JSON.stringify($json) }}',\n  {{ $json.error_message ? \"'\" + $json.error_message.replace(/'/g, \"''\") + \"'\" : 'NULL' }}\n);\n\nUPDATE dms_integrations SET\n  last_sync_at = now(),\n  last_sync_error = {{ $json.status === 'failed' ? \"'\" + ($json.error_message || 'Unknown error').replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  updated_at = now()\nWHERE id = '{{ $json.integration_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1560, 200],
+      "id": "node-log-sync",
+      "name": "Log Sync Result",
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: $json.status || 'logged', action: $('Build DMS API Request').first().json.action, provider: $('Build DMS API Request').first().json.provider, external_id: $json.external_id || '' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1780, 200],
+      "id": "node-respond-success",
+      "name": "Respond 200"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'skipped', reason: 'no_dms_integration' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [900, 400],
+      "id": "node-respond-skip",
+      "name": "Respond Skipped"
+    },
+    {
+      "parameters": {
+        "content": "## DMS Sync Handler\nReceives sync requests from post-call processor.\nRoutes to Tekmetric / Mitchell 1 / Shop-Ware APIs.\nLogs all sync attempts to dms_sync_log.",
+        "height": 200,
+        "width": 500,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [240, 80],
+      "typeVersion": 1,
+      "id": "note-header",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "DMS Sync Webhook": {
+      "main": [[{ "node": "Get DMS Integration", "type": "main", "index": 0 }]]
+    },
+    "Get DMS Integration": {
+      "main": [[{ "node": "Has DMS Integration?", "type": "main", "index": 0 }]]
+    },
+    "Has DMS Integration?": {
+      "main": [
+        [{ "node": "Build DMS API Request", "type": "main", "index": 0 }],
+        [{ "node": "Respond Skipped", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build DMS API Request": {
+      "main": [[{ "node": "Call DMS API", "type": "main", "index": 0 }]]
+    },
+    "Call DMS API": {
+      "main": [
+        [{ "node": "Parse Success Response", "type": "main", "index": 0 }],
+        [{ "node": "Parse Error Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Success Response": {
+      "main": [[{ "node": "Log Sync Result", "type": "main", "index": 0 }]]
+    },
+    "Parse Error Response": {
+      "main": [[{ "node": "Log Sync Result", "type": "main", "index": 0 }]]
+    },
+    "Log Sync Result": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    { "name": "autoshop" },
+    { "name": "dms" },
+    { "name": "integration" }
+  ],
+  "pinData": {
+    "DMS Sync Webhook": [
+      {
+        "json": {
+          "body": {
+            "shop_id": "test-shop-uuid",
+            "action": "sync_customer",
+            "entity_id": "test-caller-uuid",
+            "caller_data": {
+              "name": "John Smith",
+              "phone": "+15559876543"
+            },
+            "vehicle_data": {
+              "year": 2019,
+              "make": "Toyota",
+              "model": "Camry"
+            },
+            "issue_summary": "Check engine light on, rough idle"
+          }
+        }
+      }
+    ]
+  }
+}

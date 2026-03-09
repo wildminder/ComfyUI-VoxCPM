@@ -292,7 +292,99 @@ POST {N8N_BASE_URL}/webhook/check-availability
 
 ---
 
-## 5. Retell Call Analysis Schema (Post-Call Extraction)
+## 5. DMS Sync Webhook (Shop Management Integration)
+
+### 5a. Outbound Sync (System to DMS)
+
+#### Endpoint
+```
+POST {N8N_BASE_URL}/webhook/dms-sync
+```
+
+#### Request (from post-call processor)
+```json
+{
+  "shop_id": "uuid-of-shop",
+  "action": "sync_customer",
+  "entity_id": "uuid-of-caller",
+  "caller_data": {
+    "name": "John Smith",
+    "phone": "+15559876543"
+  },
+  "vehicle_data": {
+    "year": 2019,
+    "make": "Toyota",
+    "model": "Camry",
+    "vin": ""
+  },
+  "appointment_data": {
+    "service_description": "Check engine light diagnostic",
+    "preferred_day": "Thursday",
+    "preferred_time": "morning"
+  },
+  "issue_summary": "Check engine light on, rough idle"
+}
+```
+
+**Actions:** `sync_customer` | `sync_vehicle` | `sync_repair_order` | `sync_appointment`
+
+#### Response — Synced
+```json
+{
+  "status": "synced",
+  "action": "sync_customer",
+  "provider": "tekmetric",
+  "external_id": "12345"
+}
+```
+
+#### Response — Skipped (no integration configured)
+```json
+{
+  "status": "skipped",
+  "reason": "no_dms_integration"
+}
+```
+
+### 5b. Inbound Webhook (DMS to System)
+
+#### Endpoint
+```
+POST {WEB_BASE_URL}/api/dms/webhook
+```
+
+Receives callbacks from DMS providers when entities change (repair order status, appointment confirmations).
+
+#### Headers
+| Header | Description |
+|--------|-------------|
+| `x-dms-provider` | `tekmetric` / `mitchell1` / `shopware` |
+| `x-webhook-secret` | Shared secret for auth |
+| `x-webhook-signature` | HMAC-SHA256 signature (optional) |
+
+#### Tekmetric Webhook
+```json
+{ "type": "REPAIR_ORDER_UPDATED", "data": { "id": 12345, "status": { "name": "Completed" } } }
+```
+
+#### Mitchell 1 Webhook
+```json
+{ "eventType": "JobStatusChanged", "jobId": "job-uuid", "status": "Completed" }
+```
+
+#### Shop-Ware Webhook
+```json
+{ "event": "repair_order.updated", "payload": { "id": 12345, "state": "completed" } }
+```
+
+#### Response
+```json
+{ "status": "processed", "event_type": "repair_order" }
+```
+
+---
+
+## 6. Retell Call Analysis Schema (Post-Call Extraction)
 
 Configure this in Retell's agent settings under "Post Call Analysis" to have Retell automatically extract structured fields from the transcript.
 
@@ -380,7 +472,7 @@ Configure this in Retell's agent settings under "Post Call Analysis" to have Ret
 
 ---
 
-## 6. Twilio SMS API (Outbound)
+## 7. Twilio SMS API (Outbound)
 
 Used internally by n8n via the Twilio node. No external API endpoint exposed.
 

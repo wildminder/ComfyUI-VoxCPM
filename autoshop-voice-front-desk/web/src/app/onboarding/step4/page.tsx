@@ -26,6 +26,7 @@ const PLANS = [
       "SMS recaps",
       "Live Cal.com booking",
       "Urgent escalation",
+      "DMS integration (Tekmetric, Mitchell 1, Shop-Ware)",
       "Full dashboard",
     ],
   },
@@ -38,6 +39,7 @@ const PLANS = [
       "Unlimited calls",
       "Priority support",
       "Live booking",
+      "DMS integration + bidirectional sync",
       "Custom agent prompt",
       "API access",
     ],
@@ -70,9 +72,9 @@ export default function Step4() {
       <div className="mb-8">
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
           <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
-            4
+            5
           </span>
-          <span>Step 4 of 4</span>
+          <span>Step 5 of 5</span>
         </div>
         <h1 className="text-2xl font-bold">Choose Your Plan</h1>
         <p className="text-gray-600 mt-1">

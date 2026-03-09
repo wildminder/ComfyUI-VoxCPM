@@ -371,7 +371,68 @@
     },
     {
       "parameters": {
-        "content": "## Post-Call Processor\nExtracts structured data from Retell call.\nUpserts caller + vehicle, inserts call record.\nRoutes by intent to create tasks, appointments, SMS.",
+        "jsCode": "const route = $('Route by Intent').first().json;\nconst extracted = $('Extract Call Fields').first().json;\n\n// Only trigger DMS sync for actionable intents\nconst syncableIntents = ['new_appointment', 'urgent_breakdown', 'tow_request', 'existing_status', 'price_question'];\nif (!syncableIntents.includes(route.intent)) {\n  return { skip_dms: true };\n}\n\nconst payload = {\n  shop_id: route.shop_id,\n  action: 'sync_customer',\n  entity_id: route.caller_id,\n  caller_data: {\n    name: extracted.customer_name,\n    phone: extracted.phone\n  },\n  vehicle_data: extracted.make ? {\n    year: extracted.year,\n    make: extracted.make,\n    model: extracted.model,\n    vin: ''\n  } : null,\n  appointment_data: route.create_appointment ? {\n    service_description: extracted.issue_summary,\n    preferred_day: extracted.preferred_day,\n    preferred_time: extracted.preferred_time\n  } : null,\n  issue_summary: extracted.issue_summary\n};\n\nreturn { skip_dms: false, payload };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 900],
+      "id": "node-build-dms-payload",
+      "name": "Build DMS Sync Payload"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dms-check",
+              "leftValue": "={{ $json.skip_dms }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2660, 900],
+      "id": "node-dms-check",
+      "name": "DMS Sync Enabled?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_BASE_URL }}/webhook/dms-sync",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={{ JSON.stringify($node['Build DMS Sync Payload'].json.payload) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 800],
+      "id": "node-trigger-dms-sync",
+      "name": "Trigger DMS Sync",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Post-Call Processor\nExtracts structured data from Retell call.\nUpserts caller + vehicle, inserts call record.\nRoutes by intent to create tasks, appointments, SMS.\nTriggers DMS sync (Tekmetric / Mitchell 1 / Shop-Ware).",
         "height": 200,
         "width": 500,
         "color": 4
@@ -413,7 +474,8 @@
         { "node": "Create Appointment?", "type": "main", "index": 0 },
         { "node": "Create Task?", "type": "main", "index": 0 },
         { "node": "Build SMS", "type": "main", "index": 0 },
-        { "node": "Alert Staff?", "type": "main", "index": 0 }
+        { "node": "Alert Staff?", "type": "main", "index": 0 },
+        { "node": "Build DMS Sync Payload", "type": "main", "index": 0 }
       ]]
     },
     "Create Appointment?": {
@@ -446,6 +508,15 @@
     "Alert Staff?": {
       "main": [
         [{ "node": "Send Staff Alert SMS", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Build DMS Sync Payload": {
+      "main": [[{ "node": "DMS Sync Enabled?", "type": "main", "index": 0 }]]
+    },
+    "DMS Sync Enabled?": {
+      "main": [
+        [{ "node": "Trigger DMS Sync", "type": "main", "index": 0 }],
         []
       ]
     }

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { shops } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { dmsIntegrations } from "@/lib/schema";
 
 const step1Schema = z.object({
   step: z.literal("step1"),
@@ -29,6 +30,14 @@ const step3Schema = z.object({
   makesServicedText: z.string().min(1),
   diagFeeText: z.string().optional(),
   towPolicyText: z.string().optional(),
+});
+
+const stepDmsSchema = z.object({
+  step: z.literal("step_dms"),
+  dmsProvider: z.enum(["tekmetric", "mitchell1", "shopware", "none"]),
+  apiKey: z.string().optional(),
+  apiUrl: z.string().optional(),
+  shopExternalId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -96,6 +105,25 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
       })
       .where(eq(shops.id, shopId));
+
+    return NextResponse.json({ success: true, next: "/onboarding/step-dms" });
+  }
+
+  if (body.step === "step_dms") {
+    const parsed = stepDmsSchema.safeParse(body);
+    if (!parsed.success)
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+    if (parsed.data.dmsProvider !== "none" && parsed.data.apiKey) {
+      await db.insert(dmsIntegrations).values({
+        shopId: shopId,
+        provider: parsed.data.dmsProvider,
+        apiKey: parsed.data.apiKey,
+        apiUrl: parsed.data.apiUrl || null,
+        shopExternalId: parsed.data.shopExternalId || null,
+        enabled: true,
+      });
+    }
 
     return NextResponse.json({ success: true, next: "/onboarding/step4" });
   }

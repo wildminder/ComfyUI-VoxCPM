@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/api/auth/login",
   "/api/auth/signup",
   "/api/stripe/webhook",
+  "/api/dms/webhook",
 ];
 
 export function middleware(request: NextRequest) {

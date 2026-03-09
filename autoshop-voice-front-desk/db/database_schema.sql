@@ -278,6 +278,81 @@ CREATE TRIGGER trg_appt_updated_at
   BEFORE UPDATE ON appointment_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================
+-- DMS PROVIDER ENUM
+-- ============================================================
+CREATE TYPE dms_provider AS ENUM (
+  'tekmetric',
+  'mitchell1',
+  'shopware',
+  'none'
+);
+
+CREATE TYPE dms_sync_status AS ENUM (
+  'pending',
+  'synced',
+  'failed',
+  'skipped'
+);
+
+-- ============================================================
+-- DMS INTEGRATIONS
+-- ============================================================
+CREATE TABLE dms_integrations (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  provider        dms_provider NOT NULL,
+  api_key         TEXT,                              -- encrypted at rest
+  api_url         TEXT,                              -- custom base URL override
+  shop_external_id TEXT,                             -- shop ID in the DMS system
+  oauth_token     TEXT,                              -- for OAuth-based providers (Tekmetric)
+  oauth_refresh   TEXT,
+  oauth_expires_at TIMESTAMPTZ,
+  webhook_secret  TEXT,
+  enabled         BOOLEAN NOT NULL DEFAULT true,
+  sync_customers  BOOLEAN NOT NULL DEFAULT true,
+  sync_vehicles   BOOLEAN NOT NULL DEFAULT true,
+  sync_repair_orders BOOLEAN NOT NULL DEFAULT true,
+  sync_appointments BOOLEAN NOT NULL DEFAULT true,
+  last_sync_at    TIMESTAMPTZ,
+  last_sync_error TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX idx_dms_shop ON dms_integrations(shop_id);
+
+-- ============================================================
+-- DMS SYNC LOG
+-- ============================================================
+CREATE TABLE dms_sync_log (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  integration_id  UUID NOT NULL REFERENCES dms_integrations(id) ON DELETE CASCADE,
+  entity_type     TEXT NOT NULL,                     -- 'customer', 'vehicle', 'repair_order', 'appointment'
+  entity_id       UUID,                              -- local entity ID
+  external_id     TEXT,                              -- ID in the DMS system
+  direction       TEXT NOT NULL DEFAULT 'outbound',  -- 'outbound' (us→DMS) or 'inbound' (DMS→us)
+  status          dms_sync_status NOT NULL DEFAULT 'pending',
+  request_payload JSONB,
+  response_payload JSONB,
+  error_message   TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_dms_sync_shop ON dms_sync_log(shop_id);
+CREATE INDEX idx_dms_sync_entity ON dms_sync_log(entity_type, entity_id);
+CREATE INDEX idx_dms_sync_status ON dms_sync_log(status);
+
+-- Add DMS external ID columns to existing tables
+ALTER TABLE callers ADD COLUMN dms_external_id TEXT;
+ALTER TABLE vehicles ADD COLUMN dms_external_id TEXT;
+ALTER TABLE appointment_requests ADD COLUMN dms_external_id TEXT;
+ALTER TABLE tasks ADD COLUMN dms_external_id TEXT;
+
+CREATE TRIGGER trg_dms_integrations_updated_at
+  BEFORE UPDATE ON dms_integrations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
 -- SAMPLE SHOP INSERT (for testing)
 -- ============================================================
 -- INSERT INTO shops (name, main_number, address, timezone, hours_json, transfer_number, sms_from_number)
