@@ -1,0 +1,208 @@
+{
+  "name": "retell_inbound_router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-inbound",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Retell Pre-Call Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM shops WHERE main_number = '{{ $json.body.to_number }}' LIMIT 1;",
+        "options": {}
+      },
+      "id": "node-shop-lookup",
+      "name": "Shop Lookup by DID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.length > 0 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-shop-found-check",
+      "name": "Shop Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM callers WHERE phone = '{{ $node['Retell Pre-Call Webhook'].json.body.from_number }}' AND blocked_flag = false LIMIT 1;",
+        "options": {}
+      },
+      "id": "node-caller-lookup",
+      "name": "Caller Lookup",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM callers WHERE phone = '{{ $node['Retell Pre-Call Webhook'].json.body.from_number }}' AND blocked_flag = true LIMIT 1;",
+        "options": {}
+      },
+      "id": "node-blocked-check",
+      "name": "Check Blocked Caller",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Get shop data from Shop Lookup node\nconst shop = $node['Shop Lookup by DID'].json[0] || $node['Shop Lookup by DID'].json;\nconst caller = $node['Caller Lookup'].json[0] || null;\nconst callerPhone = $node['Retell Pre-Call Webhook'].json.body.from_number || '';\n\n// Determine current day/time in shop timezone\nconst now = new Date();\n// In production, use luxon or moment-timezone with shop.timezone\nconst days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];\nconst dayName = days[now.getDay()];\nconst hoursJson = typeof shop.hours_json === 'string' ? JSON.parse(shop.hours_json) : shop.hours_json;\nconst todayHours = hoursJson[dayName];\n\n// Format hours string\nlet hoursToday = 'Closed today';\nlet shopIsOpen = 'false';\n\nif (todayHours && todayHours.open && todayHours.close) {\n  const formatTime = (t) => {\n    const [h, m] = t.split(':').map(Number);\n    const ampm = h >= 12 ? 'PM' : 'AM';\n    const h12 = h % 12 || 12;\n    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;\n  };\n  hoursToday = `Open today ${formatTime(todayHours.open)} – ${formatTime(todayHours.close)}`;\n\n  // Check if currently open (simplified — use timezone-aware logic in production)\n  const currentHHMM = now.toTimeString().slice(0, 5);\n  if (currentHHMM >= todayHours.open && currentHHMM < todayHours.close) {\n    shopIsOpen = 'true';\n  }\n}\n\nconst transferAvailable = (shopIsOpen === 'true' && shop.transfer_number) ? 'true' : 'false';\nconst customerName = (caller && caller.name) ? caller.name : '';\nconst returningCustomer = (caller && caller.name) ? 'yes' : 'no';\n\nreturn {\n  json: {\n    dynamic_variables: {\n      shop_name: shop.name || '',\n      address: shop.address || '',\n      hours_today: hoursToday,\n      diag_fee: shop.diag_fee_text || '',\n      services: shop.services_text || '',\n      makes_serviced: shop.makes_serviced_text || '',\n      tow_policy: shop.tow_policy_text || '',\n      customer_name: customerName,\n      caller_phone: callerPhone,\n      returning_customer: returningCustomer,\n      shop_is_open: shopIsOpen,\n      transfer_available: transferAvailable,\n      transfer_number: shop.transfer_number || ''\n    },\n    override_agent_id: null\n  }\n};"
+      },
+      "id": "node-build-response",
+      "name": "Build Dynamic Variables",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-respond-ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"shop_not_found\", \"message\": \"No shop configured for this number\"}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "id": "node-respond-404",
+      "name": "Respond 404 No Shop",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.length > 0 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-is-blocked",
+      "name": "Caller Blocked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\": \"caller_blocked\", \"reject_call\": true}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "node-respond-blocked",
+      "name": "Respond 403 Blocked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 450]
+    }
+  ],
+  "connections": {
+    "Retell Pre-Call Webhook": {
+      "main": [
+        [{ "node": "Shop Lookup by DID", "type": "main", "index": 0 }]
+      ]
+    },
+    "Shop Lookup by DID": {
+      "main": [
+        [{ "node": "Shop Found?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Shop Found?": {
+      "main": [
+        [
+          { "node": "Caller Lookup", "type": "main", "index": 0 },
+          { "node": "Check Blocked Caller", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Respond 404 No Shop", "type": "main", "index": 0 }]
+      ]
+    },
+    "Caller Lookup": {
+      "main": [
+        [{ "node": "Build Dynamic Variables", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Blocked Caller": {
+      "main": [
+        [{ "node": "Caller Blocked?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Dynamic Variables": {
+      "main": [
+        [{ "node": "Respond 200", "type": "main", "index": 0 }]
+      ]
+    },
+    "Caller Blocked?": {
+      "main": [
+        [{ "node": "Respond 403 Blocked", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "autoshop" },
+    { "name": "retell" },
+    { "name": "inbound" }
+  ]
+}

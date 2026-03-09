@@ -1,0 +1,32 @@
+{
+  "name": "Mike's Auto Repair",
+  "main_number": "+15551234567",
+  "address": "123 Main St, Springfield, IL 62701",
+  "timezone": "America/Chicago",
+  "hours_json": {
+    "monday":    { "open": "08:00", "close": "17:00" },
+    "tuesday":   { "open": "08:00", "close": "17:00" },
+    "wednesday": { "open": "08:00", "close": "17:00" },
+    "thursday":  { "open": "08:00", "close": "17:00" },
+    "friday":    { "open": "08:00", "close": "17:00" },
+    "saturday":  { "open": "09:00", "close": "13:00" },
+    "sunday":    null
+  },
+  "diag_fee_text": "Our diagnostic fee starts at $125. This covers a full inspection and diagnostic scan.",
+  "services_text": "General repair, brakes, AC, suspension, diagnostics, oil changes, tune-ups, and electrical",
+  "makes_serviced_text": "All makes and models — domestic and import",
+  "tow_policy_text": "We can arrange a tow through our partner service. Tow fees depend on distance. If your vehicle is within 10 miles, we offer a $75 flat-rate tow.",
+  "after_hours_enabled": true,
+  "retell_agent_id": "agent_REPLACE_ME",
+  "retell_agent_version": null,
+  "transfer_number": "+15559876543",
+  "booking_mode": "request_only",
+  "sms_from_number": "+15551112222",
+  "supported_languages": ["en"],
+  "banned_promises": [
+    "Do not quote specific repair prices",
+    "Do not guarantee completion times",
+    "Do not guarantee parts availability",
+    "Do not promise warranty coverage"
+  ]
+}
