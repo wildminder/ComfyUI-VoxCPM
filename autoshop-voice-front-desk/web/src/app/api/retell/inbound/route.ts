@@ -18,19 +18,29 @@ import crypto from "crypto";
 export async function POST(req: NextRequest) {
   const body = await req.text();
 
-  // Verify Retell webhook signature if configured
+  // Verify Retell webhook signature (mandatory in production)
   const signature = req.headers.get("x-retell-signature");
   const webhookSecret = process.env.RETELL_WEBHOOK_SECRET;
 
-  if (webhookSecret && signature) {
-    const expectedSig = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(body)
-      .digest("hex");
+  if (!webhookSecret) {
+    console.error("RETELL_WEBHOOK_SECRET not configured — rejecting request");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
 
-    if (signature !== expectedSig) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
+  if (!signature) {
+    return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+  }
+
+  const expectedSig = crypto
+    .createHmac("sha256", webhookSecret)
+    .update(body)
+    .digest("hex");
+
+  if (
+    signature.length !== expectedSig.length ||
+    !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))
+  ) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   let payload: any;

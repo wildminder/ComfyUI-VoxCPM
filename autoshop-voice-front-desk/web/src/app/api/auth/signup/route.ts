@@ -19,7 +19,38 @@ const signupSchema = z.object({
   shopName: z.string().min(1).max(255),
 });
 
+// Rate limiter for signup: 5 attempts per IP per 15 minutes
+const signupAttempts = new Map<string, { count: number; resetAt: number }>();
+const SIGNUP_MAX_ATTEMPTS = 5;
+const SIGNUP_WINDOW_MS = 15 * 60 * 1000;
+
+function checkSignupRateLimit(key: string): boolean {
+  const now = Date.now();
+  const entry = signupAttempts.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    signupAttempts.set(key, { count: 1, resetAt: now + SIGNUP_WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= SIGNUP_MAX_ATTEMPTS) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+
+  if (!checkSignupRateLimit(ip)) {
+    return NextResponse.json(
+      { error: "Too many signup attempts. Try again in 15 minutes." },
+      { status: 429 }
+    );
+  }
+
   const body = await req.json();
 
   const parsed = signupSchema.safeParse(body);

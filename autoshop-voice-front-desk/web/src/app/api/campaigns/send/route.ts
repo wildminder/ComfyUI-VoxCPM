@@ -78,8 +78,16 @@ export async function POST(req: NextRequest) {
     // Determine A/B variant
     const useVariantB = campaign.subject_line_b && Math.random() < 0.5;
     const subjectLine = useVariantB ? campaign.subject_line_b : campaign.subject_line;
+    const variant = useVariantB ? "b" : "a";
 
     try {
+      // Record send attempt FIRST to prevent duplicate sends on retry
+      await db.execute(sql`
+        INSERT INTO campaign_sends (campaign_id, lead_id, email, subject_variant, email_provider_id, status, sent_at)
+        VALUES (${campaignId}, ${lead.id}, ${lead.email}, ${variant}, '', 'pending', now())
+        ON CONFLICT DO NOTHING
+      `);
+
       const { subject, html } = renderTemplate(templateId, {
         shop_name: lead.shop_name || "Your Shop",
         owner_name: lead.owner_name || "",
@@ -100,13 +108,14 @@ export async function POST(req: NextRequest) {
         tags: [`campaign:${campaignId}`, `lead:${lead.id}`],
       });
 
-      // Record the send
+      // Update send record with result
       await db.execute(sql`
-        INSERT INTO campaign_sends (campaign_id, lead_id, email, subject_variant, email_provider_id, status, sent_at)
-        VALUES (${campaignId}, ${lead.id}, ${lead.email}, ${useVariantB ? "b" : "a"}, ${result.id}, ${result.success ? "sent" : "failed"}, now())
+        UPDATE campaign_sends
+        SET status = ${result.success ? "sent" : "failed"}, email_provider_id = ${result.id || ""}
+        WHERE campaign_id = ${campaignId} AND lead_id = ${lead.id}
       `);
 
-      // Update lead status
+      // Update lead status on success
       if (result.success) {
         await db.execute(sql`
           UPDATE leads
@@ -117,6 +126,13 @@ export async function POST(req: NextRequest) {
 
       results.push({ email: lead.email, success: result.success, error: result.error });
     } catch (e) {
+      // Mark as failed if error thrown
+      await db.execute(sql`
+        UPDATE campaign_sends
+        SET status = 'failed'
+        WHERE campaign_id = ${campaignId} AND lead_id = ${lead.id}
+      `).catch(() => {}); // Best-effort update
+
       results.push({
         email: lead.email,
         success: false,

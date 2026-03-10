@@ -3,6 +3,18 @@ import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
 
 /**
+ * Escape HTML special characters to prevent XSS.
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * CAN-SPAM compliant unsubscribe endpoint.
  * GET: Shows unsubscribe confirmation page
  * POST: Processes unsubscribe
@@ -13,6 +25,8 @@ export async function GET(req: NextRequest) {
   if (!email) {
     return new NextResponse("Missing email parameter", { status: 400 });
   }
+
+  const safeEmail = escapeHtml(email);
 
   // Return a simple HTML confirmation page
   const html = `
@@ -33,9 +47,9 @@ export async function GET(req: NextRequest) {
 <body>
   <div class="card" id="confirm">
     <h1>Unsubscribe</h1>
-    <p>Click below to unsubscribe <strong>${email}</strong> from AutoShop Voice AI emails.</p>
+    <p>Click below to unsubscribe <strong>${safeEmail}</strong> from AutoShop Voice AI emails.</p>
     <form method="POST" action="/api/unsubscribe">
-      <input type="hidden" name="email" value="${email}">
+      <input type="hidden" name="email" value="${safeEmail}">
       <button type="submit" class="btn">Unsubscribe Me</button>
     </form>
   </div>
