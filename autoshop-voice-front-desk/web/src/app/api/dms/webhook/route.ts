@@ -11,18 +11,21 @@ import crypto from "crypto";
  * when entities are updated in their system (e.g., repair order status changes,
  * appointment confirmations, etc.).
  *
- * Each DMS provider sends slightly different webhook formats.
- * We normalize them into a unified format for processing.
+ * Signature verification is mandatory for all webhooks.
  */
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const rawBody = await req.text();
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  // Identify the provider from a header or body field
-  const providerHeader = req.headers.get("x-dms-provider");
   const webhookSecret = req.headers.get("x-webhook-secret");
   const signature = req.headers.get("x-webhook-signature");
 
-  // Find the integration by webhook secret or provider hint
+  // Find integration — require webhook secret header for lookup
   let integration;
   if (webhookSecret) {
     const [found] = await db
@@ -31,29 +34,34 @@ export async function POST(req: NextRequest) {
       .where(and(eq(dmsIntegrations.webhookSecret, webhookSecret), eq(dmsIntegrations.enabled, true)))
       .limit(1);
     integration = found;
-  } else if (providerHeader && body.shop_external_id) {
-    const [found] = await db
-      .select()
-      .from(dmsIntegrations)
-      .where(and(eq(dmsIntegrations.shopExternalId, body.shop_external_id), eq(dmsIntegrations.enabled, true)))
-      .limit(1);
-    integration = found;
   }
 
   if (!integration) {
     return NextResponse.json({ error: "Unknown integration" }, { status: 404 });
   }
 
-  // Verify signature if configured
-  if (integration.webhookSecret && signature) {
-    const rawBody = JSON.stringify(body);
-    const expected = crypto
-      .createHmac("sha256", integration.webhookSecret)
-      .update(rawBody)
-      .digest("hex");
-    if (signature !== expected && signature !== `sha256=${expected}`) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
-    }
+  // Mandatory signature verification
+  if (!integration.webhookSecret) {
+    console.error(`Integration ${integration.id} missing webhook secret — rejecting`);
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 400 });
+  }
+
+  if (!signature) {
+    return NextResponse.json({ error: "Missing signature" }, { status: 403 });
+  }
+
+  const expected = crypto
+    .createHmac("sha256", integration.webhookSecret)
+    .update(rawBody)
+    .digest("hex");
+
+  if (
+    !crypto.timingSafeEqual(
+      Buffer.from(signature.replace(/^sha256=/, "")),
+      Buffer.from(expected)
+    )
+  ) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
   }
 
   // Normalize the webhook event
@@ -73,7 +81,6 @@ export async function POST(req: NextRequest) {
 
   // Process status updates
   if (event.entityType === "repair_order" && event.status) {
-    // Update related task status based on DMS repair order status
     const completedStatuses = ["completed", "closed", "invoiced", "paid"];
     if (completedStatuses.includes(event.status.toLowerCase())) {
       await db
@@ -113,7 +120,6 @@ interface NormalizedEvent {
 function normalizeWebhookEvent(provider: string, body: Record<string, unknown>): NormalizedEvent {
   switch (provider) {
     case "tekmetric": {
-      // Tekmetric webhook format: { type: "REPAIR_ORDER_UPDATED", data: { id, status, ... } }
       const type = String(body.type || "").toLowerCase();
       const data = (body.data || {}) as Record<string, unknown>;
       let entityType = "unknown";
@@ -131,7 +137,6 @@ function normalizeWebhookEvent(provider: string, body: Record<string, unknown>):
     }
 
     case "mitchell1": {
-      // Mitchell 1 format: { eventType: "JobStatusChanged", jobId: "...", status: "..." }
       const eventType = String(body.eventType || "").toLowerCase();
       let entityType = "unknown";
       if (eventType.includes("job") || eventType.includes("repairorder")) entityType = "repair_order";
@@ -147,7 +152,6 @@ function normalizeWebhookEvent(provider: string, body: Record<string, unknown>):
     }
 
     case "shopware": {
-      // Shop-Ware format: { event: "repair_order.updated", payload: { id, state, ... } }
       const event = String(body.event || "");
       const payload = (body.payload || {}) as Record<string, unknown>;
       const entityType = event.split(".")[0] || "unknown";

@@ -33,9 +33,9 @@ export async function GET() {
 
 const updateSchema = z.object({
   provider: z.enum(["tekmetric", "mitchell1", "shopware", "none"]).optional(),
-  apiKey: z.string().optional(),
-  apiUrl: z.string().optional(),
-  shopExternalId: z.string().optional(),
+  apiKey: z.string().min(1, "API key cannot be empty").max(1000).optional(),
+  apiUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")).or(z.literal(undefined)),
+  shopExternalId: z.string().min(1, "External ID cannot be empty").max(255).optional(),
   enabled: z.boolean().optional(),
   syncCustomers: z.boolean().optional(),
   syncVehicles: z.boolean().optional(),
@@ -95,7 +95,7 @@ export async function PUT(req: NextRequest) {
     await db.insert(dmsIntegrations).values({
       shopId,
       provider: parsed.data.provider || "tekmetric",
-      apiKey: parsed.data.apiKey || "",
+      apiKey: parsed.data.apiKey || null,
       apiUrl: parsed.data.apiUrl || null,
       shopExternalId: parsed.data.shopExternalId || null,
       enabled: parsed.data.enabled ?? true,

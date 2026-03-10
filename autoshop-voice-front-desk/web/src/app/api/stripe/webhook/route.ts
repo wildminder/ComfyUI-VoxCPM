@@ -6,21 +6,51 @@ import { eq } from "drizzle-orm";
 import { provisionShop } from "@/lib/provision";
 import Stripe from "stripe";
 
+// Simple idempotency: track processed event IDs in memory
+const processedEvents = new Map<string, number>();
+const MAX_EVENT_AGE_SEC = 300; // 5 minutes
+
+// Periodic cleanup of old entries (every 10 minutes)
+setInterval(() => {
+  const cutoff = Date.now() - MAX_EVENT_AGE_SEC * 2 * 1000;
+  for (const [id, ts] of processedEvents) {
+    if (ts < cutoff) processedEvents.delete(id);
+  }
+}, 10 * 60 * 1000).unref?.();
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
-  const sig = req.headers.get("stripe-signature")!;
+  const sig = req.headers.get("stripe-signature");
+
+  if (!sig) {
+    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET not configured");
+    return NextResponse.json({ error: "Not configured" }, { status: 500 });
+  }
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
-    console.error("Stripe webhook signature verification failed:", err);
+    console.error("Stripe webhook signature verification failed:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
+
+  // Reject stale events (older than 5 minutes)
+  const eventAge = Date.now() / 1000 - event.created;
+  if (eventAge > MAX_EVENT_AGE_SEC) {
+    return NextResponse.json({ error: "Event too old" }, { status: 400 });
+  }
+
+  // Idempotency check
+  if (processedEvents.has(event.id)) {
+    return NextResponse.json({ received: true });
+  }
+  processedEvents.set(event.id, Date.now());
 
   switch (event.type) {
     case "checkout.session.completed": {

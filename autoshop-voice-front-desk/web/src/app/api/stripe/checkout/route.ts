@@ -5,6 +5,22 @@ import { db } from "@/lib/db";
 import { shops } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
+function getValidatedAppUrl(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    throw new Error("NEXT_PUBLIC_APP_URL is not configured");
+  }
+  try {
+    const url = new URL(appUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("NEXT_PUBLIC_APP_URL must use http or https");
+    }
+    return url.origin;
+  } catch {
+    throw new Error("NEXT_PUBLIC_APP_URL is not a valid URL");
+  }
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -17,10 +33,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
 
+  if (!session.user.shopId) {
+    return NextResponse.json({ error: "No shop associated" }, { status: 400 });
+  }
+
   const [shop] = await db
     .select()
     .from(shops)
-    .where(eq(shops.id, session.user.shopId!))
+    .where(eq(shops.id, session.user.shopId))
     .limit(1);
 
   // Create or retrieve Stripe customer
@@ -30,19 +50,19 @@ export async function POST(req: NextRequest) {
       email: session.user.email,
       name: shop?.name || session.user.name || undefined,
       metadata: {
-        shopId: session.user.shopId || "",
+        shopId: session.user.shopId,
         userId: session.user.id,
       },
     });
     customerId = customer.id;
 
-    if (session.user.shopId) {
-      await db
-        .update(shops)
-        .set({ stripeCustomerId: customerId })
-        .where(eq(shops.id, session.user.shopId));
-    }
+    await db
+      .update(shops)
+      .set({ stripeCustomerId: customerId })
+      .where(eq(shops.id, session.user.shopId));
   }
+
+  const appUrl = getValidatedAppUrl();
 
   const checkoutSession = await stripe.checkout.sessions.create({
     customer: customerId,
@@ -52,14 +72,14 @@ export async function POST(req: NextRequest) {
     subscription_data: {
       trial_period_days: 14,
       metadata: {
-        shopId: session.user.shopId || "",
+        shopId: session.user.shopId,
         planId,
       },
     },
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/complete?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/signup?canceled=true`,
+    success_url: `${appUrl}/onboarding/complete?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appUrl}/signup?canceled=true`,
     metadata: {
-      shopId: session.user.shopId || "",
+      shopId: session.user.shopId,
       planId,
     },
   });

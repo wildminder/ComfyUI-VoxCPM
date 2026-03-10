@@ -21,9 +21,14 @@ export async function POST() {
     return NextResponse.json({ error: "No billing account" }, { status: 400 });
   }
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    return NextResponse.json({ error: "App URL not configured" }, { status: 500 });
+  }
+
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: shop.stripeCustomerId,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings`,
+    return_url: `${new URL("/dashboard/settings", appUrl).toString()}`,
   });
 
   return NextResponse.json({ url: portalSession.url });

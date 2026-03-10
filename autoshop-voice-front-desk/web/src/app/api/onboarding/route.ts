@@ -6,14 +6,26 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { dmsIntegrations } from "@/lib/schema";
 
+const VALID_TIMEZONES = [
+  "America/New_York", "America/Chicago", "America/Denver",
+  "America/Los_Angeles", "America/Phoenix", "America/Anchorage",
+  "America/Adak", "Pacific/Honolulu", "America/Indiana/Indianapolis",
+  "America/Detroit", "America/Kentucky/Louisville", "America/Boise",
+] as const;
+
+const phoneRegex = /^\+?1?\d{10,15}$/;
+
 const step1Schema = z.object({
   step: z.literal("step1"),
-  address: z.string().min(1),
-  city: z.string().min(1),
-  state: z.string().min(1),
-  zip: z.string().min(1),
-  timezone: z.string().min(1),
-  transferNumber: z.string().optional(),
+  address: z.string().min(1).max(500),
+  city: z.string().min(1).max(100),
+  state: z.string().min(2).max(50),
+  zip: z.string().regex(/^\d{5}(-\d{4})?$/, "Invalid ZIP code format"),
+  timezone: z.string().refine(
+    (tz) => (VALID_TIMEZONES as readonly string[]).includes(tz),
+    "Invalid timezone"
+  ),
+  transferNumber: z.string().regex(phoneRegex, "Invalid phone number").optional().or(z.literal("")),
 });
 
 const step2Schema = z.object({
@@ -26,18 +38,18 @@ const step2Schema = z.object({
 
 const step3Schema = z.object({
   step: z.literal("step3"),
-  servicesText: z.string().min(1),
-  makesServicedText: z.string().min(1),
-  diagFeeText: z.string().optional(),
-  towPolicyText: z.string().optional(),
+  servicesText: z.string().min(1).max(5000),
+  makesServicedText: z.string().min(1).max(2000),
+  diagFeeText: z.string().max(1000).optional(),
+  towPolicyText: z.string().max(2000).optional(),
 });
 
 const stepDmsSchema = z.object({
   step: z.literal("step_dms"),
   dmsProvider: z.enum(["tekmetric", "mitchell1", "shopware", "none"]),
-  apiKey: z.string().optional(),
-  apiUrl: z.string().optional(),
-  shopExternalId: z.string().optional(),
+  apiKey: z.string().min(8, "API key too short").max(1000).optional(),
+  apiUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  shopExternalId: z.string().min(1).max(255).optional(),
 });
 
 export async function POST(req: NextRequest) {
