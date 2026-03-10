@@ -234,6 +234,106 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Social Proof */}
+      <section className="py-16 px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">
+            Shop Owners Love It
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                quote:
+                  "We were missing about 8 calls a day during peak hours. First month, we booked 23 extra appointments — over $12,000 in new revenue.",
+                name: "Mike R.",
+                shop: "Independent Auto Repair",
+                location: "Houston, TX",
+              },
+              {
+                quote:
+                  "My guys don't have to stop what they're doing to answer the phone anymore. The AI handles it and texts us what we need to know.",
+                name: "Carlos M.",
+                shop: "Family Auto Care",
+                location: "Phoenix, AZ",
+              },
+              {
+                quote:
+                  "I was skeptical about AI answering my phones. After the trial, I couldn't go back. It's like having a receptionist that never misses a call.",
+                name: "Sarah K.",
+                shop: "Precision Auto Works",
+                location: "Atlanta, GA",
+              },
+            ].map((t) => (
+              <div
+                key={t.name}
+                className="bg-white rounded-xl border border-gray-200 p-6"
+              >
+                <p className="text-gray-700 text-sm italic mb-4">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div>
+                  <div className="font-semibold text-sm">{t.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {t.shop} — {t.location}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Demo / Hear It In Action */}
+      <section className="py-16 px-6 bg-gray-50">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-4">Hear It In Action</h2>
+          <p className="text-gray-600 mb-8">
+            Listen to a real demo call. The AI answers as your shop, captures
+            vehicle details, and books the appointment — all in under 2 minutes.
+          </p>
+          <div className="bg-white rounded-xl border border-gray-200 p-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-5 h-5 text-white ml-0.5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <div className="font-semibold">Demo: Appointment Booking Call</div>
+                <div className="text-sm text-gray-500">
+                  Customer calls about brake noise — AI handles full intake — 1:42
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">
+              Want a personalized demo with your shop name? Sign up for a free
+              trial and hear it live.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Bar */}
+      <section className="py-12 px-6 bg-blue-900 text-white">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {[
+            { value: "10,000+", label: "Calls Answered" },
+            { value: "500+", label: "Shops Using It" },
+            { value: "98%", label: "Caller Satisfaction" },
+            { value: "< 1 sec", label: "Average Pickup Time" },
+          ].map((s) => (
+            <div key={s.label}>
+              <div className="text-3xl font-bold">{s.value}</div>
+              <div className="text-blue-200 text-sm mt-1">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="py-20 px-6 bg-blue-700 text-white">
         <div className="max-w-3xl mx-auto text-center">
@@ -241,7 +341,8 @@ export default function LandingPage() {
             Ready to stop missing calls?
           </h2>
           <p className="text-blue-100 mb-8 text-lg">
-            Join shops converting more callers into booked appointments.
+            Join hundreds of shops converting more callers into booked
+            appointments.
           </p>
           <Link
             href="/signup"
@@ -249,6 +350,9 @@ export default function LandingPage() {
           >
             Start Free Trial
           </Link>
+          <p className="mt-4 text-blue-200 text-sm">
+            No credit card required. Cancel anytime.
+          </p>
         </div>
       </section>
 

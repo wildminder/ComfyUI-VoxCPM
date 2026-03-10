@@ -10,6 +10,9 @@ const PUBLIC_PATHS = [
   "/api/auth/signup",
   "/api/stripe/webhook",
   "/api/dms/webhook",
+  "/api/admin/health",
+  "/api/retell/inbound",
+  "/api/unsubscribe",
 ];
 
 // Allowed static file extensions

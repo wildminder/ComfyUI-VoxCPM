@@ -38,6 +38,12 @@ export default function DashboardLayout({
               >
                 Settings
               </Link>
+              <Link
+                href="/dashboard/admin"
+                className="text-sm text-orange-600 hover:text-orange-800 font-medium"
+              >
+                Admin
+              </Link>
             </div>
           </div>
           <form action="/api/auth/logout" method="POST">
