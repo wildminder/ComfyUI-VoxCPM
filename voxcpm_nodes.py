@@ -27,6 +27,7 @@ from .modules.generation import (
     validate_prompt_pairing,
 )
 from .modules.utils import get_available_devices, set_seed
+from src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
 
 from .voxcpm_train_nodes import VoxCPM_TrainConfig, VoxCPM_DatasetMaker, VoxCPM_LoraTrainer
 
@@ -86,7 +87,13 @@ class VoxCPMNode(io.ComfyNode):
                 io.Int.Input("steps", default=10, min=1, max=100, step=1, tooltip="Number of diffusion steps. Higher values may improve quality but are slower."),
                 io.Int.Input("min_tokens", default=2, min=1, max=100, tooltip="Minimum length of generated audio tokens."),
                 io.Int.Input("max_tokens", default=2048, min=64, max=8192, tooltip="Maximum length of generated audio tokens."),
-                io.Boolean.Input("normalize_text", default=True, label_on="Normalize", label_off="Raw", tooltip="Enable text normalization (recommended for general text)."),
+                io.Boolean.Input(
+                    "normalize_text",
+                    default=TEXT_NORMALIZATION_AVAILABLE,
+                    label_on="Normalize",
+                    label_off="Raw",
+                    tooltip="Enable text normalization (requires 'inflect' and 'wetext' packages)." if not TEXT_NORMALIZATION_AVAILABLE else "Enable text normalization (recommended for general text)."
+                ),
                 io.Boolean.Input("trim_silence", default=False, label_on="Trim", label_off="Keep", tooltip="(VoxCPM2 only) Trim silence from reference/prompt audio using VAD."),
 
                 # Advanced generation parameters

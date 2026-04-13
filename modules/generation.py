@@ -192,6 +192,12 @@ def generate_audio(
         RuntimeError: If generation fails
     """
     try:
+        # Handle text normalization fallback
+        from src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
+        if normalize and not TEXT_NORMALIZATION_AVAILABLE:
+            logger.warning("⚠️ Text normalization packages (inflect, wetext) not installed. Proceeding without text normalization.")
+            normalize = False
+        
         # Estimate total generation steps based on text length: ~1.2 steps per character + base overhead
         text_length = len(text)
         estimated_total_steps = int(text_length * 1.2 + 20)
