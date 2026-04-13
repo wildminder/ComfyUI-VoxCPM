@@ -44,7 +44,7 @@ from ..modules.layers.lora import apply_lora_to_named_linear_modules
 from ..modules.locdit import CfmConfig, UnifiedCFM, VoxCPMLocDiT
 from ..modules.locenc import VoxCPMLocEnc
 from ..modules.minicpm4 import MiniCPM4Config, MiniCPMModel
-from .utils import get_dtype, mask_multichar_chinese_tokens
+from .utils import get_dtype, mask_multichar_chinese_tokens, next_and_close
 
 
 class VoxCPMEncoderConfig(BaseModel):
@@ -338,7 +338,7 @@ class VoxCPMModel(nn.Module):
         return get_dtype(self.config.dtype)
 
     def generate(self, *args, **kwargs) -> torch.Tensor:
-        return next(self._generate(*args, streaming=False, **kwargs))
+        return next_and_close(self._generate(*args, streaming=False, **kwargs))
 
     def generate_streaming(self, *args, **kwargs) -> Generator[torch.Tensor, None, None]:
         return self._generate(*args, streaming=True, **kwargs)
@@ -470,7 +470,7 @@ class VoxCPMModel(nn.Module):
                     yield decode_audio
                 break
             else:
-                latent_pred, pred_audio_feat = next(inference_result)
+                latent_pred, pred_audio_feat = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
                         print(
@@ -562,7 +562,7 @@ class VoxCPMModel(nn.Module):
             self.patch_size,
         ).permute(
             1, 2, 0
-        ) # (D, T, P)
+        )  # (D, T, P)
         # build prompt cache - only save raw text and audio features
         prompt_cache = {
             "prompt_text": prompt_text,
@@ -608,7 +608,7 @@ class VoxCPMModel(nn.Module):
         return merged_cache
 
     def generate_with_prompt_cache(self, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        return next(self._generate_with_prompt_cache(*args, streaming=False, **kwargs))
+        return next_and_close(self._generate_with_prompt_cache(*args, streaming=False, **kwargs))
 
     def generate_with_prompt_cache_streaming(
         self, *args, **kwargs
@@ -635,7 +635,7 @@ class VoxCPMModel(nn.Module):
     ) -> Generator[Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """
         Generate audio using pre-built prompt cache.
-    
+
         Args:
             target_text: Text to convert to speech
             prompt_cache: Cache built by build_prompt_cache (can be None)
@@ -654,9 +654,9 @@ class VoxCPMModel(nn.Module):
     
         Returns:
             Generator of Tuple containing:
-            - Decoded audio tensor for the current step if ``streaming=True``, else final decoded audio tensor
-            - Tensor of new text tokens
-            - New audio features up to the current step as a List if ``streaming=True``, else as a concatenated Tensor
+                - Decoded audio tensor for the current step if ``streaming=True``, else final decoded audio tensor
+                - Tensor of new text tokens
+                - New audio features up to the current step as a List if ``streaming=True``, else as a concatenated Tensor
         """
         if retry_badcase and streaming:
             warnings.warn("Retry on bad cases is not supported in streaming mode, setting retry_badcase=False.")
@@ -736,7 +736,7 @@ class VoxCPMModel(nn.Module):
                     yield (decode_audio, target_text_token, pred_audio_feat)
                 break
             else:
-                latent_pred, pred_audio_feat = next(inference_result)
+                latent_pred, pred_audio_feat = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
                         print(
@@ -759,7 +759,7 @@ class VoxCPMModel(nn.Module):
             yield (decode_audio, target_text_token, pred_audio_feat)
 
     def inference(self, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
-        return next(self._inference(*args, streaming=False, **kwargs))
+        return next_and_close(self._inference(*args, streaming=False, **kwargs))
 
     def inference_streaming(self, *args, **kwargs) -> Generator[Tuple[torch.Tensor, List[torch.Tensor]], None, None]:
         return self._inference(*args, streaming=True, **kwargs)
@@ -782,10 +782,10 @@ class VoxCPMModel(nn.Module):
         use_cfg_zero_star: bool = True,
     ) -> Generator[Tuple[torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """Core inference method for audio generation.
-    
+
         This is the main inference loop that generates audio features
         using the language model and diffusion transformer.
-    
+
         Args:
             text: Input text tokens
             text_mask: Mask for text tokens
@@ -803,8 +803,8 @@ class VoxCPMModel(nn.Module):
     
         Returns:
             Generator of Tuple containing:
-            - Predicted latent feature at the current step if ``streaming=True``, else final latent features
-            - Predicted audio feature sequence so far as a List if ``streaming=True``, else as a concatenated Tensor
+                - Predicted latent feature at the current step if ``streaming=True``, else final latent features
+                - Predicted audio feature sequence so far as a List if ``streaming=True``, else as a concatenated Tensor
         """
         B, T, P, D = feat.shape
 
@@ -902,8 +902,15 @@ class VoxCPMModel(nn.Module):
             yield feat_pred, pred_feat_seq.squeeze(0).cpu()
 
     @classmethod
-    def from_local(cls, path: str, optimize: bool = True, training: bool = False, lora_config: LoRAConfig = None):
-        config = VoxCPMConfig.model_validate_json(open(os.path.join(path, "config.json")).read())
+    def from_local(
+        cls,
+        path: str,
+        optimize: bool = True,
+        training: bool = False,
+        lora_config: LoRAConfig = None,
+    ):
+        with open(os.path.join(path, "config.json"), "r", encoding="utf-8") as _cfg_f:
+            config = VoxCPMConfig.model_validate_json(_cfg_f.read())
         tokenizer = LlamaTokenizerFast.from_pretrained(path)
         audio_vae_config = getattr(config, "audio_vae_config", None)
         audio_vae = AudioVAE(config=audio_vae_config) if audio_vae_config else AudioVAE()
