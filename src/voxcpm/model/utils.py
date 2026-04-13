@@ -3,6 +3,16 @@ import torch
 from transformers import PreTrainedTokenizer
 
 
+# Ref: https://github.com/OpenBMB/VoxCPM/issues/256#issuecomment-4235252732
+# Explicitly close partially-consumed generators so inference_mode cleanup
+# does not get deferred to Python's GC/finalizer path.
+def next_and_close(gen):
+    try:
+        return next(gen)
+    finally:
+        gen.close()
+
+
 def mask_multichar_chinese_tokens(tokenizer: PreTrainedTokenizer):
     """Create a tokenizer wrapper that converts multi-character Chinese tokens to single characters.
 
