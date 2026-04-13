@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import torch
 import torch.nn.functional as F
@@ -56,7 +56,7 @@ class UnifiedCFM(torch.nn.Module):
         cond: torch.Tensor,
         temperature: float = 1.0,
         cfg_value: float = 1.0,
-        sway_sampling_coef: float = 1.0, 
+        sway_sampling_coef: float = 1.0,
         use_cfg_zero_star: bool = True,
     ):
         b, _ = mu.shape
@@ -116,7 +116,7 @@ class UnifiedCFM(torch.nn.Module):
 
                 dphi_dt = self.estimator(x_in, mu_in, t_in, cond_in, dt_in)
                 dphi_dt, cfg_dphi_dt = torch.split(dphi_dt, [x.size(0), x.size(0)], dim=0)
-                
+
                 if use_cfg_zero_star:
                     positive_flat = dphi_dt.view(b, -1)
                     negative_flat = cfg_dphi_dt.view(b, -1)
@@ -124,7 +124,7 @@ class UnifiedCFM(torch.nn.Module):
                     st_star = st_star.view(b, *([1] * (len(dphi_dt.shape) - 1)))
                 else:
                     st_star = 1.0
-                
+
                 dphi_dt = cfg_dphi_dt * st_star + cfg_value * (dphi_dt - cfg_dphi_dt * st_star)
 
             x = x - dt * dphi_dt
@@ -138,7 +138,9 @@ class UnifiedCFM(torch.nn.Module):
     # ------------------------------------------------------------------ #
     # Training loss
     # ------------------------------------------------------------------ #
-    def adaptive_loss_weighting(self, losses: torch.Tensor, mask: torch.Tensor | None = None, p: float = 0.0, epsilon: float = 1e-3):
+    def adaptive_loss_weighting(
+        self, losses: torch.Tensor, mask: torch.Tensor | None = None, p: float = 0.0, epsilon: float = 1e-3
+    ):
         weights = 1.0 / ((losses + epsilon).pow(p))
         if mask is not None:
             weights = weights * mask
@@ -193,8 +195,7 @@ class UnifiedCFM(torch.nn.Module):
         cond = cond + noisy_mask.view(-1, 1, 1) * torch.randn_like(cond) * self.noise_cond_scale
 
         ratio_r_neq_t = (
-            self.ratio_r_neq_t_range[0]
-            + progress * (self.ratio_r_neq_t_range[1] - self.ratio_r_neq_t_range[0])
+            self.ratio_r_neq_t_range[0] + progress * (self.ratio_r_neq_t_range[1] - self.ratio_r_neq_t_range[0])
             if self.mean_mode
             else 0.0
         )
@@ -224,7 +225,7 @@ class UnifiedCFM(torch.nn.Module):
         losses = F.mse_loss(u_pred, u_tgt.detach(), reduction="none").mean(dim=1)
         if tgt_mask is not None:
             weights = self.adaptive_loss_weighting(losses, tgt_mask.squeeze(1))
-            loss = (weights * losses).sum() / torch.sum(tgt_mask)
+            loss = (weights * losses).sum() / torch.clamp(torch.sum(tgt_mask), min=1.0)
         else:
             loss = losses.mean()
 

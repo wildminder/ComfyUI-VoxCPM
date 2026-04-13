@@ -18,4 +18,3 @@ class TrainingState:
     val_loader: object
     tracker: object
     batch_processor: object
-

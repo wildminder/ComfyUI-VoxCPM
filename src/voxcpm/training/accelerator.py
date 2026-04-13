@@ -47,9 +47,7 @@ class Accelerator:
                 pass
 
         self.scaler = torch.amp.GradScaler("cuda") if (amp and torch.cuda.is_available()) else DummyScaler()
-        self.device_ctx = (
-            torch.cuda.device(self.local_rank) if torch.cuda.is_available() else None
-        )
+        self.device_ctx = torch.cuda.device(self.local_rank) if torch.cuda.is_available() else None
         self._ddp_model = None  # For no_sync support
 
     def _set_seed(self, seed: int):
@@ -84,7 +82,7 @@ class Accelerator:
     # Model helpers
     # ------------------------------------------------------------------ #
     def prepare_model(self, model: torch.nn.Module, **kwargs):
-        if hasattr(model, 'device'): # make sure the matrix will be moved to the correct device
+        if hasattr(model, "device"):  # make sure the matrix will be moved to the correct device
             model.device = self.device
         model = model.to(self.device)
         if self.world_size > 1:
@@ -163,4 +161,3 @@ class Accelerator:
     @staticmethod
     def unwrap(model: torch.nn.Module) -> torch.nn.Module:
         return model.module if hasattr(model, "module") else model
-

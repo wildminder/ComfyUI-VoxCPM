@@ -1,5 +1,5 @@
 import math
-from typing import List, Union, Optional
+from typing import List
 
 import numpy as np
 import torch
@@ -285,12 +285,12 @@ class AudioVAE(nn.Module):
 
     def __init__(
         self,
-        config: Optional[AudioVAEConfig] = None,
+        config: AudioVAEConfig = None,
     ):
         # 如果没有传入config，使用默认配置
         if config is None:
             config = AudioVAEConfig()
-        
+
         super().__init__()
 
         encoder_dim = config.encoder_dim
@@ -301,7 +301,7 @@ class AudioVAE(nn.Module):
         depthwise = config.depthwise
         sample_rate = config.sample_rate
         use_noise_block = config.use_noise_block
-        
+
         self.encoder_dim = encoder_dim
         self.encoder_rates = encoder_rates
         self.decoder_dim = decoder_dim

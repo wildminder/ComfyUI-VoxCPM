@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import sys
 import time
 from pathlib import Path
 from typing import Dict, Optional
@@ -36,7 +37,7 @@ class TrainingTracker:
     # ------------------------------------------------------------------ #
     def print(self, message: str):
         if self.rank == 0:
-            print(message, flush=True)
+            print(message, flush=True, file=sys.stderr)
             if self.log_file:
                 with self.log_file.open("a", encoding="utf-8") as f:
                     f.write(message + "\n")
@@ -75,4 +76,3 @@ class TrainingTracker:
     @contextlib.contextmanager
     def live(self):
         yield
-

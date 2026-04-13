@@ -64,10 +64,8 @@ class MiniCPMLongRoPE(nn.Module):
         self.long_factor = config.rope_scaling.long_factor
         self.original_max_position_embeddings = config.rope_scaling.original_max_position_embeddings
 
-        scale = (self.max_position_embeddings / self.original_max_position_embeddings)
-        self.scaling_factor = math.sqrt(
-            1 + math.log(scale) / math.log(self.original_max_position_embeddings)
-        )
+        scale = self.max_position_embeddings / self.original_max_position_embeddings
+        self.scaling_factor = math.sqrt(1 + math.log(scale) / math.log(self.original_max_position_embeddings))
         inv_freq = 1.0 / (self.base ** (torch.arange(0, self.dim, 2).float() / self.dim))
         self.register_buffer("inv_freq", inv_freq, persistent=False)
 
@@ -76,11 +74,7 @@ class MiniCPMLongRoPE(nn.Module):
         self.register_buffer("cos_cached", torch.empty(0), persistent=False)
         self.register_buffer("sin_cached", torch.empty(0), persistent=False)
 
-        self._set_cos_sin_cache(
-            seq_len=self.max_position_embeddings,
-            device=self.inv_freq.device,
-            dtype=torch.float32
-        )
+        self._set_cos_sin_cache(seq_len=self.max_position_embeddings, device=self.inv_freq.device, dtype=torch.float32)
 
     def _set_cos_sin_cache(self, seq_len, device, dtype):
         """设置cos和sin缓存"""
@@ -93,8 +87,7 @@ class MiniCPMLongRoPE(nn.Module):
             ext_factors = torch.tensor(self.short_factor, dtype=torch.float32, device=device)
 
         freqs = torch.mul(
-            torch.outer(t, 1.0 / ext_factors).to(device=device),
-            self.inv_freq.to(device=device).to(dtype)
+            torch.outer(t, 1.0 / ext_factors).to(device=device), self.inv_freq.to(device=device).to(dtype)
         )
 
         # 创建embeddings
@@ -123,7 +116,9 @@ class MiniCPMAttention(nn.Module):
         self.layer_idx = layer_idx
         self.hidden_size = config.hidden_size
         self.num_heads = config.num_attention_heads
-        self.head_dim = config.hidden_size // config.num_attention_heads if config.kv_channels is None else config.kv_channels
+        self.head_dim = (
+            config.hidden_size // config.num_attention_heads if config.kv_channels is None else config.kv_channels
+        )
         self.num_key_value_heads = config.num_key_value_heads
         self.num_key_value_groups = self.num_heads // self.num_key_value_heads
         self.max_position_embeddings = config.max_position_embeddings
@@ -150,10 +145,10 @@ class MiniCPMAttention(nn.Module):
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
-        cos, sin = position_emb
+        if position_emb is not None:
+            cos, sin = position_emb
+            query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
-        
         # ref: https://github.com/pytorch/pytorch/issues/163597
         # there is a bug in MPS for non-contiguous tensors, so we need to make them contiguous
         query_states = query_states.contiguous()
@@ -192,9 +187,9 @@ class MiniCPMAttention(nn.Module):
         key_states = key_states.view(bsz, 1, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, 1, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
-        cos, sin = position_emb
-
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+        if position_emb is not None:
+            cos, sin = position_emb
+            query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
         key_cache, value_cache = kv_cache
 
@@ -348,7 +343,10 @@ class MiniCPMModel(nn.Module):
         )
 
         self.norm = MiniCPMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.rope_emb = MiniCPMLongRoPE(config)
+        if config.no_rope:
+            self.rope_emb = None
+        else:
+            self.rope_emb = MiniCPMLongRoPE(config)
 
         self.kv_cache = None
 
@@ -365,8 +363,11 @@ class MiniCPMModel(nn.Module):
             hidden_states: Tensor(batch_size, seq_length, hidden_size)
             next_decoder_cache: List[(batch_size, num_heads, seq_length, head_dim), (batch_size, num_heads, seq_length, head_dim)]
         """
-        position_ids = torch.arange(0, inputs_embeds.size(1), dtype=torch.long, device=inputs_embeds.device)
-        position_emb = self.rope_emb(position_ids)
+        if self.rope_emb is not None:
+            position_ids = torch.arange(0, inputs_embeds.size(1), dtype=torch.long, device=inputs_embeds.device)
+            position_emb = self.rope_emb(position_ids)
+        else:
+            position_emb = None
         hidden_states = inputs_embeds
 
         next_decoder_cache = []
@@ -395,7 +396,10 @@ class MiniCPMModel(nn.Module):
         """
         assert self.kv_cache is not None, "KV cache is not setup"
 
-        position_emb = self.rope_emb(position_id)
+        if self.rope_emb is not None:
+            position_emb = self.rope_emb(position_id)
+        else:
+            position_emb = None
         hidden_states = inputs_embeds
 
         for i, decoder_layer in enumerate(self.layers):
@@ -413,7 +417,11 @@ class MiniCPMModel(nn.Module):
         self.kv_cache = StaticKVCache(
             num_layers=self.config.num_hidden_layers,
             num_kv_heads=self.config.num_key_value_heads,
-            dim_kv_head=self.config.hidden_size // self.config.num_attention_heads if self.config.kv_channels is None else self.config.kv_channels,
+            dim_kv_head=(
+                self.config.hidden_size // self.config.num_attention_heads
+                if self.config.kv_channels is None
+                else self.config.kv_channels
+            ),
             batch_size=batch_size,
             device=device,
             dtype=dtype,
