@@ -58,7 +58,7 @@ This custom node handles everything from model downloading and memory management
 * **Zero-Shot TTS:** Generate high-quality speech without any reference audio
 * **Automatic Model Management:** Models downloaded automatically and managed efficiently
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 ## ▓ Getting Started
 
@@ -90,11 +90,11 @@ Launch ComfyUI. The VoxCPM nodes will appear under the `audio/tts` category. The
 | **VoxCPM1.5** | 800M | 44.1kHz | 2 | Recommended for v1. LoRA support, improved fidelity | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |
 | VoxCPM-0.5B | 640M | 16kHz | 2 | Original version | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 ## ▓ Available Nodes
 
-### Unified TTS Node
+### TTS Node
 **`VoxCPM TTS`** - Single unified node supporting both VoxCPM1.5 and VoxCPM2 with all features:
 - Basic TTS synthesis (zero-shot)
 - Voice Design from natural language descriptions (VoxCPM2)
@@ -102,12 +102,12 @@ Launch ComfyUI. The VoxCPM nodes will appear under the `audio/tts` category. The
 - Ultimate Cloning combining reference + prompt audio (VoxCPM2)
 - LoRA support for custom voice styles
 
-### ░ Training Nodes
+### Training Nodes
 * **`VoxCPM Train Config`** - Configure LoRA training parameters
 * **`VoxCPM Dataset Maker`** - Create training datasets from audio files
 * **`VoxCPM LoRA Trainer`** - Train custom LoRA models
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 ## ▓ Usage
 
@@ -145,9 +145,9 @@ For maximum fidelity, combine reference audio (identity) with prompt audio (pros
 > [!NOTE]
 > **Denoising:** The original VoxCPM library includes a built-in denoiser (ZipEnhancer). This feature is disabled by default to keep dependencies light.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## ⚙️ Advanced Generation Parameters
+## ▓ Advanced Generation Parameters
 
 All generation nodes expose advanced parameters for fine-tuning output quality:
 
@@ -174,7 +174,7 @@ Voice Activity Detection parameters for trimming silence from reference/prompt a
 > [!TIP]
 > For noisy reference audio, enable `trim_silence` and reduce `top_db` (e.g., 25-30) for more aggressive silence removal.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 ##  LoRA Support (Inference & Training)
 
@@ -190,9 +190,9 @@ Train custom LoRA models directly within ComfyUI using the training nodes.
 
 👉 **[Click here for the full LoRA Training Guide](readme-lora-training.md)**
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## 🎤 Voice Design Examples (VoxCPM2)
+## ▓ Voice Design Examples (VoxCPM2)
 
 The Voice Design feature allows you to create voices from natural language descriptions:
 
@@ -206,9 +206,9 @@ The Voice Design feature allows you to create voices from natural language descr
 
 You can combine descriptions: `"warm female voice with slight British accent"`
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## 🎤 Achieving High-Quality Voice Clones
+##  Achieving High-Quality Voice Clones
 
 For best voice cloning results with `prompt_audio` + `prompt_text`:
 
@@ -219,23 +219,23 @@ For best voice cloning results with `prompt_audio` + `prompt_text`:
 > [!Warning]
 > `prompt_text` is the exact transcript, not a description of the voice.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## ⚠️ Risks and Limitations
+## ⟁ Risks and Limitations
 
 * **Potential for Misuse:** Voice cloning could be misused for deepfakes. Users must not use it to infringe upon rights of individuals or for illegal purposes.
 * **Technical Limitations:** May exhibit instability with very long or complex inputs.
 * **Language Support:** VoxCPM1.5 is primarily Chinese and English. VoxCPM2 supports 30+ languages.
 * This node is released for research and development purposes. Please use it responsibly.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 <!-- LICENSE -->
 ## License
 
 The VoxCPM model and its components are subject to the [Apache-2.0 License](https://github.com/OpenBMB/VoxCPM/blob/main/LICENSE) provided by OpenBMB.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
@@ -243,7 +243,7 @@ The VoxCPM model and its components are subject to the [Apache-2.0 License](http
 * **OpenBMB & ModelBest** for creating and open-sourcing the incredible [VoxCPM](https://github.com/OpenBMB/VoxCPM) project.
 * **The ComfyUI team** for their powerful and extensible platform.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 
 <p align="center">══════════════════════════════════</p>
