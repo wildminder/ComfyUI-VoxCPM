@@ -196,6 +196,7 @@ class VoxCPM:
         temperature: float = 1.0,
         sway_sampling_coef: float = 1.0,
         use_cfg_zero_star: bool = True,
+        progress_callback = None,
     ) -> Generator[np.ndarray, None, None]:
         """Synthesize speech for the given text and return a single waveform.
 
@@ -354,8 +355,9 @@ class VoxCPM:
                 streaming=streaming,
                 temperature=temperature,
                 sway_sampling_coef=sway_sampling_coef,
-            use_cfg_zero_star=use_cfg_zero_star,
-        )
+                use_cfg_zero_star=use_cfg_zero_star,
+                progress_callback=progress_callback,
+            )
 
             if streaming:
                 try:

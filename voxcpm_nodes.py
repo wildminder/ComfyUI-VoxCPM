@@ -13,6 +13,7 @@ import logging
 from typing import List, Optional
 
 import folder_paths
+import comfy.model_management as model_management
 from comfy_api.latest import ComfyExtension, io, ui
 
 from .modules.model_info import AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS
@@ -198,6 +199,9 @@ class VoxCPMNode(io.ComfyNode):
 
             return io.NodeOutput(output_audio, ui=ui.PreviewAudio(output_audio, cls=cls))
 
+        except model_management.InterruptProcessingException:
+            # Clean interrupt - no logging needed
+            raise
         except Exception as e:
             logger.error(f"Generation error: {e}")
             raise
