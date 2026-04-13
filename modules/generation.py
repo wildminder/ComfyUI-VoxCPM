@@ -10,6 +10,7 @@ import logging
 from typing import Optional, Tuple, Dict, Any
 
 import comfy.model_management as model_management
+from comfy.utils import ProgressBar
 import folder_paths
 
 from .loader import VoxCPMModelHandler
@@ -191,6 +192,19 @@ def generate_audio(
         RuntimeError: If generation fails
     """
     try:
+        # Estimate total generation steps based on text length: ~1.2 steps per character + base overhead
+        text_length = len(text)
+        estimated_total_steps = int(text_length * 1.2 + 20)
+        estimated_total_steps = min(estimated_total_steps, max_len)
+        
+        # Initialize ComfyUI native progress bar
+        pbar = ProgressBar(estimated_total_steps)
+        
+        def progress_update(current_step, total_steps):
+            pbar.update_absolute(current_step)
+            # Check for user cancellation
+            model_management.throw_exception_if_processing_interrupted()
+        
         wav_array = model.generate(
             text=text,
             prompt_text=prompt_text,
@@ -210,7 +224,8 @@ def generate_audio(
             temperature=temperature,
             sway_sampling_coef=sway_sampling_coef,
             use_cfg_zero_star=use_cfg_zero_star,
-            denoise=False
+            denoise=False,
+            progress_callback=progress_update
         )
         
         # Convert numpy array to tensor with proper shape [1, 1, T]
@@ -219,6 +234,9 @@ def generate_audio(
         
         return output_tensor, sample_rate
         
+    except model_management.InterruptProcessingException:
+        # Re-raise interrupt exceptions directly - ComfyUI handles these properly
+        raise
     except Exception as e:
         logger.error(f"Audio generation failed: {e}")
         raise RuntimeError(f"Generation failed: {e}")

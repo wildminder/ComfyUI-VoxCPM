@@ -632,6 +632,7 @@ class VoxCPMModel(nn.Module):
         temperature: float = 1.0,
         sway_sampling_coef: float = 1.0,
         use_cfg_zero_star: bool = True,
+        progress_callback = None,
     ) -> Generator[Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """
         Generate audio using pre-built prompt cache.
@@ -727,6 +728,7 @@ class VoxCPMModel(nn.Module):
                 temperature=temperature,
                 sway_sampling_coef=sway_sampling_coef,
                 use_cfg_zero_star=use_cfg_zero_star,
+                progress_callback=progress_callback,
             )
             if streaming:
                 patch_len = self.patch_size * self.chunk_size
@@ -780,6 +782,7 @@ class VoxCPMModel(nn.Module):
         temperature: float = 1.0,
         sway_sampling_coef: float = 1.0,
         use_cfg_zero_star: bool = True,
+        progress_callback = None,
     ) -> Generator[Tuple[torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """Core inference method for audio generation.
 
@@ -852,6 +855,9 @@ class VoxCPMModel(nn.Module):
         residual_hidden = residual_enc_outputs[:, -1, :]
 
         for i in tqdm(range(max_len)):
+            if progress_callback is not None:
+                progress_callback(i + 1, max_len)
+            
             dit_hidden_1 = self.lm_to_dit_proj(lm_hidden)  # [b, h_dit]
             dit_hidden_2 = self.res_to_dit_proj(residual_hidden)  # [b, h_dit]
             dit_hidden = dit_hidden_1 + dit_hidden_2  # [b, h_dit]
