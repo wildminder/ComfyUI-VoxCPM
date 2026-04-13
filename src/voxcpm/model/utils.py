@@ -5,17 +5,17 @@ from transformers import PreTrainedTokenizer
 
 def mask_multichar_chinese_tokens(tokenizer: PreTrainedTokenizer):
     """Create a tokenizer wrapper that converts multi-character Chinese tokens to single characters.
-    
+
     This function creates a wrapper around the provided tokenizer that automatically
     splits multi-character Chinese tokens into individual characters. This is useful
     for ensuring consistent tokenization of Chinese text.
-    
+
     Args:
         tokenizer: The base tokenizer to wrap
-        
+
     Returns:
         A CharTokenizerWrapper instance that handles multi-character Chinese tokens
-        
+
     Example:
         >>> from transformers import LlamaTokenizerFast
         >>> tokenizer = LlamaTokenizerFast.from_pretrained("path/to/tokenizer")
@@ -24,20 +24,19 @@ def mask_multichar_chinese_tokens(tokenizer: PreTrainedTokenizer):
     """
     # Pre-compute multi-character tokens (length >= 2, pure Chinese characters)
     multichar_tokens = {
-        token for token in tokenizer.vocab.keys() 
-        if len(token) >= 2 and all("\u4e00" <= c <= "\u9fff" for c in token)
+        token for token in tokenizer.vocab.keys() if len(token) >= 2 and all("\u4e00" <= c <= "\u9fff" for c in token)
     }
 
     class CharTokenizerWrapper:
         """Wrapper class for tokenizers that handles multi-character Chinese tokens.
-        
+
         This wrapper automatically splits multi-character Chinese tokens into
         individual characters while preserving the original tokenizer's interface.
         """
-        
+
         def __init__(self, base_tokenizer: PreTrainedTokenizer) -> None:
             """Initialize the wrapper with a base tokenizer.
-            
+
             Args:
                 base_tokenizer: The tokenizer to wrap
             """
@@ -46,14 +45,14 @@ def mask_multichar_chinese_tokens(tokenizer: PreTrainedTokenizer):
 
         def tokenize(self, text: str, **kwargs) -> List[str]:
             """Tokenize text and split multi-character Chinese tokens into single characters.
-            
+
             Args:
                 text: Input text to tokenize
                 **kwargs: Additional arguments passed to the base tokenizer
-                
+
             Returns:
                 List of processed tokens with multi-character Chinese tokens split
-                
+
             Example:
                 >>> wrapper = CharTokenizerWrapper(tokenizer)
                 >>> tokens = wrapper.tokenize("你好世界")
@@ -61,10 +60,10 @@ def mask_multichar_chinese_tokens(tokenizer: PreTrainedTokenizer):
             """
             if not isinstance(text, str):
                 raise TypeError(f"Expected string input, got {type(text)}")
-                
+
             tokens = self.tokenizer.tokenize(text, **kwargs)
             processed = []
-            
+
             for token in tokens:
                 # Remove possible subword prefix
                 clean_token = token.replace("▁", "")
@@ -75,22 +74,22 @@ def mask_multichar_chinese_tokens(tokenizer: PreTrainedTokenizer):
                     processed.extend(chars)
                 else:
                     processed.append(token)
-                    
+
             return processed
 
         def __call__(self, text: str, **kwargs) -> List[int]:
             """Call the tokenizer and return token IDs.
-            
+
             This method provides the same interface as the original tokenizer
             but with multi-character Chinese token handling.
-            
+
             Args:
                 text: Input text to tokenize
                 **kwargs: Additional arguments passed to the base tokenizer
-                
+
             Returns:
                 List of token IDs
-                
+
             Raises:
                 TypeError: If input is not a string
                 ValueError: If tokenization fails

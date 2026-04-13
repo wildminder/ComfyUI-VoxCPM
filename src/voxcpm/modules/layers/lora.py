@@ -34,7 +34,7 @@ class LoRALinear(nn.Module):
         self.r = r
         self.alpha = alpha
         self._base_scaling = alpha / r if r > 0 else 0.0
-        
+
         # 使用 buffer 存储 scaling，这样修改值不会触发 torch.compile 重编译
         # persistent=False 表示不保存到 state_dict，避免加载时 missing key
         self.register_buffer("scaling", torch.tensor(self._base_scaling), persistent=False)
@@ -128,6 +128,3 @@ def apply_lora_to_named_linear_modules(
             dropout=dropout,
         )
         setattr(parent, short_name, lora_layer)
-
-
-

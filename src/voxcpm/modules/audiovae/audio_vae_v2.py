@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -18,12 +18,13 @@ def WNConvTranspose1d(*args, **kwargs):
 
 
 class CausalConv1d(nn.Conv1d):
-    def __init__(self, *args, padding: int = 0, **kwargs):
+    def __init__(self, *args, padding: int = 0, output_padding: int = 0, **kwargs):
         super().__init__(*args, **kwargs)
         self.__padding = padding
+        self.__output_padding = output_padding
 
     def forward(self, x):
-        x_pad = F.pad(x, (self.__padding * 2, 0))
+        x_pad = F.pad(x, (self.__padding * 2 - self.__output_padding, 0))
         return super().forward(x_pad)
 
 
@@ -113,6 +114,7 @@ class CausalEncoderBlock(nn.Module):
                 kernel_size=2 * stride,
                 stride=stride,
                 padding=math.ceil(stride / 2),
+                output_padding=stride % 2,
             ),
         )
 
@@ -202,6 +204,7 @@ class CausalDecoderBlock(nn.Module):
             ]
         )
         self.block = nn.Sequential(*layers)
+        self.input_channels = input_dim
 
     def forward(self, x):
         return self.block(x)
@@ -210,6 +213,58 @@ class CausalDecoderBlock(nn.Module):
 class TransposeLastTwoDim(torch.nn.Module):
     def forward(self, x):
         return torch.transpose(x, -1, -2)
+
+
+class SampleRateConditionLayer(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        sr_bin_buckets: int = None,
+        cond_type: str = "scale_bias",
+        cond_dim: int = 128,
+        out_layer: bool = False,
+    ):
+        super().__init__()
+
+        self.cond_type, out_layer_in_dim = cond_type, input_dim
+
+        if cond_type == "scale_bias":
+            self.scale_embed = nn.Embedding(sr_bin_buckets, input_dim)
+            self.bias_embed = nn.Embedding(sr_bin_buckets, input_dim)
+            nn.init.ones_(self.scale_embed.weight)
+            nn.init.zeros_(self.bias_embed.weight)
+        elif cond_type == "scale_bias_init":
+            self.scale_embed = nn.Embedding(sr_bin_buckets, input_dim)
+            self.bias_embed = nn.Embedding(sr_bin_buckets, input_dim)
+            nn.init.normal_(self.scale_embed.weight, mean=1)
+            nn.init.normal_(self.bias_embed.weight)
+        elif cond_type == "add":
+            self.cond_embed = nn.Embedding(sr_bin_buckets, input_dim)
+            nn.init.normal_(self.cond_embed.weight)
+        elif cond_type == "concat":
+            self.cond_embed = nn.Embedding(sr_bin_buckets, cond_dim)
+            assert out_layer, "out_layer must be True for concat cond_type"
+            out_layer_in_dim = input_dim + cond_dim
+        else:
+            raise ValueError(f"Invalid cond_type: {cond_type}")
+
+        if out_layer:
+            self.out_layer = nn.Sequential(
+                Snake1d(out_layer_in_dim),
+                WNCausalConv1d(out_layer_in_dim, input_dim, kernel_size=1),
+            )
+        else:
+            self.out_layer = nn.Identity()
+
+    def forward(self, x, sr_cond):
+        if self.cond_type == "scale_bias" or self.cond_type == "scale_bias_init":
+            x = x * self.scale_embed(sr_cond).unsqueeze(-1) + self.bias_embed(sr_cond).unsqueeze(-1)
+        elif self.cond_type == "add":
+            x = x + self.cond_embed(sr_cond).unsqueeze(-1)
+        elif self.cond_type == "concat":
+            x = torch.cat([x, self.cond_embed(sr_cond).unsqueeze(-1).repeat(1, 1, x.shape[-1])], dim=1)
+
+        return self.out_layer(x)
 
 
 class CausalDecoder(nn.Module):
@@ -221,19 +276,17 @@ class CausalDecoder(nn.Module):
         depthwise: bool = False,
         d_out: int = 1,
         use_noise_block: bool = False,
+        sr_bin_boundaries: List[int] = None,
+        cond_type: str = "scale_bias",
+        cond_dim: int = 128,
+        cond_out_layer: bool = False,
     ):
         super().__init__()
 
         # Add first conv layer
         if depthwise:
             layers = [
-                WNCausalConv1d(
-                    input_channel,
-                    input_channel,
-                    kernel_size=7,
-                    padding=3,
-                    groups=input_channel,
-                ),
+                WNCausalConv1d(input_channel, input_channel, kernel_size=7, padding=3, groups=input_channel),
                 WNCausalConv1d(input_channel, channels, kernel_size=1),
             ]
         else:
@@ -261,21 +314,62 @@ class CausalDecoder(nn.Module):
             nn.Tanh(),
         ]
 
-        self.model = nn.Sequential(*layers)
+        if sr_bin_boundaries is None:
+            self.model = nn.Sequential(*layers)
+            self.sr_bin_boundaries = None
+        else:
+            self.model = nn.ModuleList(layers)
 
-    def forward(self, x):
-        return self.model(x)
+            self.register_buffer("sr_bin_boundaries", torch.tensor(sr_bin_boundaries, dtype=torch.int32))
+            self.sr_bin_buckets = len(sr_bin_boundaries) + 1
+
+            cond_layers = []
+            for layer in self.model:
+                if layer.__class__.__name__ == "CausalDecoderBlock":
+                    cond_layers.append(
+                        SampleRateConditionLayer(
+                            input_dim=layer.input_channels,
+                            sr_bin_buckets=self.sr_bin_buckets,
+                            cond_type=cond_type,
+                            cond_dim=cond_dim,
+                            out_layer=cond_out_layer,
+                        )
+                    )
+                else:
+                    cond_layers.append(None)
+            self.sr_cond_model = nn.ModuleList(cond_layers)
+
+    def get_sr_idx(self, sr):
+        return torch.bucketize(sr, self.sr_bin_boundaries)
+
+    def forward(self, x, sr_cond=None):
+        if self.sr_bin_boundaries is not None:
+            # assert sr_cond is not None
+            sr_cond = self.get_sr_idx(sr_cond)
+
+            for layer, sr_cond_layer in zip(self.model, self.sr_cond_model):
+                if sr_cond_layer is not None:
+                    x = sr_cond_layer(x, sr_cond)
+                x = layer(x)
+            return x
+        else:
+            return self.model(x)
 
 
 class AudioVAEConfig(BaseModel):
     encoder_dim: int = 128
     encoder_rates: List[int] = [2, 5, 8, 8]
     latent_dim: int = 64
-    decoder_dim: int = 1536
-    decoder_rates: List[int] = [8, 8, 5, 2]
+    decoder_dim: int = 2048
+    decoder_rates: List[int] = [8, 6, 5, 2, 2, 2]
     depthwise: bool = True
     sample_rate: int = 16000
+    out_sample_rate: int = 48000
     use_noise_block: bool = False
+    sr_bin_boundaries: Optional[List[int]] = [20000, 30000, 40000]
+    cond_type: str = "scale_bias"
+    cond_dim: int = 128
+    cond_out_layer: bool = False
 
 
 class AudioVAE(nn.Module):
@@ -300,7 +394,12 @@ class AudioVAE(nn.Module):
         decoder_rates = config.decoder_rates
         depthwise = config.depthwise
         sample_rate = config.sample_rate
+        out_sample_rate = config.out_sample_rate
         use_noise_block = config.use_noise_block
+        sr_bin_boundaries = config.sr_bin_boundaries
+        cond_type = config.cond_type
+        cond_dim = config.cond_dim
+        cond_out_layer = config.cond_out_layer
 
         self.encoder_dim = encoder_dim
         self.encoder_rates = encoder_rates
@@ -328,9 +427,16 @@ class AudioVAE(nn.Module):
             decoder_rates,
             depthwise=depthwise,
             use_noise_block=use_noise_block,
+            sr_bin_boundaries=sr_bin_boundaries,
+            cond_type=cond_type,
+            cond_dim=cond_dim,
+            cond_out_layer=cond_out_layer,
         )
         self.sample_rate = sample_rate
+        self.out_sample_rate = out_sample_rate
+        self.sr_bin_boundaries = sr_bin_boundaries
         self.chunk_size = math.prod(encoder_rates)
+        self.decode_chunk_size = math.prod(decoder_rates)
 
     def preprocess(self, audio_data, sample_rate):
         if sample_rate is None:
@@ -343,7 +449,7 @@ class AudioVAE(nn.Module):
 
         return audio_data
 
-    def decode(self, z: torch.Tensor):
+    def decode(self, z: torch.Tensor, sr_cond: torch.Tensor = None):
         """Decode given latent codes and return audio data
 
         Parameters
@@ -360,7 +466,11 @@ class AudioVAE(nn.Module):
             "audio" : Tensor[B x 1 x length]
                 Decoded audio data.
         """
-        return self.decoder(z)
+        if self.sr_bin_boundaries is not None:
+            # use default output sample rate
+            if sr_cond is None:
+                sr_cond = torch.tensor([self.out_sample_rate], device=z.device, dtype=torch.int32)
+        return self.decoder(z, sr_cond)
 
     def encode(self, audio_data: torch.Tensor, sample_rate: int):
         """

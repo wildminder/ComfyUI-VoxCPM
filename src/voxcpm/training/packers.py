@@ -1,5 +1,4 @@
-
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import torch
 import torch.nn as nn
@@ -15,7 +14,7 @@ class AudioFeatureProcessingPacker:
     def __init__(self, dataset_cnt: int, max_len: int, patch_size: int, feat_dim: int, audio_vae: nn.Module):
         self.audio_start_id = 101
         self.audio_end_id = 102
-        # unused now 
+        # unused now
         self.audio_prompt_start_id = 103
         self.audio_prompt_end_id = 104
         self.text_eos_token_id = 2
@@ -147,31 +146,26 @@ class AudioFeatureProcessingPacker:
 
         def pad_1d(x: torch.Tensor, pad_value: int = 0) -> torch.Tensor:
             if x.size(0) >= max_len:
-                return x[: max_len]
+                return x[:max_len]
             pad = torch.full((max_len - x.size(0),), pad_value, dtype=x.dtype, device=x.device)
             return torch.cat([x, pad], dim=0)
 
         def pad_3d(x: torch.Tensor) -> torch.Tensor:
             # x: [T, P, D]
             if x.size(0) >= max_len:
-                return x[: max_len]
-            pad = torch.zeros(
-                (max_len - x.size(0),) + x.shape[1:], dtype=x.dtype, device=x.device
-            )
+                return x[:max_len]
+            pad = torch.zeros((max_len - x.size(0),) + x.shape[1:], dtype=x.dtype, device=x.device)
             return torch.cat([x, pad], dim=0)
+
         if lengths:
             text_tokens_batch = torch.stack([pad_1d(t, pad_value=0) for t in text_tokens_list], dim=0)
             text_mask_batch = torch.stack([pad_1d(m, pad_value=0) for m in text_mask_list], dim=0)
             audio_feats_batch = torch.stack([pad_3d(f) for f in audio_feats_list], dim=0)
             audio_mask_batch = torch.stack([pad_1d(m, pad_value=0) for m in audio_mask_list], dim=0)
             loss_mask_batch = torch.stack([pad_1d(m, pad_value=0) for m in loss_mask_list], dim=0)
-            labels_batch = torch.stack([pad_1d(l, pad_value=0) for l in labels_list], dim=0)
-            audio_task_ids_batch = torch.stack(
-                [pad_1d(t, pad_value=0) for t in audio_task_ids_list], dim=0
-            )
-            audio_dataset_ids_batch = torch.stack(
-                [pad_1d(d, pad_value=0) for d in audio_dataset_ids_list], dim=0
-            )
+            labels_batch = torch.stack([pad_1d(lbl, pad_value=0) for lbl in labels_list], dim=0)
+            audio_task_ids_batch = torch.stack([pad_1d(t, pad_value=0) for t in audio_task_ids_list], dim=0)
+            audio_dataset_ids_batch = torch.stack([pad_1d(d, pad_value=0) for d in audio_dataset_ids_list], dim=0)
 
             # Position ids: [B, T], simple 0..L_i-1 then padded with 0
             position_ids_list = []
@@ -265,13 +259,27 @@ class AudioFeatureProcessingPacker:
         )
         audio_feat_info = torch.cat([audio_pad_feat, audio_feat_info, audio_pad_feat[0:1, ...]], dim=0)
 
-        text_mask = torch.cat([torch.ones(text_length), torch.zeros(audio_length), torch.ones(1)]).type(torch.int32).to(
-            text_token.device
+        text_mask = (
+            torch.cat([torch.ones(text_length), torch.zeros(audio_length), torch.ones(1)])
+            .type(torch.int32)
+            .to(text_token.device)
         )
-        audio_mask = torch.cat([torch.zeros(text_length), torch.ones(audio_length), torch.zeros(1)]).type(
-            torch.int32
-        ).to(text_token.device)
-        loss_mask = torch.cat([torch.zeros(text_length), torch.zeros(audio_length) if is_prompt else torch.ones(audio_length), torch.zeros(1)]).type(torch.int32).to(text_token.device)
+        audio_mask = (
+            torch.cat([torch.zeros(text_length), torch.ones(audio_length), torch.zeros(1)])
+            .type(torch.int32)
+            .to(text_token.device)
+        )
+        loss_mask = (
+            torch.cat(
+                [
+                    torch.zeros(text_length),
+                    torch.zeros(audio_length) if is_prompt else torch.ones(audio_length),
+                    torch.zeros(1),
+                ]
+            )
+            .type(torch.int32)
+            .to(text_token.device)
+        )
 
         labels = torch.zeros(text_length + audio_length + 1).type(torch.int32).to(text_token.device)
         labels[-2] = 1
@@ -286,4 +294,3 @@ class AudioFeatureProcessingPacker:
             audio_duration,
             text_token_count,
         )
-

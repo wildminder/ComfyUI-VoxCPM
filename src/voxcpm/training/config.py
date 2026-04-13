@@ -36,5 +36,3 @@ def parse_args_with_config(config_path: str | Path | None = None):
         yaml_args = argbind.parse_args(yaml_args=yaml_args, argv=[])
     cli_args.update(yaml_args)
     return cli_args
-
-

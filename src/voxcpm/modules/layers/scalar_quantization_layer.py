@@ -12,7 +12,7 @@ class ScalarQuantizationLayer(nn.Module):
 
         self.in_proj = nn.Linear(in_dim, latent_dim)
         self.out_proj = nn.Linear(latent_dim, out_dim)
-    
+
     def forward(self, hidden):
         hidden = self.in_proj(hidden)
         hidden = torch.tanh(hidden)

@@ -3,11 +3,11 @@ import logging
 import folder_paths
 from comfy_api.latest import ComfyExtension, io, ui
 
-from .modules.model_info import AVAILABLE_VOXCPM_MODELS
+from .modules.model_info import AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS
 from .modules.dataset_utils import create_jsonl_dataset
 
 logger = logging.getLogger(__name__)
-# The training module imports 'argbind' and 'datasets'. 
+# The training module imports 'argbind' and 'datasets'.
 # We wrap this so the main inference node works without them.
 TRAINING_IMPORT_ERROR = None
 try:
@@ -21,20 +21,20 @@ except ImportError as e:
     except ImportError: missing.append("argbind")
     try: import datasets
     except ImportError: missing.append("datasets")
-    
+
     if missing:
         TRAINING_IMPORT_ERROR = f"Missing required packages for training: {', '.join(missing)}. Please run: pip install {' '.join(missing)}"
 
 class VoxCPM_TrainConfig(io.ComfyNode):
     CATEGORY = "audio/tts/training"
-    
+
     @classmethod
-    def define_schema(cls) -> io.Schema:
+    def define_schema(cls):
         return io.Schema(
             node_id="VoxCPM_TrainConfig",
             display_name="VoxCPM Train Config",
             category=cls.CATEGORY,
-            description="Configuration parameters for VoxCPM LoRA training.",
+            description="Configuration parameters for VoxCPM LoRA training. Works with both VoxCPM1.5 and VoxCPM2.",
             inputs=[
                 io.Float.Input("learning_rate", default=1e-4, min=1e-6, max=1e-2, step=1e-5, tooltip="Learning rate for the optimizer."),
                 io.Int.Input("lora_rank", default=32, min=4, max=128, step=4, tooltip="Rank (dimension) of the LoRA adapter."),
@@ -43,7 +43,7 @@ class VoxCPM_TrainConfig(io.ComfyNode):
                 io.Int.Input("warmup_steps", default=100, min=0, max=1000, tooltip="Number of warmup steps for learning rate scheduler."),
                 io.Int.Input("grad_accum_steps", default=1, min=1, max=64, tooltip="Number of steps to accumulate gradients before updating weights."),
                 io.Int.Input("max_batch_tokens", default=8192, min=1024, max=32768, tooltip="Maximum number of tokens per batch to manage VRAM usage."),
-                io.Int.Input("sample_rate", default=44100, min=16000, max=48000, tooltip="Sample rate of the training audio."),
+                io.Int.Input("sample_rate", default=48000, min=16000, max=48000, tooltip="Sample rate of the training audio. Use 48000 for VoxCPM2, 44100 for VoxCPM1.5."),
                 io.Float.Input("weight_decay", default=0.01, min=0.0, max=0.1, tooltip="Weight decay for regularization."),
                 io.Boolean.Input("enable_lm_lora", default=True, tooltip="Apply LoRA to the Language Model backbone."),
                 io.Boolean.Input("enable_dit_lora", default=True, tooltip="Apply LoRA to the Diffusion Transformer."),
@@ -63,7 +63,7 @@ class VoxCPM_DatasetMaker(io.ComfyNode):
     CATEGORY = "audio/tts/training"
 
     @classmethod
-    def define_schema(cls) -> io.Schema:
+    def define_schema(cls):
         return io.Schema(
             node_id="VoxCPM_DatasetMaker",
             display_name="VoxCPM Dataset Maker",
@@ -92,7 +92,7 @@ class VoxCPM_LoraTrainer(io.ComfyNode):
     CATEGORY = "audio/tts/training"
 
     @classmethod
-    def define_schema(cls) -> io.Schema:
+    def define_schema(cls):
         model_names = list(AVAILABLE_VOXCPM_MODELS.keys())
         if not model_names:
             model_names.append("No models found.")
@@ -101,9 +101,9 @@ class VoxCPM_LoraTrainer(io.ComfyNode):
             node_id="VoxCPM_LoraTrainer",
             display_name="VoxCPM LoRA Trainer",
             category=cls.CATEGORY,
-            description="Trains a LoRA adapter for VoxCPM. WARNING: This process takes time and blocks the UI.",
+            description="Trains a LoRA adapter for VoxCPM (1.5 or 2). WARNING: This process takes time and blocks the UI.",
             inputs=[
-                io.Combo.Input("base_model_name", options=model_names, default=model_names[0], tooltip="Base VoxCPM model to fine-tune."),
+                io.Combo.Input("base_model_name", options=model_names, default=model_names[0], tooltip="Base VoxCPM model to fine-tune. Supports both VoxCPM1.5 and VoxCPM2."),
                 io.AnyType.Input("train_config", tooltip="Configuration dictionary from VoxCPM Train Config node."),
                 io.String.Input("dataset_path", default="", tooltip="Path to the train.jsonl file."),
                 io.String.Input("output_name", default="my_lora_v1", tooltip="Name of the subfolder in 'models/loras' to save results."),
@@ -125,7 +125,7 @@ class VoxCPM_LoraTrainer(io.ComfyNode):
         # Determine output directory using ComfyUI's standard paths
         lora_base_dir = folder_paths.get_folder_paths("loras")[0]
         output_dir = os.path.join(lora_base_dir, output_name)
-        
+
         try:
             # Delegate to trainer module
             final_output_dir = run_lora_training(

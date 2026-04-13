@@ -7,7 +7,7 @@ import folder_paths
 
 from ..src.voxcpm.core import VoxCPM
 from ..src.voxcpm.model.voxcpm import LoRAConfig
-from .model_info import AVAILABLE_VOXCPM_MODELS
+from .model_info import AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,13 @@ class VoxCPMModelHandler(torch.nn.Module):
         super().__init__()
         self.model_name = model_name
         self.model = None  # This will hold the actual loaded VoxCPM instance
-        # Estimate size (VoxCPM1.5 is ~800M params in bf16 -> ~1.6GB + buffers)
-        # We allocate 2.5GB to be safe for offloading calculations
-        self.size = int(2.5 * (1024**3))
+        
+        # Get model size from config
+        model_config = MODEL_CONFIGS.get(model_name, {})
+        size_gb = model_config.get("size_gb", 2.5)
+        # Allocate slightly more than model size for offloading calculations
+        self.size = int((size_gb + 0.5) * (1024**3))
+
 
 class VoxCPMLoader:
     @staticmethod
@@ -40,24 +44,28 @@ class VoxCPMLoader:
 
         model_info = AVAILABLE_VOXCPM_MODELS.get(model_name)
         if not model_info:
-            raise ValueError(f"Model '{model_name}' not found. Available models: {list(AVAILABLE_VOXCPM_MODELS.keys())}")
+            # Fall back to MODEL_CONFIGS if not in AVAILABLE_VOXCPM_MODELS
+            model_info = MODEL_CONFIGS.get(model_name)
+            if not model_info:
+                raise ValueError(f"Model '{model_name}' not found. Available models: {list(MODEL_CONFIGS.keys())}")
 
         voxcpm_path = None
 
-        if model_info["type"] == "local":
+        if model_info.get("type") == "local":
             voxcpm_path = model_info["path"]
             logger.info(f"Loading local model from: {voxcpm_path}")
 
-        elif model_info["type"] == "official":
+        else:
+            # Official model from HuggingFace
             base_tts_path = os.path.join(folder_paths.get_folder_paths("tts")[0])
             voxcpm_models_dir = os.path.join(base_tts_path, "VoxCPM")
             os.makedirs(voxcpm_models_dir, exist_ok=True)
-            
+
             voxcpm_path = os.path.join(voxcpm_models_dir, model_name)
-            
+
             has_bin = os.path.exists(os.path.join(voxcpm_path, "pytorch_model.bin"))
             has_safe = os.path.exists(os.path.join(voxcpm_path, "model.safetensors"))
-            
+
             if not (has_bin or has_safe):
                 logger.info(f"Downloading official VoxCPM model '{model_name}' from {model_info['repo_id']}...")
                 snapshot_download(
@@ -67,10 +75,10 @@ class VoxCPMLoader:
                 )
 
         if not voxcpm_path:
-             raise RuntimeError(f"Could not determine path for model '{model_name}'")
+            raise RuntimeError(f"Could not determine path for model '{model_name}'")
 
         logger.info("Instantiating VoxCPM model...")
-        
+
         default_lora_config = LoRAConfig(
             enable_lm=True,
             enable_dit=True,
@@ -81,7 +89,7 @@ class VoxCPMLoader:
 
         model_instance = VoxCPM(
             voxcpm_model_path=voxcpm_path,
-            enable_denoiser=False, 
+            enable_denoiser=False,
             optimize=False,
             lora_config=default_lora_config
         )

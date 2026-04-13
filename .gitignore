@@ -7,7 +7,11 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+.kilocode
+.skills
+.dev
 .idea
+tests/
 .Python
 __pycache__
 build/
