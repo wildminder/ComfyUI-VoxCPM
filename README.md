@@ -4,7 +4,7 @@
 <h1 align="center">ComfyUI-VoxCPM</h1>
 
 <a href="https://github.com/wildminder/ComfyUI-VoxCPM">
-<img alt="ComfyUI-VoxCPM" src="https://github.com/user-attachments/assets/037e8e89-bab1-4b86-8377-3be2a1139cf5" />
+<img alt="ComfyUI-VoxCPM" src="https://github.com/user-attachments/assets/c3c1f87e-bc53-4a7a-8e69-d7a2f5832e04" />
 </a>
 
 <p align="center">
