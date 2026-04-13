@@ -1,8 +1,24 @@
 # some functions are copied from https://github.com/FunAudioLLM/CosyVoice/blob/main/cosyvoice/utils/frontend_utils.py
 import re
 import regex
-import inflect
-from wetext import Normalizer
+
+# Optional dependencies for full text normalization
+try:
+    import inflect
+    INFLECT_AVAILABLE = True
+except ImportError:
+    INFLECT_AVAILABLE = False
+    inflect = None
+
+try:
+    from wetext import Normalizer
+    WETEXT_AVAILABLE = True
+except ImportError:
+    WETEXT_AVAILABLE = False
+    Normalizer = None
+
+# Global status flag for feature detection
+TEXT_NORMALIZATION_AVAILABLE = INFLECT_AVAILABLE and WETEXT_AVAILABLE
 
 chinese_char_pattern = re.compile(r"[\u4e00-\u9fff]+")
 
@@ -163,14 +179,28 @@ def clean_text(text):
 class TextNormalizer:
     def __init__(self, tokenizer=None):
         self.tokenizer = tokenizer
-        self.zh_tn_model = Normalizer(lang="zh", operator="tn", remove_erhua=True)
-        self.en_tn_model = Normalizer(lang="en", operator="tn")
-        self.inflect_parser = inflect.engine()
+        self.available = TEXT_NORMALIZATION_AVAILABLE
+        
+        if self.available:
+            self.zh_tn_model = Normalizer(lang="zh", operator="tn", remove_erhua=True)
+            self.en_tn_model = Normalizer(lang="en", operator="tn")
+            self.inflect_parser = inflect.engine()
+        else:
+            self.zh_tn_model = None
+            self.en_tn_model = None
+            self.inflect_parser = None
 
     def normalize(self, text, split=False):
-        # 去除 Markdown 语法，去除表情符号，去除换行符
-        lang = "zh" if contains_chinese(text) else "en"
+        # Always run base cleaning regardless of dependencies
         text = clean_text(text)
+        
+        if not self.available:
+            # Fallback: return cleaned text without full normalization
+            return text
+        
+        # Full normalization when dependencies are present
+        lang = "zh" if contains_chinese(text) else "en"
+        
         if lang == "zh":
             text = text.replace(
                 "=", "等于"
@@ -184,5 +214,6 @@ class TextNormalizer:
         else:
             text = self.en_tn_model.normalize(text)
             text = spell_out_number(text, self.inflect_parser)
+            
         if split is False:
             return text
