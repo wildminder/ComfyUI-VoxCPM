@@ -230,44 +230,6 @@ For best voice cloning results with `prompt_audio` + `prompt_text`:
 
 <p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## ⚙️ Audio Processing Backend
-
-ComfyUI-VoxCPM uses a flexible audio processing backend system that supports multiple audio libraries:
-
-### Default: Torchaudio Backend
-
-The default backend uses **torchaudio** with **soundfile** for audio I/O:
-- **GPU Acceleration:** Audio processing can leverage GPU when available
-- **Native PyTorch:** No numpy conversion overhead for tensor operations
-- **Efficient Resampling:** High-quality resampling using torchaudio transforms
-- **No Additional Dependencies:** Uses existing project dependencies
-
-### Fallback: Librosa Backend
-
-For backward compatibility, librosa is available as a fallback:
-- Automatically used if torchaudio is unavailable
-- Matches original VoxCPM behavior exactly
-- Can be explicitly selected via configuration
-
-### Configuration
-
-The audio backend can be configured programmatically:
-
-```python
-from voxcpm.utils.audio_backend import get_audio_backend, set_audio_backend, LibrosaBackend
-
-# Get the default backend (torchaudio)
-backend = get_audio_backend()
-
-# Explicitly use librosa backend
-set_audio_backend(LibrosaBackend())
-```
-
-> [!NOTE]
-> For normal usage, no configuration is needed. The default torchaudio backend is recommended for best performance.
-
-<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
-
 <!-- LICENSE -->
 ## License
 

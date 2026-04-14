@@ -13,11 +13,3 @@ Repository = "https://github.com/wildminder/ComfyUI-VoxCPM"
 PublisherId = "wildai"
 DisplayName = "ComfyUI-VoxCPM"
 Icon = ""
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short"
-# Ignore the __init__.py which has ComfyUI-specific imports
-collect_ignore = ["__init__.py"]

@@ -4,9 +4,7 @@ transformers>=4.36.2
 safetensors
 huggingface_hub
 einops
-inflect
 addict
-wetext
 pydantic
 simplejson
 sortedcontainers
