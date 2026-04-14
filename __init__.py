@@ -7,11 +7,8 @@ from .modules.model_info import AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS
 # Late import for dependency check - avoid breaking import when dependencies are missing
 try:
     from .src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
-    if not TEXT_NORMALIZATION_AVAILABLE:
-        logger.info("ℹ️ Text normalization packages (inflect, wetext) not found. Normalization will be disabled. Install them using: pip install inflect wetext")
 except Exception:
-    # Fallback gracefully if import fails completely
-    pass
+    TEXT_NORMALIZATION_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -66,4 +63,5 @@ for search_path in voxcpm_search_paths:
 
 from .voxcpm_nodes import comfy_entrypoint
 
-__all__ = ['comfy_entrypoint']
+WEB_DIRECTORY = "./js"
+__all__ = ['comfy_entrypoint', 'WEB_DIRECTORY']

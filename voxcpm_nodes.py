@@ -141,13 +141,27 @@ class VoxCPMNode(io.ComfyNode):
         reference_audio: Optional[io.Audio.Type] = None,
     ) -> io.NodeOutput:
 
+        # Send notification if text normalization is disabled and user tries to enable it
+        if normalize_text and not TEXT_NORMALIZATION_AVAILABLE:
+            try:
+                from server import PromptServer
+                if PromptServer.instance is not None:
+                    PromptServer.instance.send_sync("voxcpm.status", {
+                        "severity": "warn",
+                        "summary": "VoxCPM Text Normalization Disabled",
+                        "detail": "Optional packages 'inflect' and 'wetext' are not installed. Install with: pip install inflect wetext",
+                        "life": 10000
+                    })
+            except Exception:
+                pass
+
         # Validate VoxCPM2-only features (graceful degradation for non-fatal issues)
         is_voxcpm2, warning, ignore_reference = validate_voxcpm2_features(
             model_name, MODEL_CONFIGS, reference_audio, voice_design
         )
         if warning:
             logger.warning(warning)
-            voice_design = None  # Ignore for VoxCPM1.5
+            voice_design = None # Ignore for VoxCPM1.5
 
         # Validate prompt audio/text pairing
         validate_prompt_pairing(prompt_audio, prompt_text)
