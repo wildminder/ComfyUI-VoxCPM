@@ -141,6 +141,18 @@ class VoxCPMNode(io.ComfyNode):
         reference_audio: Optional[io.Audio.Type] = None,
     ) -> io.NodeOutput:
 
+        # Send config event at execution time (fallback for browser refresh)
+        # This ensures the frontend knows the normalization state even if WebSocket events were missed
+        if not TEXT_NORMALIZATION_AVAILABLE:
+            try:
+                from server import PromptServer
+                if PromptServer.instance is not None:
+                    PromptServer.instance.send_sync("voxcpm.config", {
+                        "normalization_available": False
+                    })
+            except Exception:
+                pass
+
         # Send notification if text normalization is disabled and user tries to enable it
         if normalize_text and not TEXT_NORMALIZATION_AVAILABLE:
             try:
