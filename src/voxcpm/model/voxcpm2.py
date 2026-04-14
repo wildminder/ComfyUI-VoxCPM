@@ -25,10 +25,11 @@ from typing import Tuple, Union, Generator, List, Optional
 import torch
 import torch.nn as nn
 import warnings
-import librosa
-import numpy as np
 from einops import rearrange
 from pydantic import BaseModel
+
+# Audio backend selection - prefer torchaudio, fallback to librosa
+from ..utils.audio_backend import get_audio_backend, AudioBackend
 
 try:
     from safetensors.torch import load_file
@@ -49,43 +50,42 @@ from .utils import get_dtype, mask_multichar_chinese_tokens, next_and_close
 
 
 # A simple function to trim audio silence using VAD, not used default
-def _trim_audio_silence_vad(audio: torch.Tensor, sample_rate: int, max_silence_ms: float = 200.0, top_db: float = 35.0) -> torch.Tensor:
+def _trim_audio_silence_vad(
+    audio: torch.Tensor,
+    sample_rate: int,
+    max_silence_ms: float = 200.0,
+    top_db: float = 35.0,
+    backend: Optional[AudioBackend] = None
+) -> torch.Tensor:
+    """Trim silence from audio using configurable backend.
+    
+    This function wraps the audio backend's trim_silence method,
+    providing backward compatibility with the original implementation.
+    
+    Args:
+        audio: Audio tensor of shape (1, samples)
+        sample_rate: Audio sample rate
+        max_silence_ms: Maximum silence to preserve at boundaries (ms)
+        top_db: Threshold in dB below reference for silence detection
+        backend: Audio backend to use (None for default)
+        
+    Returns:
+        Trimmed audio tensor
+    """
     if audio.numel() == 0:
         return audio
-    y = audio.squeeze(0).numpy()
-    n = len(y)
-    frame_length = 2048
-    hop_length = 512
-    ref = np.max(np.abs(y))
-    if ref <= 0:
-        return audio
-    threshold = ref * (10.0 ** (-top_db / 20.0))
-
-    try:
-        _, (start, end) = librosa.effects.trim(
-            y, top_db=top_db, ref=np.max, frame_length=frame_length, hop_length=hop_length
-        )
-    except Exception:
-        start, end = 0, n
-
-    # Find the last frame with continuous energy, trim the long pseudo-silence at the end (low energy background noise, etc.)
-    n_frames = max(0, (n - frame_length) // hop_length + 1)
-    last_voice_frame = -1
-    for j in range(n_frames):
-        idx = j * hop_length
-        if idx + frame_length > n:
-            break
-        rms = np.sqrt(np.mean(y[idx : idx + frame_length] ** 2))
-        if rms >= threshold:
-            last_voice_frame = j
-    if last_voice_frame >= 0:
-        end_by_vad = min(n, (last_voice_frame + 1) * hop_length + (frame_length - hop_length))
-        end = min(end, end_by_vad)
-
-    max_silence_samples = int(max_silence_ms * sample_rate / 1000.0)
-    new_start = max(0, start - max_silence_samples)
-    new_end = min(n, end + max_silence_samples)
-    return audio[:, new_start:new_end]
+    
+    if backend is None:
+        backend = get_audio_backend()
+    
+    return backend.trim_silence(
+        audio,
+        sample_rate,
+        top_db=top_db,
+        frame_length=2048,
+        hop_length=512,
+        max_silence_ms=max_silence_ms
+    )
 
 
 class VoxCPMEncoderConfig(BaseModel):
@@ -390,6 +390,7 @@ class VoxCPM2Model(nn.Module):
         trim_silence_vad: bool = False,
         max_silence_ms: float = 200.0,
         top_db: float = 35.0,
+        backend: Optional[AudioBackend] = None,
     ) -> torch.Tensor:
         """Load, trim, pad and VAE-encode an audio file.
 
@@ -399,19 +400,32 @@ class VoxCPM2Model(nn.Module):
             trim_silence_vad: whether to apply VAD-based silence trimming.
             max_silence_ms: maximum silence to keep at boundaries (ms).
             top_db: threshold for silence detection (dB).
+            backend: Audio backend to use (None for default).
 
         Returns:
             audio_feat: (T, P, D) tensor of latent patches.
         """
-        audio, _ = librosa.load(wav_path, sr=self._encode_sample_rate, mono=True)
-        audio = torch.from_numpy(audio).unsqueeze(0)
+        if backend is None:
+            backend = get_audio_backend()
+        
+        # Load audio using backend (returns torch tensor directly)
+        audio, _ = backend.load(wav_path, sample_rate=self._encode_sample_rate, mono=True)
+        
         if trim_silence_vad:
-            audio = _trim_audio_silence_vad(audio, self._encode_sample_rate, max_silence_ms=max_silence_ms, top_db=top_db)
+            audio = _trim_audio_silence_vad(
+                audio,
+                self._encode_sample_rate,
+                max_silence_ms=max_silence_ms,
+                top_db=top_db,
+                backend=backend
+            )
+        
         patch_len = self.patch_size * self.chunk_size
         if audio.size(1) % patch_len != 0:
             padding_size = patch_len - audio.size(1) % patch_len
             pad = (padding_size, 0) if padding_mode == "left" else (0, padding_size)
             audio = torch.nn.functional.pad(audio, pad)
+        
         feat = self.audio_vae.encode(audio.to(self.device), self._encode_sample_rate).cpu()
         return feat.view(self.audio_vae.latent_dim, -1, self.patch_size).permute(1, 2, 0)
 
