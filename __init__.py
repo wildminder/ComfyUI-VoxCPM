@@ -11,6 +11,62 @@ except Exception:
     TEXT_NORMALIZATION_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+# Track if config has been sent once
+_config_sent_once = False
+
+def send_config_to_client(client_id=None):
+    """Send configuration to a specific client or broadcast to all.
+
+    Args:
+        client_id: Optional client ID to send to. If None, broadcasts to all.
+    """
+    global _config_sent_once
+    try:
+        from server import PromptServer
+        if PromptServer.instance is not None:
+            config_data = {
+                "normalization_available": TEXT_NORMALIZATION_AVAILABLE
+            }
+            logger.debug(f"Sending config: {config_data} to client: {client_id or 'all'}")
+            if client_id:
+                PromptServer.instance.send_sync("voxcpm.config", config_data, client_id)
+            else:
+                PromptServer.instance.send_sync("voxcpm.config", config_data)
+            logger.debug("Config sent successfully")
+
+            if not _config_sent_once and not TEXT_NORMALIZATION_AVAILABLE:
+                _config_sent_once = True
+                logger.info("ℹ️ Text normalization packages (inflect, wetext) not found. Normalization will be disabled. Install them using: pip install inflect wetext")
+    except Exception as e:
+        logger.warning(f"Failed to send config: {e}")
+
+def send_config_event():
+    """Send configuration to frontend (legacy function for compatibility)."""
+    send_config_to_client()
+
+def _schedule_config_send():
+    """Schedule config to be sent once after server starts using threading."""
+    import threading
+    import time
+
+    def send_after_delay():
+        # Wait for server to be ready
+        time.sleep(3)
+        logger.debug("Sending initial config event...")
+        send_config_event()
+        logger.debug("Initial config event sent")
+
+    thread = threading.Thread(target=send_after_delay, daemon=True)
+    thread.start()
+
+# Schedule config sender using threading
+try:
+    _schedule_config_send()
+except Exception as e:
+    logger.debug(f"Failed to schedule config sender: {e}")
+
+# Configure logger
 logger.setLevel(logging.INFO)
 logger.propagate = False
 if not logger.hasHandlers():
