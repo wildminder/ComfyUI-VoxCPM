@@ -3,13 +3,21 @@ name = "ComfyUI-VoxCPM"
 description = "VoxCPM v1.5-2 TTS. Expressive speech gen and true-to-life voice cloning"
 version = "2.0.1"
 license = {file = "LICENSE"}
-dependencies = ["torch","torchaudio","transformers","safetensors","huggingface_hub","einops","inflect","addict","wetext","pydantic","simplejson","sortedcontainers","soundfile","diffusers","tqdm","bitsandbytes"]
+dependencies = ["torch","torchaudio","transformers","safetensors","huggingface_hub","einops","addict","pydantic","simplejson","sortedcontainers","soundfile","diffusers","tqdm","bitsandbytes"]
 
 [project.urls]
 Repository = "https://github.com/wildminder/ComfyUI-VoxCPM"
-#  Used by Comfy Registry https://comfyregistry.org
+# Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
 PublisherId = "wildai"
 DisplayName = "ComfyUI-VoxCPM"
 Icon = ""
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+# Ignore the __init__.py which has ComfyUI-specific imports
+collect_ignore = ["__init__.py"]
