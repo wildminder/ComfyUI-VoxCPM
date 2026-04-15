@@ -335,7 +335,55 @@ class VoxCPMModel(nn.Module):
         }
 
     def _dtype(self):
+        """Get the configured dtype from config."""
         return get_dtype(self.config.dtype)
+
+    def _actual_dtype(self):
+        """Get the actual dtype of the model parameters.
+
+        This is useful after dtype casting, as it reflects the actual
+        dtype rather than the config dtype.
+        """
+        # Find first non-audio_vae parameter to get actual dtype
+        for name, param in self.named_parameters():
+            if 'audio_vae' not in name:
+                return param.dtype
+        # Fallback to config dtype if no parameters found
+        return get_dtype(self.config.dtype)
+
+    def to(self, *args, **kwargs):
+        """Override to() to update self.device attribute when model is moved.
+        
+        This ensures that self.device stays in sync when ComfyUI's memory manager
+        moves the model between devices (e.g., GPU -> CPU offloading).
+        """
+        result = super().to(*args, **kwargs)
+        
+        # Update self.device if a device was specified
+        if args:
+            if isinstance(args[0], torch.device):
+                self.device = str(args[0])
+            elif isinstance(args[0], str):
+                self.device = args[0]
+        elif 'device' in kwargs:
+            if isinstance(kwargs['device'], torch.device):
+                self.device = str(kwargs['device'])
+            else:
+                self.device = kwargs['device']
+        
+        # Reinitialize KV caches on the new device for LM models
+        # This is needed because the caches are device-specific
+        # Use _actual_dtype() to match the actual model dtype after casting
+        try:
+            actual_dtype = self._actual_dtype()
+            if hasattr(self.base_lm, 'setup_cache'):
+                self.base_lm.setup_cache(1, self.config.max_length, self.device, actual_dtype)
+            if hasattr(self.residual_lm, 'setup_cache'):
+                self.residual_lm.setup_cache(1, self.config.max_length, self.device, actual_dtype)
+        except Exception:
+            pass # Ignore cache setup errors during device transfer
+        
+        return result
 
     def generate(self, *args, **kwargs) -> torch.Tensor:
         return next_and_close(self._generate(*args, streaming=False, **kwargs))
@@ -439,7 +487,7 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(self.device)
         text_mask = text_mask.unsqueeze(0).to(self.device)
-        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(get_dtype(self.config.dtype))
+        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._actual_dtype())
         audio_mask = audio_mask.unsqueeze(0).to(self.device)
 
         target_text_length = len(self.text_tokenizer(target_text))
@@ -705,7 +753,7 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(self.device)
         text_mask = text_mask.unsqueeze(0).to(self.device)
-        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(get_dtype(self.config.dtype))
+        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._actual_dtype())
         audio_mask = audio_mask.unsqueeze(0).to(self.device)
 
         # run inference

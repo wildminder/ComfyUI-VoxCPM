@@ -161,6 +161,22 @@ All generation nodes expose advanced parameters for fine-tuning output quality:
 | `cfg_value` | 2.0 | 0.1-10.0 | Guidance scale. Higher = more adherence to voice description/reference |
 | `inference_timesteps` | 10 | 1-100 | Number of diffusion steps. More steps = higher quality but slower |
 
+### Device & Precision Parameters
+
+| Parameter | Default | Options | Description |
+|:---|:---:|:---:|:---|
+| `device` | auto | cuda, cpu, mps, xpu, npu | Device to run inference on. Auto-detects best available |
+| `dtype` | auto | auto, bf16, fp16, fp32 | Model precision. 'auto' selects optimal type for device |
+
+> [!TIP]
+> - **CUDA GPUs**: Use `auto` (BF16 on Ampere+, FP16 on older GPUs)
+> - **Apple Silicon (MPS)**: Use `auto` (FP16 native, BF16 on macOS 14+)
+> - **CPU**: Use `auto` (FP32) or `bf16` (PyTorch 2.0+)
+> - **FP16 on CPU**: Not recommended - may cause errors
+
+> [!NOTE]
+> The AudioVAE component always runs in FP32 for numerical stability, regardless of the selected dtype. This is by design - the model's decode operations expect float32 input.
+
 ### VAD Parameters (VoxCPM2 only)
 
 Voice Activity Detection parameters for trimming silence from reference/prompt audio:

@@ -27,6 +27,7 @@ from .modules.generation import (
     validate_prompt_pairing,
 )
 from .modules.utils import get_available_devices, set_seed
+from .modules.dtype_utils import get_dtype_options, DTYPE_AUTO
 from src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
 
 from .voxcpm_train_nodes import VoxCPM_TrainConfig, VoxCPM_DatasetMaker, VoxCPM_LoraTrainer
@@ -56,6 +57,9 @@ class VoxCPMNode(io.ComfyNode):
 
         available_devices = get_available_devices()
         default_device = available_devices[0]
+        
+        dtype_options = get_dtype_options()
+        default_dtype = DTYPE_AUTO
 
         lora_list = ["None"] + folder_paths.get_filename_list("loras")
 
@@ -109,6 +113,7 @@ class VoxCPMNode(io.ComfyNode):
                 io.Int.Input("seed", default=-1, min=-1, max=0xFFFFFFFFFFFFFFFF, tooltip="Seed for reproducibility. -1 for random."),
                 io.Boolean.Input("force_offload", default=False, label_on="Force Offload", label_off="Auto-Manage", tooltip="Force the model to be offloaded from VRAM after generation."),
                 io.Combo.Input("device", options=available_devices, default=default_device, tooltip="Device to run inference on."),
+                io.Combo.Input("dtype", options=dtype_options, default=default_dtype, tooltip="Data type for model precision. 'auto' selects optimal type for device."),
             ],
             outputs=[
                 io.Audio.Output(display_name="Generated Audio"),
@@ -121,6 +126,7 @@ class VoxCPMNode(io.ComfyNode):
         model_name: str,
         lora_name: str,
         device: str,
+        dtype: str,
         text: str,
         voice_design: Optional[str],
         prompt_text: Optional[str],
@@ -173,7 +179,7 @@ class VoxCPMNode(io.ComfyNode):
         )
         if warning:
             logger.warning(warning)
-            voice_design = None # Ignore for VoxCPM1.5
+            voice_design = None  # Ignore for VoxCPM1.5
 
         # Validate prompt audio/text pairing
         validate_prompt_pairing(prompt_audio, prompt_text)
@@ -184,8 +190,8 @@ class VoxCPMNode(io.ComfyNode):
         # Set seed for reproducibility
         set_seed(seed)
 
-        # Load model
-        patcher, model = load_voxcpm_model(model_name, device)
+        # Load model with dtype
+        patcher, model = load_voxcpm_model(model_name, device, dtype)
 
         # Apply LoRA if specified
         apply_lora_if_needed(model, lora_name)
