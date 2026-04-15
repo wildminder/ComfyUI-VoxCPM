@@ -1,15 +1,14 @@
 [project]
 name = "ComfyUI-VoxCPM"
-description = "VoxCPM v1.5-2 TTS. Expressive speech gen and true-to-life voice cloning"
+description = "VoxCPM v1.5-2 TTS. Full featured nodes for expressive speech gen and true-to-life voice cloning"
 version = "2.1.0"
 license = {file = "LICENSE"}
 dependencies = ["torch","torchaudio","transformers","safetensors","huggingface_hub","einops","addict","pydantic","simplejson","sortedcontainers","soundfile","diffusers","tqdm","bitsandbytes"]
 
 [project.urls]
 Repository = "https://github.com/wildminder/ComfyUI-VoxCPM"
-# Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
 PublisherId = "wildai"
-DisplayName = "ComfyUI-VoxCPM"
+DisplayName = "VoxCPM TTS"
 Icon = ""
