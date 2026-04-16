@@ -20,6 +20,7 @@ limitations under the License.
 
 import os
 import sys
+import logging
 from typing import Tuple, Union, Generator, List, Optional
 
 import torch
@@ -27,6 +28,8 @@ import torch.nn as nn
 import warnings
 from einops import rearrange
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 # Audio backend selection - prefer torchaudio, fallback to librosa
 from ..utils.audio_backend import get_audio_backend, AudioBackend
@@ -163,7 +166,7 @@ class VoxCPM2Model(nn.Module):
                 self.device = "mps"
             else:
                 self.device = "cpu"
-        print(f"Running on device: {self.device}, dtype: {self.config.dtype}", file=sys.stderr)
+        logger.info(f"Running on device: {self.device}, dtype: {self.config.dtype}")
 
         # Text-Semantic LM
         self.base_lm = MiniCPMModel(config.lm_config)
@@ -281,7 +284,7 @@ class VoxCPM2Model(nn.Module):
                 self.feat_decoder.estimator, mode="reduce-overhead", fullgraph=True
             )
         except Exception as e:
-            print(f"Warning: torch.compile disabled - {e}", file=sys.stderr)
+            logger.warning(f"torch.compile disabled - {e}")
         return self
 
     def forward(
@@ -719,9 +722,8 @@ class VoxCPM2Model(nn.Module):
                 latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
-                        print(
-                            f"  Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying...",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying..."
                         )
                         retry_badcase_times += 1
                         continue
@@ -1149,9 +1151,8 @@ class VoxCPM2Model(nn.Module):
                 latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
-                        print(
-                            f"  Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying...",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying..."
                         )
                         retry_badcase_times += 1
                         continue
@@ -1346,10 +1347,10 @@ class VoxCPM2Model(nn.Module):
         audiovae_safetensors_path = os.path.join(path, "audiovae.safetensors")
         audiovae_pth_path = os.path.join(path, "audiovae.pth")
         if os.path.exists(audiovae_safetensors_path) and SAFETENSORS_AVAILABLE:
-            print(f"Loading AudioVAE from safetensors: {audiovae_safetensors_path}", file=sys.stderr)
+            logger.info(f"Loading AudioVAE from safetensors: {audiovae_safetensors_path}")
             vae_state_dict = load_file(audiovae_safetensors_path, device="cpu")
         elif os.path.exists(audiovae_pth_path):
-            print(f"Loading AudioVAE from pytorch: {audiovae_pth_path}", file=sys.stderr)
+            logger.info(f"Loading AudioVAE from pytorch: {audiovae_pth_path}")
             checkpoint = torch.load(
                 audiovae_pth_path,
                 map_location="cpu",
@@ -1379,10 +1380,10 @@ class VoxCPM2Model(nn.Module):
         pytorch_model_path = os.path.join(path, "pytorch_model.bin")
 
         if os.path.exists(safetensors_path) and SAFETENSORS_AVAILABLE:
-            print(f"Loading model from safetensors: {safetensors_path}", file=sys.stderr)
+            logger.info(f"Loading model from safetensors: {safetensors_path}")
             model_state_dict = load_file(safetensors_path)
         elif os.path.exists(pytorch_model_path):
-            print(f"Loading model from pytorch_model.bin: {pytorch_model_path}", file=sys.stderr)
+            logger.info(f"Loading model from pytorch_model.bin: {pytorch_model_path}")
             checkpoint = torch.load(
                 pytorch_model_path,
                 map_location="cpu",
