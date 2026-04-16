@@ -186,11 +186,14 @@ This allows you to set defaults via config nodes and override specific values wh
 3. Enter text to synthesize
 4. Generate!
 
+> **Note:** `voice_design` is only used in plain TTS mode (no reference audio). When reference audio is connected, the voice is cloned from that audio and `voice_design` is ignored.
+
 ### Reference Cloning (VoxCPM2 only)
 1. Use the `VoxCPM TTS` node with a VoxCPM2 model
 2. Connect reference audio to `reference_audio` (no transcript needed!)
-3. Optionally add style instructions in `voice_design`
-4. Generate!
+3. Generate!
+
+> **Note:** When using reference audio, `voice_design` is ignored - the voice is cloned directly from the reference audio.
 
 ### Ultimate Cloning (VoxCPM2 only)
 For maximum fidelity, combine reference audio (identity) with prompt audio (prosody):

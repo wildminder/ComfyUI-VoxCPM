@@ -78,7 +78,7 @@ class VoxCPMNode(io.ComfyNode):
 
             # Text input
             io.String.Input("text", multiline=True, default="VoxCPM is an innovative TTS model designed to generate highly expressive speech.", tooltip="Text to synthesize."),
-            io.String.Input("voice_design", default="", tooltip="Voice design instruction for VoxCPM2 (e.g., 'warm female voice', 'deep male voice'). Only used if no reference audio is provided. Ignored for VoxCPM1.5."),
+            io.String.Input("voice_design", default="", tooltip="Voice design instruction for VoxCPM2 (e.g., 'warm female voice', 'deep male voice'). Only used in plain TTS mode (no reference audio). Ignored when reference audio is connected or for VoxCPM1.5."),
 
             # Generation parameters (basic)
                 io.Float.Input("cfg", default=2.0, min=0.1, max=10.0, step=0.1, tooltip="Guidance scale. Higher values adhere more to the prompt but may sound less natural."),
@@ -211,8 +211,12 @@ class VoxCPMNode(io.ComfyNode):
             ref_waveform = None
             ref_sample_rate = None
 
-        # Build final text with voice design instruction (VoxCPM2)
-        final_text = build_final_text(text, final_voice_design)
+        if (prompt_waveform is not None) or (ref_waveform is not None):
+            final_text = text
+            if final_voice_design:
+                logger.info("Voice design ignored: reference audio takes precedence for voice cloning")
+        else:
+            final_text = build_final_text(text, final_voice_design)
 
         # Set seed for reproducibility
         set_seed(seed)
