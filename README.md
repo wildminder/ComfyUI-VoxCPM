@@ -107,6 +107,63 @@ Launch ComfyUI. The VoxCPM nodes will appear under the `audio/tts` category. The
 * **`VoxCPM Dataset Maker`** - Create training datasets from audio files
 * **`VoxCPM LoRA Trainer`** - Train custom LoRA models
 
+### Configuration Nodes (Modular Architecture)
+* **`VoxCPM Voice Cloning`** - Configure audio-based voice cloning settings (prompt/reference audio)
+* **`VoxCPM Advanced Params`** - Configure advanced generation parameters
+
+> **Note:** Voice design (`voice_design`) is a direct parameter on the main TTS node, not part of the Voice Cloning configuration.
+
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
+
+## ▓ Modular Node Architecture
+
+The VoxCPM nodes support a modular architecture where configuration can be separated into dedicated nodes:
+
+### Benefits
+- **Cleaner Workflows**: Separate complex configuration from the main TTS node
+- **Reusability**: Share the same configuration across multiple TTS nodes
+- **Organization**: Group related parameters logically
+
+### Using Configuration Nodes
+
+#### Voice Cloning Configuration
+Connect the `VoxCPM Voice Cloning` node to the main TTS node's `voice_config` input:
+
+```
+[VoxCPM Voice Cloning] ──voice_config──> [VoxCPM TTS]
+```
+
+Parameters in the Voice Cloning node:
+- `prompt_text`: Transcript of prompt audio
+- `prompt_audio`: Audio for continuation-style cloning
+- `reference_audio`: Reference audio for identity cloning (VoxCPM2)
+- `trim_silence`: Enable VAD silence trimming
+
+> **Note:** `voice_design` is now a direct parameter on the main TTS node, not in this configuration node.
+
+#### Advanced Parameters Configuration
+Connect the `VoxCPM Advanced Params` node to the main TTS node's `advanced_params` input:
+
+```
+[VoxCPM Advanced Params] ──advanced_params──> [VoxCPM TTS]
+```
+
+Parameters in the Advanced Params node:
+- `min_tokens` / `max_tokens`: Audio length constraints
+- `temperature`: Sampling temperature (0.1-2.0)
+- `sway_sampling_coef`: Sway sampling coefficient (0.0-2.0)
+- `use_cfg_zero_star`: CFG-Zero* optimization toggle
+- `retry_max_attempts`: Maximum retry attempts for bad cases
+- `retry_threshold`: Threshold for triggering retries
+
+### Configuration Precedence
+
+When both configuration nodes and direct parameters are provided:
+1. **Direct parameters** take precedence over config node values
+2. **Config node values** take precedence over defaults
+
+This allows you to set defaults via config nodes and override specific values when needed.
+
 <p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 ## ▓ Usage
@@ -125,14 +182,14 @@ Launch ComfyUI. The VoxCPM nodes will appear under the `audio/tts` category. The
 
 ### Voice Design (VoxCPM2 only)
 1. Use the `VoxCPM TTS` node with a VoxCPM2 model
-2. Enter voice description in `control_instruction`: "warm female voice", "deep male voice with slight rasp"
+2. Enter voice description in `voice_design`: "warm female voice", "deep male voice with slight rasp"
 3. Enter text to synthesize
 4. Generate!
 
 ### Reference Cloning (VoxCPM2 only)
 1. Use the `VoxCPM TTS` node with a VoxCPM2 model
 2. Connect reference audio to `reference_audio` (no transcript needed!)
-3. Optionally add style instructions in `control_instruction`
+3. Optionally add style instructions in `voice_design`
 4. Generate!
 
 ### Ultimate Cloning (VoxCPM2 only)

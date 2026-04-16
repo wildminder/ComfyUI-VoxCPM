@@ -709,11 +709,11 @@ class VoxCPM2Model(nn.Module):
                 streaming_prefix_len=streaming_prefix_len,
             )
             if streaming:
-                decode_patch_len = self.patch_size * self._decode_chunk_size
-                for latent_pred, _, _ctx in inference_result:
-                    decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32))
-                    decode_audio = decode_audio[..., -decode_patch_len:].squeeze(1).cpu()
-                    yield decode_audio
+                with self.audio_vae.streaming_decode() as vae_dec:
+                    for latent_pred, _, _ctx in inference_result:
+                        decode_audio = vae_dec.decode_chunk(latent_pred.to(torch.float32))
+                        decode_audio = decode_audio.squeeze(1).cpu()
+                        yield decode_audio
                 break
             else:
                 latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
@@ -1139,11 +1139,11 @@ class VoxCPM2Model(nn.Module):
                 progress_callback=progress_callback,
             )
             if streaming:
-                decode_patch_len = self.patch_size * self._decode_chunk_size
-                for latent_pred, pred_audio_feat, _ctx in inference_result:
-                    decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32))
-                    decode_audio = decode_audio[..., -decode_patch_len:].squeeze(1).cpu()
-                    yield (decode_audio, target_text_token, pred_audio_feat)
+                with self.audio_vae.streaming_decode() as vae_dec:
+                    for latent_pred, pred_audio_feat, _ctx in inference_result:
+                        decode_audio = vae_dec.decode_chunk(latent_pred.to(torch.float32))
+                        decode_audio = decode_audio.squeeze(1).cpu()
+                        yield (decode_audio, target_text_token, pred_audio_feat)
                 break
             else:
                 latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
@@ -1298,8 +1298,8 @@ class VoxCPM2Model(nn.Module):
             prefix_feat_cond = pred_feat
 
             if streaming:
-                pred_feat_chunk = torch.cat(pred_feat_seq[-streaming_prefix_len:], dim=1)
-                feat_pred = rearrange(pred_feat_chunk, "b t p d -> b d (t p)", b=B, p=self.patch_size)
+                # Yield only the newest patch latent for stateful VAE decode
+                feat_pred = rearrange(pred_feat.unsqueeze(1), "b t p d -> b d (t p)", b=B, p=self.patch_size)
 
                 yield feat_pred, pred_feat_seq, context_len
 
