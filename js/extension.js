@@ -942,6 +942,7 @@ function injectModelSelectorStyles() {
   document.head.appendChild(style);
   stylesInjected = true;
 }
+const selectorRefsMap = /* @__PURE__ */ new Map();
 function createModelSelectorWidget(node) {
   injectModelSelectorStyles();
   const widgets = node.widgets;
@@ -1012,7 +1013,7 @@ function createModelSelectorWidget(node) {
       pathIndicator
     );
   });
-  node.addDOMWidget("model_selector", "custom", wrapper, {
+  const domWidget = node.addDOMWidget("model_selector", "custom", wrapper, {
     serialize: false,
     hideOnZoom: false,
     selectOn: ["click"],
@@ -1022,13 +1023,21 @@ function createModelSelectorWidget(node) {
       modelText.textContent = v;
     }
   });
-  node.properties = node.properties || {};
-  node.properties["_voxcpm_selector_refs"] = {
+  const allWidgets = node.widgets;
+  if (allWidgets && allWidgets.length > 1) {
+    const widgetIndex = allWidgets.indexOf(domWidget);
+    if (widgetIndex > 0) {
+      allWidgets.splice(widgetIndex, 1);
+      allWidgets.unshift(domWidget);
+      logger.debug("Moved model selector widget to position 0 for node:", node.id);
+    }
+  }
+  selectorRefsMap.set(node.id, {
     modelText,
     folderIcon,
     pathIndicator,
     modelWidget
-  };
+  });
   logger.debug("Created model selector widget for node:", node.id);
 }
 function hideDefaultComboWidget(widget) {
@@ -1146,7 +1155,7 @@ function updateModelOptions(modelWidget, models, node) {
   logger.debug("Updated model options:", models);
 }
 function syncModelSelectorDisplay(node, value) {
-  const refs = node.properties?.["_voxcpm_selector_refs"];
+  const refs = selectorRefsMap.get(node.id);
   if (!refs) {
     logger.debug("No selector refs found for node:", node.id);
     return;
