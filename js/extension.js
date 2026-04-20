@@ -49,8 +49,8 @@ const UI = {
     WIDGET_NAME: "model_selector",
     /** Widget type for addDOMWidget */
     WIDGET_TYPE: "custom",
-    /** Minimum height of the model selector widget in pixels */
-    MIN_HEIGHT: 36,
+    /** Height of the model selector widget in pixels (includes bottom spacing) */
+    MIN_HEIGHT: 44,
     /** Default model icon (standard path) */
     DEFAULT_ICON: "📁",
     /** Custom path model icon */
@@ -1023,6 +1023,7 @@ function createModelSelectorWidget(node) {
       modelText.textContent = v;
     }
   });
+  domWidget.computeSize = () => [0, UI.MODEL_SELECTOR.MIN_HEIGHT];
   const allWidgets = node.widgets;
   if (allWidgets && allWidgets.length > 1) {
     const widgetIndex = allWidgets.indexOf(domWidget);
