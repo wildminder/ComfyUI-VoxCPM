@@ -924,6 +924,20 @@ const MODEL_SELECTOR_STYLES = `
   width: 100%;
   padding: 2px 0;
   box-sizing: border-box;
+  /* Prevent vertical stretching in Node 2.0 mode.
+   *
+   * WidgetDOM.vue wraps DOM widgets with class="flex flex-col *:flex-1",
+   * which applies flex:1 to ALL direct children, causing them to stretch
+   * vertically like text areas. We override this with flex:none to keep
+   * our single-line widget at a fixed height.
+   *
+   * Additionally, ComfyUI's DOMWidgetImpl.computeLayoutSize() reads
+   * --comfy-widget-min-height and --comfy-widget-max-height CSS custom
+   * properties. Setting them equal forces a fixed layout height. */
+  flex: none !important;
+  --comfy-widget-min-height: 44px;
+  --comfy-widget-max-height: 44px;
+  --comfy-widget-height: 44px;
 }
 `.trim();
 const STYLE_ELEMENT_ID = "voxcpm-model-selector-styles";
@@ -1024,6 +1038,11 @@ function createModelSelectorWidget(node) {
     }
   });
   domWidget.computeSize = () => [0, UI.MODEL_SELECTOR.MIN_HEIGHT];
+  domWidget.computeLayoutSize = (_node) => ({
+    minHeight: UI.MODEL_SELECTOR.MIN_HEIGHT,
+    maxHeight: UI.MODEL_SELECTOR.MIN_HEIGHT,
+    minWidth: 0
+  });
   const allWidgets = node.widgets;
   if (allWidgets && allWidgets.length > 1) {
     const widgetIndex = allWidgets.indexOf(domWidget);
@@ -1032,6 +1051,21 @@ function createModelSelectorWidget(node) {
       allWidgets.unshift(domWidget);
       logger.debug("Moved model selector widget to position 0 for node:", node.id);
     }
+  }
+  const modelInput = node.inputs?.find(
+    (inp) => inp.name === "model_name"
+  );
+  if (modelInput) {
+    const existingWidgetName = modelInput.widget?.name;
+    modelInput.widget = {
+      name: "model_selector",
+      // Store original for reference/debugging
+      _originalWidget: existingWidgetName
+    };
+    logger.debug(
+      "Bound model_name input to model_selector widget for node:",
+      node.id
+    );
   }
   selectorRefsMap.set(node.id, {
     modelText,
