@@ -802,11 +802,31 @@ const MODEL_SELECTOR_STYLES = `
 
 .voxcpm-model-selector {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 0;
+  flex-direction: column;
+  gap: 0;
   width: 100%;
+  padding: 2px 0;
   box-sizing: border-box;
+  /* Prevent vertical stretching in Node 2.0 mode.
+   *
+   * WidgetDOM.vue wraps DOM widgets with class="flex flex-col *:flex-1",
+   * which applies flex:1 to ALL direct children via the universal selector.
+   * This causes DOM widgets to stretch vertically like text areas.
+   *
+   * We override with flex:none !important to keep our single-line widget
+   * at a fixed height. The !important is required because the parent's
+   * *:flex-1 selector has equal specificity (0,1,0) but we need to win
+   * due to the universal selector's cascade behavior.
+   *
+   * Additionally, ComfyUI's DOMWidgetImpl.computeLayoutSize() reads
+   * --comfy-widget-min-height and --comfy-widget-max-height CSS custom
+   * properties. Setting them equal forces a fixed layout height.
+   * These serve as a fallback for DOM widgets that don't override
+   * computeLayoutSize() in JavaScript. */
+  flex: none !important;
+  --comfy-widget-min-height: 44px;
+  --comfy-widget-max-height: 44px;
+  --comfy-widget-height: 44px;
 }
 
 /* Model display area - clickable to open dropdown */
@@ -916,28 +936,13 @@ const MODEL_SELECTOR_STYLES = `
   display: block;
 }
 
-/* Container wrapper for selector + path indicator */
-.voxcpm-model-selector-wrapper {
+/* Selector row: model display + browse button (horizontal layout) */
+.voxcpm-model-selector-row {
   display: flex;
-  flex-direction: column;
-  gap: 0;
+  align-items: center;
+  gap: 4px;
   width: 100%;
-  padding: 2px 0;
   box-sizing: border-box;
-  /* Prevent vertical stretching in Node 2.0 mode.
-   *
-   * WidgetDOM.vue wraps DOM widgets with class="flex flex-col *:flex-1",
-   * which applies flex:1 to ALL direct children, causing them to stretch
-   * vertically like text areas. We override this with flex:none to keep
-   * our single-line widget at a fixed height.
-   *
-   * Additionally, ComfyUI's DOMWidgetImpl.computeLayoutSize() reads
-   * --comfy-widget-min-height and --comfy-widget-max-height CSS custom
-   * properties. Setting them equal forces a fixed layout height. */
-  flex: none !important;
-  --comfy-widget-min-height: 44px;
-  --comfy-widget-max-height: 44px;
-  --comfy-widget-height: 44px;
 }
 `.trim();
 const STYLE_ELEMENT_ID = "voxcpm-model-selector-styles";
@@ -970,10 +975,7 @@ function createModelSelectorWidget(node) {
     return;
   }
   hideDefaultComboWidget(modelWidget);
-  const wrapper = document.createElement("div");
-  wrapper.className = "voxcpm-model-selector-wrapper";
-  const container = document.createElement("div");
-  container.className = "voxcpm-model-selector";
+  const fragment = document.createDocumentFragment();
   const modelDisplay = document.createElement("div");
   modelDisplay.className = "voxcpm-model-display";
   modelDisplay.title = "Click to select a model";
@@ -999,11 +1001,16 @@ function createModelSelectorWidget(node) {
     pathIndicator.classList.add("voxcpm-model-custom-path--visible");
   }
   modelDisplay.append(folderIcon, modelText, arrow);
-  container.append(modelDisplay, browseBtn);
-  wrapper.append(container, pathIndicator);
-  wrapper.addEventListener("mousedown", (e) => e.stopPropagation());
-  wrapper.addEventListener("mouseup", (e) => e.stopPropagation());
-  wrapper.addEventListener("click", (e) => e.stopPropagation());
+  const row = document.createElement("div");
+  row.className = "voxcpm-model-selector-row";
+  row.append(modelDisplay, browseBtn);
+  fragment.append(row, pathIndicator);
+  const widgetChildren = [row, pathIndicator];
+  for (const child of widgetChildren) {
+    child.addEventListener("mousedown", (e) => e.stopPropagation());
+    child.addEventListener("mouseup", (e) => e.stopPropagation());
+    child.addEventListener("click", (e) => e.stopPropagation());
+  }
   modelDisplay.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1027,7 +1034,7 @@ function createModelSelectorWidget(node) {
       pathIndicator
     );
   });
-  const domWidget = node.addDOMWidget("model_selector", "custom", wrapper, {
+  const domWidget = node.addDOMWidget("model_selector", "custom", fragment, {
     serialize: false,
     hideOnZoom: false,
     selectOn: ["click"],
@@ -1037,8 +1044,19 @@ function createModelSelectorWidget(node) {
       modelText.textContent = v;
     }
   });
+  const parentObserver = new MutationObserver(() => {
+    const rowParent = row.parentElement;
+    if (rowParent) {
+      rowParent.classList.add("voxcpm-model-selector");
+      rowParent.setAttribute("node-id", String(node.id));
+      parentObserver.disconnect();
+      logger.debug("Added voxcpm-model-selector class + node-id to parent div for node:", node.id);
+    }
+  });
+  parentObserver.observe(document.body, { childList: true, subtree: true });
+  domWidget.tooltip = "Select the VoxCPM model to use";
   domWidget.computeSize = () => [0, UI.MODEL_SELECTOR.MIN_HEIGHT];
-  domWidget.computeLayoutSize = (_node) => ({
+  domWidget.computeLayoutSize = () => ({
     minHeight: UI.MODEL_SELECTOR.MIN_HEIGHT,
     maxHeight: UI.MODEL_SELECTOR.MIN_HEIGHT,
     minWidth: 0
@@ -1080,6 +1098,8 @@ function hideDefaultComboWidget(widget) {
   widget.computeSize = () => [0, -4];
   widget.draw = () => {
   };
+  if (!widget.options) widget.options = {};
+  widget.options.canvasOnly = true;
   logger.debug("Hidden default combo widget:", widget.name);
 }
 function openModelDropdown(event, modelWidget, modelText, folderIcon, pathIndicator, node) {
