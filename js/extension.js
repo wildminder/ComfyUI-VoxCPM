@@ -117,6 +117,320 @@ const logger = {
     console.table(data);
   }
 };
+const DESIGN_TOKEN_STYLES = `
+/* ============================================================================
+ * VoxCPM Design Tokens
+ * ============================================================================
+ * Semantic tokens that reference ComfyUI's native CSS variables.
+ * Fallback values ensure compatibility with all ComfyUI themes.
+ * ============================================================================ */
+
+:root {
+  /* ── Spacing ── */
+  --voxcpm-space-2xs: 2px;
+  --voxcpm-space-xs: 4px;
+  --voxcpm-space-s: 6px;
+  --voxcpm-space-m: 8px;
+  --voxcpm-space-l: 12px;
+  --voxcpm-space-xl: 16px;
+  --voxcpm-space-2xl: 24px;
+
+  /* ── Typography ── */
+  --voxcpm-font-size-2xs: 10px;
+  --voxcpm-font-size-xs: 12px;
+  --voxcpm-font-size-s: 13px;
+  --voxcpm-font-size-m: 14px;
+  --voxcpm-font-size-l: 18px;
+  --voxcpm-font-size-xl: 24px;
+  --voxcpm-font-family: var(--comfy-font-family, Arial, sans-serif);
+  --voxcpm-font-family-mono: monospace;
+
+  /* ── Surfaces ── */
+  --voxcpm-bg-input: var(--comfy-input-bg, rgba(255, 255, 255, 0.05));
+  --voxcpm-bg-input-hover: var(--comfy-input-bg-hover, rgba(255, 255, 255, 0.08));
+  --voxcpm-bg-input-active: var(--comfy-input-bg-active, rgba(255, 255, 255, 0.1));
+  --voxcpm-bg-surface: var(--bg-color, #1e1e1e);
+  --voxcpm-bg-elevated: var(--input-bg, #2a2a2a);
+
+  /* ── Borders ── */
+  --voxcpm-border-color: var(--border-color, rgba(255, 255, 255, 0.15));
+  --voxcpm-border-color-hover: var(--comfy-input-border-hover, rgba(255, 255, 255, 0.3));
+  --voxcpm-border-radius-xs: 4px;
+  --voxcpm-border-radius-s: 6px;
+  --voxcpm-border-radius-m: 8px;
+
+  /* ── Text ── */
+  --voxcpm-text-primary: var(--fg-color, #ddd);
+  --voxcpm-text-secondary: var(--fg-color, rgba(255, 255, 255, 0.7));
+  --voxcpm-text-muted: var(--fg-color, rgba(255, 255, 255, 0.4));
+  --voxcpm-text-on-primary: #fff;
+
+  /* ── Accent ── */
+  --voxcpm-accent: var(--primary-color, #4a9eff);
+  --voxcpm-accent-hover: var(--primary-color-hover, #3a8eef);
+
+  /* ── Feedback ── */
+  --voxcpm-color-success: var(--success-color, #4caf50);
+  --voxcpm-color-error: var(--error-color, #f44336);
+
+  /* ── Motion ── */
+  --voxcpm-duration-fast: 150ms;
+  --voxcpm-duration-normal: 200ms;
+  --voxcpm-easing: ease;
+
+  /* ── Widget ── */
+  --voxcpm-widget-height: 44px;
+  --voxcpm-input-height: 26px;
+  --voxcpm-browse-width: 30px;
+
+  /* ── Focus ── */
+  --voxcpm-focus-ring-color: var(--voxcpm-accent);
+  --voxcpm-focus-ring-width: 2px;
+  --voxcpm-focus-ring-offset: 1px;
+}
+`.trim();
+const STYLE_ELEMENT_ID$1 = "voxcpm-design-tokens";
+let tokensInjected = false;
+function injectDesignTokens() {
+  if (tokensInjected) {
+    return;
+  }
+  if (document.getElementById(STYLE_ELEMENT_ID$1)) {
+    tokensInjected = true;
+    return;
+  }
+  const style = document.createElement("style");
+  style.id = STYLE_ELEMENT_ID$1;
+  style.textContent = DESIGN_TOKEN_STYLES;
+  document.head.appendChild(style);
+  tokensInjected = true;
+}
+const MODEL_SELECTOR_CLASSES = {
+  /** Block — the widget container (applied to WidgetDOM.vue parent div) */
+  BLOCK: "voxcpm-model-selector",
+  /** Element — horizontal row containing display + browse button */
+  ROW: "voxcpm-model-selector__row",
+  /** Element — clickable model display area (opens dropdown) */
+  DISPLAY: "voxcpm-model-selector__display",
+  /** Element — folder icon in the display area */
+  ICON: "voxcpm-model-selector__icon",
+  /** Element — model name text in the display area */
+  TEXT: "voxcpm-model-selector__text",
+  /** Element — dropdown arrow in the display area */
+  ARROW: "voxcpm-model-selector__arrow",
+  /** Element — browse button for custom path selection */
+  BROWSE: "voxcpm-model-selector__browse",
+  /** Element — custom path indicator shown below the row */
+  PATH: "voxcpm-model-selector__path",
+  /** Modifier — path indicator visible state */
+  PATH_VISIBLE: "voxcpm-model-selector__path--visible"
+};
+const MODEL_SELECTOR_STYLES = `
+/* ============================================================================
+ * VoxCPM Model Selector Widget (BEM)
+ * Block: .voxcpm-model-selector
+ * ============================================================================ */
+
+/* ── Block ── */
+.${MODEL_SELECTOR_CLASSES.BLOCK} {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  padding: var(--voxcpm-space-2xs) 0;
+  box-sizing: border-box;
+  /* Prevent vertical stretching in Node 2.0 mode.
+   *
+   * WidgetDOM.vue wraps DOM widgets with class="flex flex-col *:flex-1",
+   * which applies flex:1 to ALL direct children via the universal selector.
+   * This causes DOM widgets to stretch vertically like text areas.
+   *
+   * Two-part fix:
+   * 1. flex:none !important — overrides the *:flex-1 rule to prevent
+   *    flex growth/shrink. The !important is required because the parent's
+   *    *:flex-1 selector has equal specificity (0,1,0) but we need to win.
+   * 2. align-self:flex-start !important — prevents the flex container from
+   *    stretching this item along the cross axis (vertical in flex-col).
+   *    Without this, even with flex:none, the parent's align-items:stretch
+   *    (the default) would still make the widget fill the full column height.
+   *
+ * Additionally, --comfy-widget-min-height and --comfy-widget-max-height
+ * CSS custom properties are set equal as a safety net. These are read
+ * by DOMWidgetImpl.computeLayoutSize() as a fallback, but since we
+ * intentionally do NOT set computeLayoutSize() on the widget (to avoid
+ * triggering 'auto' grid row sizing in Node 2.0), these properties
+ * serve as documentation of the intended height rather than an active
+ * layout mechanism. */
+  flex: none !important;
+  align-self: flex-start !important;
+  --comfy-widget-min-height: var(--voxcpm-widget-height);
+  --comfy-widget-max-height: var(--voxcpm-widget-height);
+  --comfy-widget-height: var(--voxcpm-widget-height);
+}
+
+/* ── Row: display + browse (horizontal layout) ── */
+.${MODEL_SELECTOR_CLASSES.ROW} {
+  display: flex;
+  align-items: center;
+  gap: var(--voxcpm-space-xs);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Display: clickable area to open dropdown ── */
+.${MODEL_SELECTOR_CLASSES.DISPLAY} {
+  display: flex;
+  align-items: center;
+  gap: var(--voxcpm-space-s);
+  flex: 1;
+  padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);
+  background: var(--voxcpm-bg-input);
+  border: 1px solid var(--voxcpm-border-color);
+  border-radius: var(--voxcpm-border-radius-xs);
+  cursor: pointer;
+  min-height: var(--voxcpm-input-height);
+  color: var(--voxcpm-text-primary);
+  font-family: var(--voxcpm-font-family);
+  font-size: var(--voxcpm-font-size-xs);
+  transition: border-color var(--voxcpm-duration-fast) var(--voxcpm-easing),
+              background var(--voxcpm-duration-fast) var(--voxcpm-easing);
+  user-select: none;
+  overflow: hidden;
+}
+
+.${MODEL_SELECTOR_CLASSES.DISPLAY}:hover {
+  border-color: var(--voxcpm-border-color-hover);
+  background: var(--voxcpm-bg-input-hover);
+}
+
+.${MODEL_SELECTOR_CLASSES.DISPLAY}:active {
+  background: var(--voxcpm-bg-input-active);
+}
+
+/* ── Icon: folder icon indicating model source ── */
+.${MODEL_SELECTOR_CLASSES.ICON} {
+  font-size: var(--voxcpm-font-size-s);
+  opacity: 0.8;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ── Text: model name ── */
+.${MODEL_SELECTOR_CLASSES.TEXT} {
+  flex: 1;
+  color: var(--voxcpm-text-primary);
+  font-size: var(--voxcpm-font-size-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ── Arrow: dropdown indicator ── */
+.${MODEL_SELECTOR_CLASSES.ARROW} {
+  font-size: 9px;
+  opacity: 0.5;
+  margin-left: auto;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);
+}
+
+.${MODEL_SELECTOR_CLASSES.DISPLAY}:hover .${MODEL_SELECTOR_CLASSES.ARROW} {
+  opacity: 0.8;
+}
+
+/* ── Browse: custom path button ── */
+.${MODEL_SELECTOR_CLASSES.BROWSE} {
+  /* Reset ComfyUI's global button styles */
+  all: initial;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);
+  min-width: var(--voxcpm-browse-width);
+  height: var(--voxcpm-input-height);
+  font-size: var(--voxcpm-font-size-s);
+  border-radius: var(--voxcpm-border-radius-xs);
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid var(--voxcpm-border-color);
+  background: var(--voxcpm-bg-input);
+  color: var(--voxcpm-text-primary);
+  font-family: var(--voxcpm-font-family);
+  transition: border-color var(--voxcpm-duration-fast) var(--voxcpm-easing),
+              background var(--voxcpm-duration-fast) var(--voxcpm-easing);
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.${MODEL_SELECTOR_CLASSES.BROWSE}:hover {
+  border-color: var(--voxcpm-border-color-hover);
+  background: var(--voxcpm-bg-input-hover);
+}
+
+.${MODEL_SELECTOR_CLASSES.BROWSE}:active {
+  background: var(--voxcpm-bg-input-active);
+}
+
+/* ── Path: custom path indicator (below row, hidden by default) ── */
+.${MODEL_SELECTOR_CLASSES.PATH} {
+  font-size: var(--voxcpm-font-size-2xs);
+  color: var(--voxcpm-text-muted);
+  padding: var(--voxcpm-space-2xs) 0 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  box-sizing: border-box;
+  display: none;
+}
+
+.${MODEL_SELECTOR_CLASSES.PATH_VISIBLE} {
+  display: block;
+}
+
+/* ── Focus: keyboard accessibility ── */
+.${MODEL_SELECTOR_CLASSES.DISPLAY}:focus-visible,
+.${MODEL_SELECTOR_CLASSES.BROWSE}:focus-visible {
+  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);
+  outline-offset: var(--voxcpm-focus-ring-offset);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .${MODEL_SELECTOR_CLASSES.BLOCK} *,
+  .${MODEL_SELECTOR_CLASSES.BLOCK} *::before,
+  .${MODEL_SELECTOR_CLASSES.BLOCK} *::after {
+    transition-duration: 0ms !important;
+  }
+}
+`.trim();
+const STYLE_ELEMENT_ID = "voxcpm-model-selector-styles";
+let stylesInjected = false;
+function injectModelSelectorStyles() {
+  if (stylesInjected) {
+    return;
+  }
+  if (document.getElementById(STYLE_ELEMENT_ID)) {
+    stylesInjected = true;
+    return;
+  }
+  const style = document.createElement("style");
+  style.id = STYLE_ELEMENT_ID;
+  style.textContent = MODEL_SELECTOR_STYLES;
+  document.head.appendChild(style);
+  stylesInjected = true;
+}
+let allStylesInjected = false;
+function injectAllStyles() {
+  if (allStylesInjected) {
+    return;
+  }
+  injectDesignTokens();
+  injectModelSelectorStyles();
+  allStylesInjected = true;
+}
 function getSessionItem(key) {
   try {
     return sessionStorage.getItem(key);
@@ -341,54 +655,54 @@ function showWelcomeDialog() {
   return new Promise((resolve) => {
     closeActiveDialog();
     const overlay = document.createElement("div");
-    overlay.className = "voxcpm-dialog-overlay";
+    overlay.className = "voxcpm-dialog__overlay";
     overlay.innerHTML = `
-      <div class="voxcpm-dialog">
-        <div class="voxcpm-dialog-header">
-          <span class="voxcpm-dialog-icon">🎙️</span>
-          <h2 class="voxcpm-dialog-title">VoxCPM Model Setup</h2>
-        </div>
-        <div class="voxcpm-dialog-body">
-          <p class="voxcpm-dialog-description">
-            Welcome to VoxCPM! How would you like to configure your model path?
-          </p>
-          <div class="voxcpm-options">
-            <button class="voxcpm-option-card" data-option="default">
-              <div class="voxcpm-option-icon">📁</div>
-              <div class="voxcpm-option-content">
-                <h3>Use Default Path</h3>
-                <p class="voxcpm-option-path">models/tts/VoxCPM/</p>
-                <p class="voxcpm-option-description">
-                  Official models will be downloaded automatically.
-                </p>
-              </div>
-            </button>
-            <button class="voxcpm-option-card" data-option="custom">
-              <div class="voxcpm-option-icon">📂</div>
-              <div class="voxcpm-option-content">
-                <h3>Use Custom Path</h3>
-                <p class="voxcpm-option-description">
-                  Select a custom directory where your VoxCPM models are located.
-                  Useful for existing model collections.
-                </p>
-              </div>
-            </button>
-          </div>
-        </div>
-        <div class="voxcpm-dialog-footer">
-          <button class="voxcpm-btn voxcpm-btn-secondary" id="voxcpm-cancel">Cancel</button>
-          <button class="voxcpm-btn voxcpm-btn-primary" id="voxcpm-continue" disabled>
-            Continue
-          </button>
-        </div>
-      </div>
+    <div class="voxcpm-dialog">
+    <div class="voxcpm-dialog__header">
+    <span class="voxcpm-dialog__icon">🎙️</span>
+    <h2 class="voxcpm-dialog__title">VoxCPM Model Setup</h2>
+    </div>
+    <div class="voxcpm-dialog__body">
+    <p class="voxcpm-dialog__description">
+    Welcome to VoxCPM! How would you like to configure your model path?
+    </p>
+    <div class="voxcpm-dialog__options">
+    <button class="voxcpm-dialog__option" data-option="default">
+    <div class="voxcpm-dialog__option-icon">📁</div>
+    <div class="voxcpm-dialog__option-content">
+    <h3>Use Default Path</h3>
+    <p class="voxcpm-dialog__option-path">models/tts/VoxCPM/</p>
+    <p class="voxcpm-dialog__option-description">
+    Official models will be downloaded automatically.
+    </p>
+    </div>
+    </button>
+    <button class="voxcpm-dialog__option" data-option="custom">
+    <div class="voxcpm-dialog__option-icon">📂</div>
+    <div class="voxcpm-dialog__option-content">
+    <h3>Use Custom Path</h3>
+    <p class="voxcpm-dialog__option-description">
+    Select a custom directory where your VoxCPM models are located.
+    Useful for existing model collections.
+    </p>
+    </div>
+    </button>
+    </div>
+    </div>
+    <div class="voxcpm-dialog__footer">
+    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--secondary" id="voxcpm-cancel">Cancel</button>
+    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--primary" id="voxcpm-continue" disabled>
+    Continue
+    </button>
+    </div>
+    </div>
     `;
     let selectedOption = null;
-    const optionCards = overlay.querySelectorAll(".voxcpm-option-card");
+    const optionCards = overlay.querySelectorAll(".voxcpm-dialog__option");
     optionCards.forEach((card) => {
       card.addEventListener("click", () => {
-        optionCards.forEach((c) => c.classList.remove("voxcpm-option-selected"));
-        card.classList.add("voxcpm-option-selected");
+        optionCards.forEach((c) => c.classList.remove("voxcpm-dialog__option--selected"));
+        card.classList.add("voxcpm-dialog__option--selected");
         selectedOption = card.getAttribute("data-option");
         const continueBtn2 = overlay.querySelector("#voxcpm-continue");
         if (continueBtn2) {
@@ -417,38 +731,38 @@ function showPathSelectionDialog(initialPath) {
   return new Promise((resolve) => {
     closeActiveDialog();
     const overlay = document.createElement("div");
-    overlay.className = "voxcpm-dialog-overlay";
+    overlay.className = "voxcpm-dialog__overlay";
     overlay.innerHTML = `
-      <div class="voxcpm-dialog voxcpm-dialog-large">
-        <div class="voxcpm-dialog-header">
-          <h2 class="voxcpm-dialog-title">Select Model Directory</h2>
-        </div>
-        <div class="voxcpm-dialog-body">
-          <div class="voxcpm-path-input-group">
-            <input
-              type="text"
-              class="voxcpm-path-input"
-              placeholder="Enter model directory path"
-              value="${initialPath || ""}"
-              id="voxcpm-path-input"
-            />
-            <button class="voxcpm-btn voxcpm-btn-secondary" id="voxcpm-browse">
-              Browse...
-            </button>
-          </div>
-          <div class="voxcpm-models-preview" id="voxcpm-models-preview" style="display: none;">
-            <h4>Found Models (<span id="voxcpm-model-count">0</span>)</h4>
-            <ul class="voxcpm-models-list" id="voxcpm-models-list"></ul>
-          </div>
-          <div class="voxcpm-validation-message" id="voxcpm-validation-message"></div>
-        </div>
-        <div class="voxcpm-dialog-footer">
-          <button class="voxcpm-btn voxcpm-btn-secondary" id="voxcpm-cancel">Cancel</button>
-          <button class="voxcpm-btn voxcpm-btn-primary" id="voxcpm-confirm" disabled>
-            Use This Path
-          </button>
-        </div>
-      </div>
+    <div class="voxcpm-dialog voxcpm-dialog--large">
+    <div class="voxcpm-dialog__header">
+    <h2 class="voxcpm-dialog__title">Select Model Directory</h2>
+    </div>
+    <div class="voxcpm-dialog__body">
+    <div class="voxcpm-dialog__input-group">
+    <input
+    type="text"
+    class="voxcpm-dialog__input"
+    placeholder="Enter model directory path"
+    value="${initialPath || ""}"
+    id="voxcpm-path-input"
+    />
+    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--secondary" id="voxcpm-browse">
+    Browse...
+    </button>
+    </div>
+    <div class="voxcpm-dialog__preview" id="voxcpm-models-preview" style="display: none;">
+    <h4>Found Models (<span id="voxcpm-model-count">0</span>)</h4>
+    <ul class="voxcpm-dialog__models-list" id="voxcpm-models-list"></ul>
+    </div>
+    <div class="voxcpm-dialog__validation" id="voxcpm-validation-message"></div>
+    </div>
+    <div class="voxcpm-dialog__footer">
+    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--secondary" id="voxcpm-cancel">Cancel</button>
+    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--primary" id="voxcpm-confirm" disabled>
+    Use This Path
+    </button>
+    </div>
+    </div>
     `;
     let isValid = false;
     let currentPath = initialPath || "";
@@ -477,22 +791,22 @@ function showPathSelectionDialog(initialPath) {
           modelsPreview.style.display = "block";
           modelCount.textContent = result.models.length.toString();
           modelsList.innerHTML = result.models.map((m) => `
-              <li>
-                <span class="voxcpm-model-icon">📁</span>
-                <span class="voxcpm-model-name">${m.name}</span>
-              </li>
-            `).join("");
-          validationMessage.innerHTML = `<span class="voxcpm-validation-success">Found ${result.models.length} VoxCPM-compatible models</span>`;
+          <li>
+          <span class="voxcpm-dialog__model-icon">📁</span>
+          <span class="voxcpm-dialog__model-name">${m.name}</span>
+          </li>
+          `).join("");
+          validationMessage.innerHTML = `<span class="voxcpm-dialog__validation--success">Found ${result.models.length} VoxCPM-compatible models</span>`;
           confirmBtn.disabled = false;
         } else {
           modelsPreview.style.display = "none";
-          validationMessage.innerHTML = `<span class="voxcpm-validation-error">${result.error || "Invalid path or no models found"}</span>`;
+          validationMessage.innerHTML = `<span class="voxcpm-dialog__validation--error">${result.error || "Invalid path or no models found"}</span>`;
           confirmBtn.disabled = true;
         }
       } catch (error) {
         logger.warn("Path validation failed:", error);
         modelsPreview.style.display = "none";
-        validationMessage.innerHTML = `<span class="voxcpm-validation-error">Failed to validate path</span>`;
+        validationMessage.innerHTML = `<span class="voxcpm-dialog__validation--error">Failed to validate path</span>`;
         confirmBtn.disabled = true;
         isValid = false;
       }
@@ -536,10 +850,13 @@ function injectDialogStyles() {
     return;
   }
   const css = `
-/* VoxCPM Dialog Styles */
+/* ============================================================================
+ * VoxCPM Dialog Styles (BEM)
+ * Block: .voxcpm-dialog
+ * ============================================================================ */
 
-/* Overlay */
-.voxcpm-dialog-overlay {
+/* ── Overlay ── */
+.voxcpm-dialog__overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -552,242 +869,273 @@ function injectDialogStyles() {
   z-index: 10000;
 }
 
-/* Dialog Container */
+/* ── Block: Dialog Container ── */
 .voxcpm-dialog {
-  background: var(--bg-color, #1e1e1e);
-  border-radius: 8px;
+  background: var(--voxcpm-bg-surface);
+  border-radius: var(--voxcpm-border-radius-m);
   max-width: 500px;
   width: 90%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
-.voxcpm-dialog-large {
+.voxcpm-dialog--large {
   max-width: 600px;
 }
 
-/* Dialog Header */
-.voxcpm-dialog-header {
+/* ── Header ── */
+.voxcpm-dialog__header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color, #333);
+  gap: var(--voxcpm-space-l);
+  padding: var(--voxcpm-space-2xl);
+  border-bottom: 1px solid var(--voxcpm-border-color);
 }
 
-.voxcpm-dialog-icon {
-  font-size: 24px;
+.voxcpm-dialog__icon {
+  font-size: var(--voxcpm-font-size-xl);
 }
 
-.voxcpm-dialog-title {
+.voxcpm-dialog__title {
   margin: 0;
-  font-size: 18px;
-  color: var(--fg-color, #fff);
+  font-size: var(--voxcpm-font-size-l);
+  color: var(--voxcpm-text-primary);
 }
 
-/* Dialog Body */
-.voxcpm-dialog-body {
-  padding: 24px;
+/* ── Body ── */
+.voxcpm-dialog__body {
+  padding: var(--voxcpm-space-2xl);
 }
 
-.voxcpm-dialog-description {
+.voxcpm-dialog__description {
   margin: 0 0 20px;
-  color: var(--fg-color, #ccc);
+  color: var(--voxcpm-text-secondary);
   line-height: 1.5;
 }
 
-/* Options Container */
-.voxcpm-options {
+/* ── Options Container ── */
+.voxcpm-dialog__options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--voxcpm-space-l);
 }
 
-/* Option Card */
-.voxcpm-option-card {
+/* ── Option Card ── */
+.voxcpm-dialog__option {
   display: flex;
-  gap: 16px;
-  padding: 16px;
-  background: var(--input-bg, #2a2a2a);
-  border: 2px solid var(--border-color, #333);
-  border-radius: 8px;
+  gap: var(--voxcpm-space-xl);
+  padding: var(--voxcpm-space-xl);
+  background: var(--voxcpm-bg-elevated);
+  border: 2px solid var(--voxcpm-border-color);
+  border-radius: var(--voxcpm-border-radius-m);
   cursor: pointer;
   text-align: left;
-  transition: all 0.2s;
+  transition: border-color var(--voxcpm-duration-normal) var(--voxcpm-easing),
+              background var(--voxcpm-duration-normal) var(--voxcpm-easing);
 }
 
-.voxcpm-option-card:hover {
-  border-color: var(--primary-color, #4a9eff);
+.voxcpm-dialog__option:hover {
+  border-color: var(--voxcpm-accent);
 }
 
-.voxcpm-option-selected {
-  border-color: var(--primary-color, #4a9eff);
-  background: var(--input-bg-hover, #333);
+.voxcpm-dialog__option--selected {
+  border-color: var(--voxcpm-accent);
+  background: var(--voxcpm-bg-input-hover);
 }
 
-.voxcpm-option-icon {
+.voxcpm-dialog__option-icon {
   font-size: 32px;
   flex-shrink: 0;
 }
 
-.voxcpm-option-content h3 {
-  margin: 0 0 4px;
-  color: var(--fg-color, #fff);
-  font-size: 14px;
+.voxcpm-dialog__option-content h3 {
+  margin: 0 0 var(--voxcpm-space-xs);
+  color: var(--voxcpm-text-primary);
+  font-size: var(--voxcpm-font-size-m);
 }
 
-.voxcpm-option-path {
-  margin: 0 0 8px;
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--muted-color, #888);
+.voxcpm-dialog__option-path {
+  margin: 0 0 var(--voxcpm-space-m);
+  font-family: var(--voxcpm-font-family-mono);
+  font-size: var(--voxcpm-font-size-xs);
+  color: var(--voxcpm-text-muted);
 }
 
-.voxcpm-option-description {
+.voxcpm-dialog__option-description {
   margin: 0;
-  font-size: 12px;
-  color: var(--muted-color, #aaa);
+  font-size: var(--voxcpm-font-size-xs);
+  color: var(--voxcpm-text-muted);
 }
 
-/* Dialog Footer */
-.voxcpm-dialog-footer {
+/* ── Footer ── */
+.voxcpm-dialog__footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-color, #333);
+  gap: var(--voxcpm-space-l);
+  padding: var(--voxcpm-space-xl) var(--voxcpm-space-2xl);
+  border-top: 1px solid var(--voxcpm-border-color);
 }
 
-/* Buttons */
-.voxcpm-btn {
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 14px;
+/* ── Buttons ── */
+.voxcpm-dialog__btn {
+  padding: var(--voxcpm-space-m) var(--voxcpm-space-xl);
+  border-radius: var(--voxcpm-border-radius-xs);
+  font-size: var(--voxcpm-font-size-m);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background var(--voxcpm-duration-normal) var(--voxcpm-easing),
+              border-color var(--voxcpm-duration-normal) var(--voxcpm-easing);
 }
 
-.voxcpm-btn-secondary {
+.voxcpm-dialog__btn--secondary {
   background: transparent;
-  border: 1px solid var(--border-color, #333);
-  color: var(--fg-color, #ccc);
+  border: 1px solid var(--voxcpm-border-color);
+  color: var(--voxcpm-text-secondary);
 }
 
-.voxcpm-btn-secondary:hover {
-  background: var(--input-bg, #2a2a2a);
+.voxcpm-dialog__btn--secondary:hover {
+  background: var(--voxcpm-bg-elevated);
 }
 
-.voxcpm-btn-primary {
-  background: var(--primary-color, #4a9eff);
+.voxcpm-dialog__btn--primary {
+  background: var(--voxcpm-accent);
   border: none;
-  color: #fff;
+  color: var(--voxcpm-text-on-primary);
 }
 
-.voxcpm-btn-primary:hover:not(:disabled) {
-  background: var(--primary-color-hover, #3a8eef);
+.voxcpm-dialog__btn--primary:hover:not(:disabled) {
+  background: var(--voxcpm-accent-hover);
 }
 
-.voxcpm-btn-primary:disabled {
+.voxcpm-dialog__btn--primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Path Input Group */
-.voxcpm-path-input-group {
+/* ── Input Group ── */
+.voxcpm-dialog__input-group {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: var(--voxcpm-space-m);
+  margin-bottom: var(--voxcpm-space-xl);
 }
 
-.voxcpm-path-input {
+.voxcpm-dialog__input {
   flex: 1;
-  padding: 8px 12px;
-  background: var(--input-bg, #2a2a2a);
-  border: 1px solid var(--border-color, #333);
-  border-radius: 4px;
-  color: var(--fg-color, #fff);
-  font-size: 14px;
+  padding: var(--voxcpm-space-m) var(--voxcpm-space-l);
+  background: var(--voxcpm-bg-elevated);
+  border: 1px solid var(--voxcpm-border-color);
+  border-radius: var(--voxcpm-border-radius-xs);
+  color: var(--voxcpm-text-primary);
+  font-size: var(--voxcpm-font-size-m);
+  font-family: var(--voxcpm-font-family);
 }
 
-.voxcpm-path-input:focus {
+.voxcpm-dialog__input:focus {
   outline: none;
-  border-color: var(--primary-color, #4a9eff);
+  border-color: var(--voxcpm-accent);
 }
 
-/* Models Preview */
-.voxcpm-models-preview {
-  background: var(--input-bg, #2a2a2a);
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 16px;
+/* ── Models Preview ── */
+.voxcpm-dialog__preview {
+  background: var(--voxcpm-bg-elevated);
+  border-radius: var(--voxcpm-border-radius-xs);
+  padding: var(--voxcpm-space-l);
+  margin-bottom: var(--voxcpm-space-xl);
 }
 
-.voxcpm-models-preview h4 {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: var(--muted-color, #888);
+.voxcpm-dialog__preview h4 {
+  margin: 0 0 var(--voxcpm-space-m);
+  font-size: var(--voxcpm-font-size-xs);
+  color: var(--voxcpm-text-muted);
 }
 
-.voxcpm-models-list {
+.voxcpm-dialog__models-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.voxcpm-models-list li {
+.voxcpm-dialog__models-list li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  gap: var(--voxcpm-space-m);
+  padding: var(--voxcpm-space-xs) 0;
 }
 
-.voxcpm-model-icon {
-  font-size: 14px;
+.voxcpm-dialog__model-icon {
+  font-size: var(--voxcpm-font-size-m);
 }
 
-.voxcpm-model-name {
-  font-size: 13px;
-  color: var(--fg-color, #ccc);
+.voxcpm-dialog__model-name {
+  font-size: var(--voxcpm-font-size-s);
+  color: var(--voxcpm-text-secondary);
 }
 
-/* Validation Message */
-.voxcpm-validation-message {
-  font-size: 12px;
+/* ── Validation ── */
+.voxcpm-dialog__validation {
+  font-size: var(--voxcpm-font-size-xs);
 }
 
-.voxcpm-validation-success {
-  color: var(--success-color, #4caf50);
+.voxcpm-dialog__validation--success {
+  color: var(--voxcpm-color-success);
 }
 
-.voxcpm-validation-error {
-  color: var(--error-color, #f44336);
+.voxcpm-dialog__validation--error {
+  color: var(--voxcpm-color-error);
 }
 
-/* Path Indicator Widget */
+/* ── Focus: keyboard accessibility ── */
+.voxcpm-dialog__option:focus-visible,
+.voxcpm-dialog__btn:focus-visible,
+.voxcpm-dialog__input:focus-visible {
+  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);
+  outline-offset: var(--voxcpm-focus-ring-offset);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .voxcpm-dialog *,
+  .voxcpm-dialog *::before,
+  .voxcpm-dialog *::after {
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ============================================================================
+ * VoxCPM Path Indicator Widget (BEM)
+ * Block: .voxcpm-path-indicator
+ * ============================================================================ */
+
 .voxcpm-path-indicator {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  background: var(--input-bg, #2a2a2a);
-  border-radius: 4px;
-  font-size: 12px;
+  gap: var(--voxcpm-space-m);
+  padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);
+  background: var(--voxcpm-bg-elevated);
+  border-radius: var(--voxcpm-border-radius-xs);
+  font-size: var(--voxcpm-font-size-xs);
 }
 
-.voxcpm-path-text {
-  color: var(--muted-color, #888);
-  font-family: monospace;
+.voxcpm-path-indicator__text {
+  color: var(--voxcpm-text-muted);
+  font-family: var(--voxcpm-font-family-mono);
 }
 
-.voxcpm-path-change-btn {
+.voxcpm-path-indicator__change-btn {
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 14px;
-  padding: 2px;
+  font-size: var(--voxcpm-font-size-m);
+  padding: var(--voxcpm-space-2xs);
+  color: var(--voxcpm-text-primary);
+  transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);
 }
 
-.voxcpm-path-change-btn:hover {
+.voxcpm-path-indicator__change-btn:hover {
   opacity: 0.8;
+}
+
+.voxcpm-path-indicator__change-btn:focus-visible {
+  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);
+  outline-offset: var(--voxcpm-focus-ring-offset);
 }
 `;
   const style = document.createElement("style");
@@ -795,175 +1143,8 @@ function injectDialogStyles() {
   style.textContent = css;
   document.head.appendChild(style);
 }
-const MODEL_SELECTOR_STYLES = `
-/* ============================================================================
- * VoxCPM Model Selector Widget
- * ============================================================================ */
-
-.voxcpm-model-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  width: 100%;
-  padding: 2px 0;
-  box-sizing: border-box;
-  /* Prevent vertical stretching in Node 2.0 mode.
-   *
-   * WidgetDOM.vue wraps DOM widgets with class="flex flex-col *:flex-1",
-   * which applies flex:1 to ALL direct children via the universal selector.
-   * This causes DOM widgets to stretch vertically like text areas.
-   *
-   * We override with flex:none !important to keep our single-line widget
-   * at a fixed height. The !important is required because the parent's
-   * *:flex-1 selector has equal specificity (0,1,0) but we need to win
-   * due to the universal selector's cascade behavior.
-   *
-   * Additionally, ComfyUI's DOMWidgetImpl.computeLayoutSize() reads
-   * --comfy-widget-min-height and --comfy-widget-max-height CSS custom
-   * properties. Setting them equal forces a fixed layout height.
-   * These serve as a fallback for DOM widgets that don't override
-   * computeLayoutSize() in JavaScript. */
-  flex: none !important;
-  --comfy-widget-min-height: 44px;
-  --comfy-widget-max-height: 44px;
-  --comfy-widget-height: 44px;
-}
-
-/* Model display area - clickable to open dropdown */
-.voxcpm-model-display {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  padding: 5px 8px;
-  background: var(--comfy-input-bg, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
-  border-radius: 4px;
-  cursor: pointer;
-  min-height: 26px;
-  color: var(--fg-color, #ddd);
-  font-family: var(--comfy-font-family, Arial, sans-serif);
-  font-size: 12px;
-  transition: border-color 0.15s ease, background 0.15s ease;
-  user-select: none;
-  overflow: hidden;
-}
-
-.voxcpm-model-display:hover {
-  border-color: var(--comfy-input-border-hover, rgba(255, 255, 255, 0.3));
-  background: var(--comfy-input-bg-hover, rgba(255, 255, 255, 0.08));
-}
-
-.voxcpm-model-display:active {
-  background: var(--comfy-input-bg-active, rgba(255, 255, 255, 0.1));
-}
-
-/* Folder icon indicating model source */
-.voxcpm-model-icon {
-  font-size: 13px;
-  opacity: 0.8;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-/* Model name text */
-.voxcpm-model-text {
-  flex: 1;
-  color: var(--fg-color, #ddd);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-}
-
-/* Dropdown arrow */
-.voxcpm-model-arrow {
-  font-size: 9px;
-  opacity: 0.5;
-  margin-left: auto;
-  flex-shrink: 0;
-  line-height: 1;
-  transition: opacity 0.15s ease;
-}
-
-.voxcpm-model-display:hover .voxcpm-model-arrow {
-  opacity: 0.8;
-}
-
-/* Browse button */
-.voxcpm-browse-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 8px !important;
-  min-width: 30px;
-  height: 26px;
-  font-size: 13px;
-  border-radius: 4px !important;
-  cursor: pointer;
-  flex-shrink: 0;
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important;
-  background: var(--comfy-input-bg, rgba(255, 255, 255, 0.05)) !important;
-  color: var(--fg-color, #ddd) !important;
-  transition: border-color 0.15s ease, background 0.15s ease;
-  line-height: 1;
-}
-
-.voxcpm-browse-btn:hover {
-  border-color: var(--comfy-input-border-hover, rgba(255, 255, 255, 0.3)) !important;
-  background: var(--comfy-input-bg-hover, rgba(255, 255, 255, 0.08)) !important;
-}
-
-.voxcpm-browse-btn:active {
-  background: var(--comfy-input-bg-active, rgba(255, 255, 255, 0.1)) !important;
-}
-
-/* Custom path indicator (shown below selector when custom path is active) */
-.voxcpm-model-custom-path {
-  font-size: 10px;
-  color: var(--fg-color, rgba(255, 255, 255, 0.4));
-  padding: 1px 0 0 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-  box-sizing: border-box;
-  display: none;
-}
-
-.voxcpm-model-custom-path--visible {
-  display: block;
-}
-
-/* Selector row: model display + browse button (horizontal layout) */
-.voxcpm-model-selector-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  box-sizing: border-box;
-}
-`.trim();
-const STYLE_ELEMENT_ID = "voxcpm-model-selector-styles";
-let stylesInjected = false;
-function injectModelSelectorStyles() {
-  if (stylesInjected) {
-    return;
-  }
-  if (document.getElementById(STYLE_ELEMENT_ID)) {
-    stylesInjected = true;
-    return;
-  }
-  const style = document.createElement("style");
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = MODEL_SELECTOR_STYLES;
-  document.head.appendChild(style);
-  stylesInjected = true;
-}
 const selectorRefsMap = /* @__PURE__ */ new Map();
 function createModelSelectorWidget(node) {
-  injectModelSelectorStyles();
   const widgets = node.widgets;
   if (!widgets) {
     logger.warn("No widgets found on node:", node.id);
@@ -977,32 +1158,37 @@ function createModelSelectorWidget(node) {
   hideDefaultComboWidget(modelWidget);
   const fragment = document.createDocumentFragment();
   const modelDisplay = document.createElement("div");
-  modelDisplay.className = "voxcpm-model-display";
+  modelDisplay.className = MODEL_SELECTOR_CLASSES.DISPLAY;
   modelDisplay.title = "Click to select a model";
+  modelDisplay.tabIndex = 0;
+  modelDisplay.setAttribute("role", "combobox");
+  modelDisplay.setAttribute("aria-expanded", "false");
+  modelDisplay.setAttribute("aria-haspopup", "listbox");
   const folderIcon = document.createElement("span");
-  folderIcon.className = "voxcpm-model-icon";
+  folderIcon.className = MODEL_SELECTOR_CLASSES.ICON;
   folderIcon.textContent = UI.MODEL_SELECTOR.DEFAULT_ICON;
   const modelText = document.createElement("span");
-  modelText.className = "voxcpm-model-text";
+  modelText.className = MODEL_SELECTOR_CLASSES.TEXT;
   modelText.textContent = modelWidget.value || UI.MODEL_SELECTOR.PLACEHOLDER;
   const arrow = document.createElement("span");
-  arrow.className = "voxcpm-model-arrow";
+  arrow.className = MODEL_SELECTOR_CLASSES.ARROW;
   arrow.textContent = UI.MODEL_SELECTOR.ARROW;
   const browseBtn = document.createElement("button");
-  browseBtn.className = "voxcpm-browse-btn";
+  browseBtn.className = MODEL_SELECTOR_CLASSES.BROWSE;
   browseBtn.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
   browseBtn.title = "Browse for custom model directory";
+  browseBtn.setAttribute("role", "button");
   const pathIndicator = document.createElement("div");
-  pathIndicator.className = "voxcpm-model-custom-path";
+  pathIndicator.className = MODEL_SELECTOR_CLASSES.PATH;
   const savedCustomPath = node.properties?.["custom_model_path"];
   if (savedCustomPath) {
     folderIcon.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
     pathIndicator.textContent = savedCustomPath;
-    pathIndicator.classList.add("voxcpm-model-custom-path--visible");
+    pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
   }
   modelDisplay.append(folderIcon, modelText, arrow);
   const row = document.createElement("div");
-  row.className = "voxcpm-model-selector-row";
+  row.className = MODEL_SELECTOR_CLASSES.ROW;
   row.append(modelDisplay, browseBtn);
   fragment.append(row, pathIndicator);
   const widgetChildren = [row, pathIndicator];
@@ -1022,6 +1208,21 @@ function createModelSelectorWidget(node) {
       pathIndicator,
       node
     );
+  });
+  modelDisplay.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      modelDisplay.setAttribute("aria-expanded", "true");
+      openModelDropdown(
+        e,
+        modelWidget,
+        modelText,
+        folderIcon,
+        pathIndicator,
+        node
+      );
+    }
   });
   browseBtn.addEventListener("click", async (e) => {
     e.preventDefault();
@@ -1047,20 +1248,16 @@ function createModelSelectorWidget(node) {
   const parentObserver = new MutationObserver(() => {
     const rowParent = row.parentElement;
     if (rowParent) {
-      rowParent.classList.add("voxcpm-model-selector");
+      rowParent.classList.add(MODEL_SELECTOR_CLASSES.BLOCK);
       rowParent.setAttribute("node-id", String(node.id));
       parentObserver.disconnect();
-      logger.debug("Added voxcpm-model-selector class + node-id to parent div for node:", node.id);
+      logger.debug("Added", MODEL_SELECTOR_CLASSES.BLOCK, "class + node-id to parent div for node:", node.id);
     }
   });
   parentObserver.observe(document.body, { childList: true, subtree: true });
   domWidget.tooltip = "Select the VoxCPM model to use";
   domWidget.computeSize = () => [0, UI.MODEL_SELECTOR.MIN_HEIGHT];
-  domWidget.computeLayoutSize = () => ({
-    minHeight: UI.MODEL_SELECTOR.MIN_HEIGHT,
-    maxHeight: UI.MODEL_SELECTOR.MIN_HEIGHT,
-    minWidth: 0
-  });
+  domWidget.computeLayoutSize = void 0;
   const allWidgets = node.widgets;
   if (allWidgets && allWidgets.length > 1) {
     const widgetIndex = allWidgets.indexOf(domWidget);
@@ -1160,7 +1357,7 @@ async function handleBrowseClick(node, modelWidget, modelText, folderIcon, pathI
       updateModelOptions(modelWidget, data.models, node);
       folderIcon.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
       pathIndicator.textContent = path;
-      pathIndicator.classList.add("voxcpm-model-custom-path--visible");
+      pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
       if (data.models.length > 0) {
         modelText.textContent = modelWidget.value;
       } else {
@@ -1221,10 +1418,10 @@ function syncModelSelectorDisplay(node, value) {
   if (customPath) {
     refs.folderIcon.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
     refs.pathIndicator.textContent = customPath;
-    refs.pathIndicator.classList.add("voxcpm-model-custom-path--visible");
+    refs.pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
   } else {
     refs.folderIcon.textContent = UI.MODEL_SELECTOR.DEFAULT_ICON;
-    refs.pathIndicator.classList.remove("voxcpm-model-custom-path--visible");
+    refs.pathIndicator.classList.remove(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
   }
   logger.debug("Synced model selector display for node:", node.id, "value:", displayValue);
 }
@@ -1365,6 +1562,7 @@ const VoxCPMExtension = {
    * Called after canvas is created, before nodes are loaded.
    */
   async init() {
+    injectAllStyles();
     logger.log("Frontend extension initialized");
   },
   /**
