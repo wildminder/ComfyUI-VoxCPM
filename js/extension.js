@@ -341,6 +341,8 @@ var MODEL_SELECTOR_CLASSES = {
 	TEXT: "voxcpm-model-selector__text",
 	/** Element — dropdown arrow in the display area */
 	ARROW: "voxcpm-model-selector__arrow",
+	/** Modifier — arrow highlighted (dropdown open) */
+	ARROW_ACTIVE: "voxcpm-model-selector__arrow--active",
 	/** Element — browse button for custom path selection */
 	BROWSE: "voxcpm-model-selector__browse",
 	/** Element — custom path indicator shown below the row */
@@ -466,18 +468,15 @@ var MODEL_SELECTOR_STYLES = `
   margin-left: auto;
   flex-shrink: 0;
   line-height: 1;
+  opacity: 0.3;
   transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);
-  animation: voxcpm-cursor-blink 1s step-end infinite;
 }
 
-.${MODEL_SELECTOR_CLASSES.DISPLAY}:hover .${MODEL_SELECTOR_CLASSES.ARROW} {
+/* Arrow highlighted on display hover */
+.${MODEL_SELECTOR_CLASSES.DISPLAY}:hover .${MODEL_SELECTOR_CLASSES.ARROW},
+/* Arrow highlighted when dropdown is open */
+.${MODEL_SELECTOR_CLASSES.ARROW_ACTIVE} {
   opacity: 1;
-  animation: none;
-}
-
-@keyframes voxcpm-cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
 }
 
 /* ── Browse: custom path button ── */
@@ -758,16 +757,26 @@ var MODEL_DROPDOWN_STYLES = `
 
 /* ── Element: Name ── */
 .${MODEL_DROPDOWN_CLASSES.NAME} {
-  flex: 1;
+  flex: 0 1 auto;
   color: var(--voxcpm-cyber-text);
   font-size: var(--voxcpm-font-size-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.3;
+  min-width: 0;
 }
 
-/* ── Element: Tag ("DEFAULT") ── */
+/* ── Element: Meta (size info, after name) ── */
+.${MODEL_DROPDOWN_CLASSES.META} {
+  font-size: 10px;
+  color: var(--voxcpm-cyber-text-dim);
+  font-family: var(--voxcpm-cyber-font);
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+/* ── Element: Tag ("DEFAULT", right-aligned) ── */
 .${MODEL_DROPDOWN_CLASSES.TAG} {
   font-size: 9px;
   letter-spacing: 1px;
@@ -780,15 +789,7 @@ var MODEL_DROPDOWN_STYLES = `
   font-family: var(--voxcpm-cyber-font);
   line-height: 1.4;
   flex-shrink: 0;
-}
-
-/* ── Element: Meta (size info) ── */
-.${MODEL_DROPDOWN_CLASSES.META} {
   margin-left: auto;
-  font-size: 10px;
-  color: var(--voxcpm-cyber-text-dim);
-  font-family: var(--voxcpm-cyber-font);
-  flex-shrink: 0;
 }
 
 /* ── Animation: Entrance ── */
@@ -1790,8 +1791,8 @@ function invalidateModelInfoCache() {
 * navigation (ArrowUp/Down, Enter, Escape) and click-outside dismissal
 * are built in.
 */
-var ModelDropdown = class {
-	constructor(modelInfo, anchorRect, scale) {
+var ModelDropdown = class ModelDropdown {
+	constructor(modelInfo, anchorRect, scale, widgetElement) {
 		this.selectedIndex = -1;
 		this.resolveSelection = null;
 		this.cleanups = [];
@@ -1799,6 +1800,7 @@ var ModelDropdown = class {
 		this.modelInfo = modelInfo;
 		this.anchorRect = anchorRect;
 		this.scale = scale;
+		this.widgetElement = widgetElement || null;
 		this.panel = document.createElement("div");
 		this.panel.className = MODEL_DROPDOWN_CLASSES.BLOCK;
 		this.panel.setAttribute("role", "listbox");
@@ -1815,14 +1817,19 @@ var ModelDropdown = class {
 	/**
 	* Show the dropdown and return a promise that resolves with the selection.
 	*
+	* If another dropdown is already open, it is closed first (only one
+	* dropdown can be open at a time).
+	*
 	* @returns The selected model name, or `null` if dismissed without selection
 	*/
 	show() {
 		return new Promise((resolve) => {
 			this.resolveSelection = resolve;
+			if (ModelDropdown.currentDropdown && ModelDropdown.currentDropdown !== this) ModelDropdown.currentDropdown.close(null);
 			this.positionPanel();
 			document.body.appendChild(this.panel);
 			this.isOpen = true;
+			ModelDropdown.currentDropdown = this;
 			this.setupClickOutside();
 			this.setupKeyboardNav();
 			this.panel.tabIndex = -1;
@@ -1837,6 +1844,7 @@ var ModelDropdown = class {
 	close(selectedModel = null) {
 		if (!this.isOpen) return;
 		this.isOpen = false;
+		if (ModelDropdown.currentDropdown === this) ModelDropdown.currentDropdown = null;
 		for (const cleanup of this.cleanups) cleanup();
 		this.cleanups = [];
 		if (this.panel.parentElement) this.panel.parentElement.removeChild(this.panel);
@@ -1874,17 +1882,17 @@ var ModelDropdown = class {
 		name.className = MODEL_DROPDOWN_CLASSES.NAME;
 		name.textContent = model.name;
 		item.appendChild(name);
-		if (model.type === "official") {
-			const tag = document.createElement("span");
-			tag.className = MODEL_DROPDOWN_CLASSES.TAG;
-			tag.textContent = "DEFAULT";
-			item.appendChild(tag);
-		}
 		if (model.size_gb > 0) {
 			const meta = document.createElement("span");
 			meta.className = MODEL_DROPDOWN_CLASSES.META;
 			meta.textContent = `${model.size_gb} GB`;
 			item.appendChild(meta);
+		}
+		if (model.type === "official") {
+			const tag = document.createElement("span");
+			tag.className = MODEL_DROPDOWN_CLASSES.TAG;
+			tag.textContent = "DEFAULT";
+			item.appendChild(tag);
 		}
 		item.addEventListener("click", (e) => {
 			e.stopPropagation();
@@ -1932,11 +1940,13 @@ var ModelDropdown = class {
 		const handler = (e) => {
 			if (!this.isOpen) return;
 			const target = e.target;
-			if (!this.panel.contains(target)) this.close(null);
+			if (this.panel.contains(target)) return;
+			if (this.widgetElement && this.widgetElement.contains(target)) return;
+			this.close(null);
 		};
-		document.addEventListener("mousedown", handler, true);
+		document.addEventListener("pointerdown", handler, true);
 		this.cleanups.push(() => {
-			document.removeEventListener("mousedown", handler, true);
+			document.removeEventListener("pointerdown", handler, true);
 		});
 	}
 	/**
@@ -2004,6 +2014,7 @@ var ModelDropdown = class {
 		}
 	}
 };
+ModelDropdown.currentDropdown = null;
 //#endregion
 //#region widgets/ModelSelectorWidget.ts
 /**
@@ -2088,20 +2099,26 @@ function createModelSelectorWidget(node) {
 	row.className = MODEL_SELECTOR_CLASSES.ROW;
 	row.append(modelDisplay, browseBtn);
 	container.append(row, pathIndicator);
-	container.addEventListener("mousedown", (e) => e.stopPropagation());
 	container.addEventListener("mouseup", (e) => e.stopPropagation());
 	container.addEventListener("click", (e) => e.stopPropagation());
 	modelDisplay.addEventListener("click", (e) => {
 		e.preventDefault();
 		e.stopPropagation();
-		openModelDropdown(e, modelWidget, modelText, folderIcon, pathIndicator, node);
+		if (isDropdownOpen()) {
+			closeCurrentDropdown();
+			return;
+		}
+		openModelDropdown(e, modelWidget, modelText, folderIcon, pathIndicator, node, modelDisplay, arrow);
 	});
 	modelDisplay.addEventListener("keydown", (e) => {
 		if (e.key === "Enter" || e.key === " ") {
 			e.preventDefault();
 			e.stopPropagation();
-			modelDisplay.setAttribute("aria-expanded", "true");
-			openModelDropdown(e, modelWidget, modelText, folderIcon, pathIndicator, node);
+			if (isDropdownOpen()) {
+				closeCurrentDropdown();
+				return;
+			}
+			openModelDropdown(e, modelWidget, modelText, folderIcon, pathIndicator, node, modelDisplay, arrow);
 		}
 	});
 	browseBtn.addEventListener("click", async (e) => {
@@ -2179,6 +2196,18 @@ function hideDefaultComboWidget(widget) {
 	logger.debug("Hidden default combo widget:", widget.name);
 }
 /**
+* Check if a ModelDropdown is currently open.
+*/
+function isDropdownOpen() {
+	return ModelDropdown.currentDropdown !== null;
+}
+/**
+* Close the currently open ModelDropdown (if any).
+*/
+function closeCurrentDropdown() {
+	if (ModelDropdown.currentDropdown) ModelDropdown.currentDropdown.close(null);
+}
+/**
 * Open a custom ModelDropdown for model selection.
 *
 * Fetches model metadata from the backend API (with session-level caching),
@@ -2192,7 +2221,7 @@ function hideDefaultComboWidget(widget) {
 * @param pathIndicator - The custom path indicator DOM element
 * @param node - The parent node
 */
-async function openModelDropdown(event, modelWidget, modelText, folderIcon, pathIndicator, node) {
+async function openModelDropdown(event, modelWidget, modelText, folderIcon, pathIndicator, node, displayEl, arrowEl) {
 	const models = modelWidget.options?.values || [];
 	if (models.length === 0) {
 		logger.warn("No models available for dropdown");
@@ -2218,11 +2247,13 @@ async function openModelDropdown(event, modelWidget, modelText, folderIcon, path
 		size_gb: 0,
 		is_downloaded: true
 	}));
-	const anchorRect = event.currentTarget.getBoundingClientRect();
+	const anchorRect = displayEl.getBoundingClientRect();
 	const canvas = app$1.canvas;
 	const scale = Math.max(1, canvas.ds?.scale || 1);
+	arrowEl.classList.add(MODEL_SELECTOR_CLASSES.ARROW_ACTIVE);
+	displayEl.setAttribute("aria-expanded", "true");
 	try {
-		const selectedModel = await new ModelDropdown(modelInfo, anchorRect, scale).show();
+		const selectedModel = await new ModelDropdown(modelInfo, anchorRect, scale, displayEl).show();
 		if (selectedModel) {
 			modelWidget.value = selectedModel;
 			modelText.textContent = selectedModel;
@@ -2234,6 +2265,9 @@ async function openModelDropdown(event, modelWidget, modelText, folderIcon, path
 		}
 	} catch (error) {
 		logger.error("Failed to open model dropdown:", error);
+	} finally {
+		arrowEl.classList.remove(MODEL_SELECTOR_CLASSES.ARROW_ACTIVE);
+		displayEl.setAttribute("aria-expanded", "false");
 	}
 }
 /**
