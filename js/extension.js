@@ -1,6 +1,6 @@
 import { app } from "../../scripts/app.js";
-import { app as app$1 } from "../../scripts/app.js";
-import { api } from "../../scripts/api.js";
+import { app as app$1 } from "../scripts/app.js";
+import { api } from "../scripts/api.js";
 //#region core/constants.ts
 /**
 * VoxCPM Constants
@@ -793,14 +793,18 @@ var MODEL_DROPDOWN_STYLES = `
 }
 
 /* ── Animation: Entrance ── */
+/* NOTE: The dropdown uses transform:scale() for zoom matching.
+   The entrance animation must preserve the scale value by using
+   a CSS variable (--voxcpm-dropdown-scale, default 1) so that
+   the scale is maintained throughout the animation. */
 @keyframes voxcpm-dropdown-in {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: scale(var(--voxcpm-dropdown-scale, 1)) translateY(-4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(var(--voxcpm-dropdown-scale, 1)) translateY(0);
   }
 }
 
@@ -1336,7 +1340,7 @@ function showPathSelectionDialog(initialPath) {
 				return;
 			}
 			try {
-				const { app } = await import("../../scripts/app.js");
+				const { app } = await import("../scripts/app.js");
 				const result = await (await app.api.fetchApi(`/voxcpm/validate_path?path=${encodeURIComponent(path)}`)).json();
 				isValid = result.valid;
 				if (result.valid && result.models?.length > 0) {
@@ -1832,6 +1836,7 @@ var ModelDropdown = class ModelDropdown {
 			ModelDropdown.currentDropdown = this;
 			this.setupClickOutside();
 			this.setupKeyboardNav();
+			this.setupZoomChangeListener();
 			this.panel.tabIndex = -1;
 			this.panel.focus();
 		});
@@ -1909,29 +1914,40 @@ var ModelDropdown = class ModelDropdown {
 	* Positions below the anchor by default. If there isn't enough
 	* viewport space below, flips above the anchor. Also adjusts
 	* horizontal position if the panel would overflow the viewport right edge.
+	*
+	* When the canvas is zoomed (scale > 1), the dropdown is scaled up
+	* to match the visual size of the widget. The CSS transform origin
+	* is set to "top left" so that the top-left corner stays at the
+	* calculated position. The visual size of the panel is
+	* `estimatedSize * scale`, so all viewport boundary checks use
+	* the scaled dimensions.
 	*/
 	positionPanel() {
+		const scale = this.scale;
 		const gap = UI.MODEL_DROPDOWN.ANCHOR_GAP;
 		const viewportHeight = window.innerHeight;
 		const viewportWidth = window.innerWidth;
 		const itemHeight = UI.MODEL_DROPDOWN.ITEM_HEIGHT;
 		const headerHeight = 32;
 		const maxVisibleItems = UI.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS;
-		const estimatedHeight = headerHeight + Math.min(this.modelInfo.length, maxVisibleItems) * itemHeight;
+		const scaledHeight = (headerHeight + Math.min(this.modelInfo.length, maxVisibleItems) * itemHeight) * scale;
+		const scaledWidth = 300 * scale;
 		let top;
 		const spaceBelow = viewportHeight - this.anchorRect.bottom;
 		const spaceAbove = this.anchorRect.top;
-		if (spaceBelow >= estimatedHeight + gap) top = this.anchorRect.bottom + gap;
-		else if (spaceAbove >= estimatedHeight + gap) top = this.anchorRect.top - estimatedHeight - gap;
+		if (spaceBelow >= scaledHeight + gap) top = this.anchorRect.bottom + gap;
+		else if (spaceAbove >= scaledHeight + gap) top = this.anchorRect.top - scaledHeight - gap;
 		else top = this.anchorRect.bottom + gap;
 		let left = this.anchorRect.left;
-		const estimatedWidth = 300;
-		if (left + estimatedWidth > viewportWidth) left = viewportWidth - estimatedWidth - 8;
+		if (left + scaledWidth > viewportWidth) left = viewportWidth - scaledWidth - 8;
 		left = Math.max(8, left);
 		this.panel.style.position = "fixed";
 		this.panel.style.top = `${top}px`;
 		this.panel.style.left = `${left}px`;
 		this.panel.style.zIndex = String(UI.MODEL_DROPDOWN.Z_INDEX);
+		this.panel.style.transformOrigin = "top left";
+		this.panel.style.transform = `scale(${scale})`;
+		this.panel.style.setProperty("--voxcpm-dropdown-scale", String(scale));
 	}
 	/**
 	* Set up click-outside listener to close the dropdown.
@@ -1996,6 +2012,32 @@ var ModelDropdown = class ModelDropdown {
 		document.addEventListener("keydown", handler, true);
 		this.cleanups.push(() => {
 			document.removeEventListener("keydown", handler, true);
+		});
+	}
+	/**
+	* Set up a listener for canvas zoom/pan changes.
+	*
+	* When the user zooms or pans the canvas while the dropdown is open,
+	* the dropdown position becomes stale (it's positioned in fixed screen
+	* coordinates but the widget has moved). Rather than trying to
+	* reposition, we simply close the dropdown — this matches the behavior
+	* of native context menus in most UI frameworks.
+	*
+	* Uses `canvas.ds.onChanged` — the callback that LiteGraph's
+	* DragAndScale manager calls whenever scale or offset changes.
+	* We chain onto the existing handler (if any) to avoid breaking
+	* ComfyUI's internal zoom tracking (e.g., canvasStore scale sync).
+	*/
+	setupZoomChangeListener() {
+		const canvas = app$1.canvas;
+		if (!canvas?.ds) return;
+		const originalOnChanged = canvas.ds.onChanged;
+		canvas.ds.onChanged = (scale, offset) => {
+			if (this.isOpen) this.close(null);
+			originalOnChanged?.(scale, offset);
+		};
+		this.cleanups.push(() => {
+			if (canvas.ds) canvas.ds.onChanged = originalOnChanged;
 		});
 	}
 	/**
@@ -2248,8 +2290,7 @@ async function openModelDropdown(event, modelWidget, modelText, folderIcon, path
 		is_downloaded: true
 	}));
 	const anchorRect = displayEl.getBoundingClientRect();
-	const canvas = app$1.canvas;
-	const scale = Math.max(1, canvas.ds?.scale || 1);
+	const scale = app$1.canvas.ds?.scale || 1;
 	arrowEl.classList.add(MODEL_SELECTOR_CLASSES.ARROW_ACTIVE);
 	displayEl.setAttribute("aria-expanded", "true");
 	try {
