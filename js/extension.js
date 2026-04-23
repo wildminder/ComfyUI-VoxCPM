@@ -77,9 +77,9 @@ var UI = {
 		WIDGET_TYPE: "custom",
 		/** Height of the model selector widget in pixels (includes bottom spacing) */
 		MIN_HEIGHT: 44,
-		/** Default model icon (standard path) */
+		/** Default model icon (standard path) — deprecated, use MODEL_ICONS.FOLDER */
 		DEFAULT_ICON: "📁",
-		/** Custom path model icon */
+		/** Custom path model icon — deprecated, use MODEL_ICONS.FOLDER_OPEN */
 		CUSTOM_ICON: "📂",
 		/** Dropdown arrow character */
 		ARROW: "▼",
@@ -87,6 +87,23 @@ var UI = {
 		PLACEHOLDER: "Select model...",
 		/** CSS class prefix for all model selector styles */
 		CSS_PREFIX: "voxcpm-model-"
+	},
+	/** Model dropdown constants (custom cyber-themed dropdown panel) */
+	MODEL_DROPDOWN: {
+		/** BEM block class name */
+		BLOCK_CLASS: "voxcpm-model-dropdown",
+		/** Header text displayed in the dropdown panel */
+		HEADER_TEXT: "SELECT MODEL",
+		/** Maximum visible items before scrolling */
+		MAX_VISIBLE_ITEMS: 8,
+		/** Item height in pixels (for scroll calculation) */
+		ITEM_HEIGHT: 36,
+		/** Gap between anchor and dropdown in pixels */
+		ANCHOR_GAP: 4,
+		/** Animation duration in ms */
+		ANIMATION_DURATION: 150,
+		/** Z-index for the dropdown panel */
+		Z_INDEX: 1e3
 	}
 };
 //#endregion
@@ -250,10 +267,26 @@ var DESIGN_TOKEN_STYLES = `
   --voxcpm-focus-ring-color: var(--voxcpm-accent);
   --voxcpm-focus-ring-width: 2px;
   --voxcpm-focus-ring-offset: 1px;
+
+  /* ── Cyber Theme ── */
+  --voxcpm-cyber-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --voxcpm-cyber-accent: #00ff9d;
+  --voxcpm-cyber-accent-dim: rgba(0, 255, 157, 0.15);
+  --voxcpm-cyber-border: rgba(0, 255, 157, 0.3);
+  --voxcpm-cyber-glow: 0 0 8px rgba(0, 255, 157, 0.4);
+  --voxcpm-cyber-text: #e0e0e0;
+  --voxcpm-cyber-text-dim: rgba(224, 224, 224, 0.5);
+  --voxcpm-cyber-bg: rgba(10, 15, 20, 0.95);
+  --voxcpm-cyber-bg-hover: rgba(0, 255, 157, 0.08);
+  --voxcpm-cyber-bg-active: rgba(0, 255, 157, 0.12);
+  --voxcpm-cyber-tag-bg: rgba(0, 255, 157, 0.15);
+  --voxcpm-cyber-tag-border: rgba(0, 255, 157, 0.4);
+  --voxcpm-cyber-tag-text: #00ff9d;
+  --voxcpm-cyber-scanline: rgba(0, 255, 157, 0.03);
 }
 `.trim();
 /** ID for the injected design token style element */
-var STYLE_ELEMENT_ID$1 = "voxcpm-design-tokens";
+var STYLE_ELEMENT_ID$2 = "voxcpm-design-tokens";
 /** Whether design tokens have been injected */
 var tokensInjected = false;
 /**
@@ -268,12 +301,12 @@ var tokensInjected = false;
 */
 function injectDesignTokens() {
 	if (tokensInjected) return;
-	if (document.getElementById(STYLE_ELEMENT_ID$1)) {
+	if (document.getElementById(STYLE_ELEMENT_ID$2)) {
 		tokensInjected = true;
 		return;
 	}
 	const style = document.createElement("style");
-	style.id = STYLE_ELEMENT_ID$1;
+	style.id = STYLE_ELEMENT_ID$2;
 	style.textContent = DESIGN_TOKEN_STYLES;
 	document.head.appendChild(style);
 	tokensInjected = true;
@@ -375,41 +408,50 @@ var MODEL_SELECTOR_STYLES = `
   gap: var(--voxcpm-space-s);
   flex: 1;
   padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);
-  background: var(--voxcpm-bg-input);
-  border: 1px solid var(--voxcpm-border-color);
-  border-radius: var(--voxcpm-border-radius-xs);
+  background: var(--voxcpm-cyber-bg);
+  border: 1px solid var(--voxcpm-cyber-border);
+  border-radius: 2px;
   cursor: pointer;
   min-height: var(--voxcpm-input-height);
-  color: var(--voxcpm-text-primary);
-  font-family: var(--voxcpm-font-family);
+  color: var(--voxcpm-cyber-text);
+  font-family: var(--voxcpm-cyber-font);
   font-size: var(--voxcpm-font-size-xs);
   transition: border-color var(--voxcpm-duration-fast) var(--voxcpm-easing),
-              background var(--voxcpm-duration-fast) var(--voxcpm-easing);
+  background var(--voxcpm-duration-fast) var(--voxcpm-easing),
+  box-shadow var(--voxcpm-duration-fast) var(--voxcpm-easing);
   user-select: none;
   overflow: hidden;
 }
 
 .${MODEL_SELECTOR_CLASSES.DISPLAY}:hover {
-  border-color: var(--voxcpm-border-color-hover);
-  background: var(--voxcpm-bg-input-hover);
+  border-color: var(--voxcpm-cyber-accent);
+  box-shadow: var(--voxcpm-cyber-glow);
 }
 
 .${MODEL_SELECTOR_CLASSES.DISPLAY}:active {
-  background: var(--voxcpm-bg-input-active);
+  background: var(--voxcpm-cyber-bg-active);
 }
 
 /* ── Icon: folder icon indicating model source ── */
 .${MODEL_SELECTOR_CLASSES.ICON} {
-  font-size: var(--voxcpm-font-size-s);
-  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  line-height: 1;
+  color: var(--voxcpm-cyber-accent);
+}
+
+.${MODEL_SELECTOR_CLASSES.ICON} svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* ── Text: model name ── */
 .${MODEL_SELECTOR_CLASSES.TEXT} {
   flex: 1;
-  color: var(--voxcpm-text-primary);
+  color: var(--voxcpm-cyber-text);
   font-size: var(--voxcpm-font-size-xs);
   white-space: nowrap;
   overflow: hidden;
@@ -420,15 +462,22 @@ var MODEL_SELECTOR_STYLES = `
 /* ── Arrow: dropdown indicator ── */
 .${MODEL_SELECTOR_CLASSES.ARROW} {
   font-size: 9px;
-  opacity: 0.5;
+  color: var(--voxcpm-cyber-accent);
   margin-left: auto;
   flex-shrink: 0;
   line-height: 1;
   transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);
+  animation: voxcpm-cursor-blink 1s step-end infinite;
 }
 
 .${MODEL_SELECTOR_CLASSES.DISPLAY}:hover .${MODEL_SELECTOR_CLASSES.ARROW} {
-  opacity: 0.8;
+  opacity: 1;
+  animation: none;
+}
+
+@keyframes voxcpm-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 /* ── Browse: custom path button ── */
@@ -442,32 +491,33 @@ var MODEL_SELECTOR_STYLES = `
   min-width: var(--voxcpm-browse-width);
   height: var(--voxcpm-input-height);
   font-size: var(--voxcpm-font-size-s);
-  border-radius: var(--voxcpm-border-radius-xs);
+  border-radius: 2px;
   cursor: pointer;
   flex-shrink: 0;
-  border: 1px solid var(--voxcpm-border-color);
-  background: var(--voxcpm-bg-input);
-  color: var(--voxcpm-text-primary);
-  font-family: var(--voxcpm-font-family);
+  border: 1px solid var(--voxcpm-cyber-border);
+  background: var(--voxcpm-cyber-bg);
+  color: var(--voxcpm-cyber-text);
+  font-family: var(--voxcpm-cyber-font);
   transition: border-color var(--voxcpm-duration-fast) var(--voxcpm-easing),
-              background var(--voxcpm-duration-fast) var(--voxcpm-easing);
+  background var(--voxcpm-duration-fast) var(--voxcpm-easing),
+  box-shadow var(--voxcpm-duration-fast) var(--voxcpm-easing);
   line-height: 1;
   box-sizing: border-box;
 }
 
 .${MODEL_SELECTOR_CLASSES.BROWSE}:hover {
-  border-color: var(--voxcpm-border-color-hover);
-  background: var(--voxcpm-bg-input-hover);
+  border-color: var(--voxcpm-cyber-accent);
+  box-shadow: var(--voxcpm-cyber-glow);
 }
 
 .${MODEL_SELECTOR_CLASSES.BROWSE}:active {
-  background: var(--voxcpm-bg-input-active);
+  background: var(--voxcpm-cyber-bg-active);
 }
 
 /* ── Path: custom path indicator (below row, hidden by default) ── */
 .${MODEL_SELECTOR_CLASSES.PATH} {
   font-size: var(--voxcpm-font-size-2xs);
-  color: var(--voxcpm-text-muted);
+  color: var(--voxcpm-cyber-text-dim);
   padding: var(--voxcpm-space-2xs) 0 0 0;
   white-space: nowrap;
   overflow: hidden;
@@ -475,6 +525,7 @@ var MODEL_SELECTOR_STYLES = `
   width: 100%;
   box-sizing: border-box;
   display: none;
+  font-family: var(--voxcpm-cyber-font);
 }
 
 .${MODEL_SELECTOR_CLASSES.PATH_VISIBLE} {
@@ -484,7 +535,7 @@ var MODEL_SELECTOR_STYLES = `
 /* ── Focus: keyboard accessibility ── */
 .${MODEL_SELECTOR_CLASSES.DISPLAY}:focus-visible,
 .${MODEL_SELECTOR_CLASSES.BROWSE}:focus-visible {
-  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);
+  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-cyber-accent);
   outline-offset: var(--voxcpm-focus-ring-offset);
 }
 
@@ -498,9 +549,9 @@ var MODEL_SELECTOR_STYLES = `
 }
 `.trim();
 /** ID for the injected style element */
-var STYLE_ELEMENT_ID = "voxcpm-model-selector-styles";
+var STYLE_ELEMENT_ID$1 = "voxcpm-model-selector-styles";
 /** Whether styles have been injected */
-var stylesInjected = false;
+var stylesInjected$1 = false;
 /**
 * Inject model selector CSS styles into the document head.
 *
@@ -510,6 +561,268 @@ var stylesInjected = false;
 * Requires design tokens to be injected first (via `injectDesignTokens()`).
 */
 function injectModelSelectorStyles() {
+	if (stylesInjected$1) return;
+	if (document.getElementById(STYLE_ELEMENT_ID$1)) {
+		stylesInjected$1 = true;
+		return;
+	}
+	const style = document.createElement("style");
+	style.id = STYLE_ELEMENT_ID$1;
+	style.textContent = MODEL_SELECTOR_STYLES;
+	document.head.appendChild(style);
+	stylesInjected$1 = true;
+}
+//#endregion
+//#region widgets/modelDropdownStyles.ts
+/**
+* Model Dropdown Styles (BEM + Cyber Theme)
+*
+* CSS styles for the custom model selector dropdown panel.
+* Uses BEM naming convention: `.voxcpm-model-dropdown__element--modifier`
+* Uses cyber-theme design tokens: `var(--voxcpm-cyber-*)` for all values.
+*
+* @module voxcpm/widgets/model-dropdown-styles
+*/
+/**
+* BEM class names for the model dropdown panel.
+*
+* Centralized here so both CSS and TypeScript use the same names.
+* If a class name changes, update it here and the CSS will follow.
+*/
+var MODEL_DROPDOWN_CLASSES = {
+	/** Block — the dropdown panel container */
+	BLOCK: "voxcpm-model-dropdown",
+	/** Element — header bar with shield icon and title */
+	HEADER: "voxcpm-model-dropdown__header",
+	/** Element — scrollable item list */
+	LIST: "voxcpm-model-dropdown__list",
+	/** Element — model item row */
+	ITEM: "voxcpm-model-dropdown__item",
+	/** Modifier — keyboard-selected item */
+	ITEM_SELECTED: "voxcpm-model-dropdown__item--selected",
+	/** Element — status icon container */
+	ICON: "voxcpm-model-dropdown__icon",
+	/** Modifier — cloud icon (model needs download) */
+	ICON_CLOUD: "voxcpm-model-dropdown__icon--cloud",
+	/** Modifier — check icon (model available locally) */
+	ICON_CHECK: "voxcpm-model-dropdown__icon--check",
+	/** Element — model name text */
+	NAME: "voxcpm-model-dropdown__name",
+	/** Element — "DEFAULT" tag for official models */
+	TAG: "voxcpm-model-dropdown__tag",
+	/** Element — size/architecture metadata */
+	META: "voxcpm-model-dropdown__meta"
+};
+/** CSS styles for the model dropdown panel */
+var MODEL_DROPDOWN_STYLES = `
+/* ============================================================================
+ * VoxCPM Model Dropdown (BEM + Cyber Theme)
+ * Block: .voxcpm-model-dropdown
+ * ============================================================================
+ * Custom dropdown panel replacing LiteGraph.ContextMenu.
+ * Cyber-security aesthetic: monospace font, neon green accent, scanline overlay.
+ * ============================================================================ */
+
+/* ── Block: Panel ── */
+.${MODEL_DROPDOWN_CLASSES.BLOCK} {
+  position: fixed;
+  z-index: 1000;
+  min-width: 280px;
+  max-width: 400px;
+  max-height: 320px;
+  background: var(--voxcpm-cyber-bg);
+  border: 1px solid var(--voxcpm-cyber-border);
+  border-radius: 2px;
+  box-shadow: var(--voxcpm-cyber-glow), 0 8px 32px rgba(0, 0, 0, 0.5);
+  font-family: var(--voxcpm-cyber-font);
+  font-size: var(--voxcpm-font-size-xs);
+  color: var(--voxcpm-cyber-text);
+  overflow: hidden;
+  animation: voxcpm-dropdown-in 150ms ease-out;
+  outline: none;
+}
+
+/* Scanline overlay — subtle cyber texture */
+.${MODEL_DROPDOWN_CLASSES.BLOCK}::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    var(--voxcpm-cyber-scanline) 2px,
+    var(--voxcpm-cyber-scanline) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Element: Header ── */
+.${MODEL_DROPDOWN_CLASSES.HEADER} {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--voxcpm-cyber-border);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--voxcpm-cyber-accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+  user-select: none;
+}
+
+.${MODEL_DROPDOWN_CLASSES.HEADER} svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Element: List ── */
+.${MODEL_DROPDOWN_CLASSES.LIST} {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 280px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Custom scrollbar — cyber style */
+.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar {
+  width: 4px;
+}
+
+.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar-thumb {
+  background: var(--voxcpm-cyber-border);
+  border-radius: 0;
+}
+
+.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar-thumb:hover {
+  background: var(--voxcpm-cyber-accent);
+}
+
+/* ── Element: Item ── */
+.${MODEL_DROPDOWN_CLASSES.ITEM} {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 100ms ease, border-left-color 100ms ease;
+  border-left: 2px solid transparent;
+  position: relative;
+  z-index: 2;
+  user-select: none;
+}
+
+.${MODEL_DROPDOWN_CLASSES.ITEM}:hover,
+.${MODEL_DROPDOWN_CLASSES.ITEM_SELECTED} {
+  background: var(--voxcpm-cyber-bg-hover);
+  border-left-color: var(--voxcpm-cyber-accent);
+}
+
+.${MODEL_DROPDOWN_CLASSES.ITEM}:active {
+  background: var(--voxcpm-cyber-bg-active);
+}
+
+/* ── Element: Icon ── */
+.${MODEL_DROPDOWN_CLASSES.ICON} {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.${MODEL_DROPDOWN_CLASSES.ICON} svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Modifier: Cloud icon (needs download) — blue accent */
+.${MODEL_DROPDOWN_CLASSES.ICON_CLOUD} {
+  color: var(--voxcpm-accent);
+}
+
+/* Modifier: Check icon (available locally) — green success */
+.${MODEL_DROPDOWN_CLASSES.ICON_CHECK} {
+  color: var(--voxcpm-color-success);
+}
+
+/* ── Element: Name ── */
+.${MODEL_DROPDOWN_CLASSES.NAME} {
+  flex: 1;
+  color: var(--voxcpm-cyber-text);
+  font-size: var(--voxcpm-font-size-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ── Element: Tag ("DEFAULT") ── */
+.${MODEL_DROPDOWN_CLASSES.TAG} {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border: 1px solid var(--voxcpm-cyber-tag-border);
+  background: var(--voxcpm-cyber-tag-bg);
+  color: var(--voxcpm-cyber-tag-text);
+  border-radius: 0;
+  font-family: var(--voxcpm-cyber-font);
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+/* ── Element: Meta (size info) ── */
+.${MODEL_DROPDOWN_CLASSES.META} {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--voxcpm-cyber-text-dim);
+  font-family: var(--voxcpm-cyber-font);
+  flex-shrink: 0;
+}
+
+/* ── Animation: Entrance ── */
+@keyframes voxcpm-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .${MODEL_DROPDOWN_CLASSES.BLOCK} {
+    animation: none;
+  }
+}
+`.trim();
+/** ID for the injected style element */
+var STYLE_ELEMENT_ID = "voxcpm-model-dropdown-styles";
+/** Whether styles have been injected */
+var stylesInjected = false;
+/**
+* Inject model dropdown CSS styles into the document head.
+*
+* This function is idempotent — calling it multiple times has no effect
+* after the first injection. Styles are injected once per page load.
+*
+* Requires design tokens to be injected first (via `injectDesignTokens()`).
+*/
+function injectModelDropdownStyles() {
 	if (stylesInjected) return;
 	if (document.getElementById(STYLE_ELEMENT_ID)) {
 		stylesInjected = true;
@@ -517,7 +830,7 @@ function injectModelSelectorStyles() {
 	}
 	const style = document.createElement("style");
 	style.id = STYLE_ELEMENT_ID;
-	style.textContent = MODEL_SELECTOR_STYLES;
+	style.textContent = MODEL_DROPDOWN_STYLES;
 	document.head.appendChild(style);
 	stylesInjected = true;
 }
@@ -556,6 +869,7 @@ function injectAllStyles() {
 	if (allStylesInjected) return;
 	injectDesignTokens();
 	injectModelSelectorStyles();
+	injectModelDropdownStyles();
 	allStylesInjected = true;
 }
 //#endregion
@@ -595,6 +909,20 @@ function setSessionItem(key, value) {
 	}
 }
 /**
+* Remove a value from session storage
+* 
+* @param key - Storage key
+* @returns True if successful, false if storage not available
+*/
+function removeSessionItem(key) {
+	try {
+		sessionStorage.removeItem(key);
+		return true;
+	} catch {
+		return false;
+	}
+}
+/**
 * Check if a session flag is set
 * 
 * @param key - Storage key for the flag
@@ -611,6 +939,15 @@ function isSessionFlagSet$1(key) {
 */
 function setSessionFlag$1(key) {
 	return setSessionItem(key, "true");
+}
+/**
+* Clear a session flag
+* 
+* @param key - Storage key for the flag
+* @returns True if successful
+*/
+function clearSessionFlag(key) {
+	return removeSessionItem(key);
 }
 /**
 * Get and parse a JSON value from session storage
@@ -727,7 +1064,7 @@ var NotificationManager = class {
 	* Reset notification state (for testing)
 	*/
 	reset() {
-		setSessionFlag$1(this.sessionKey);
+		clearSessionFlag(this.sessionKey);
 	}
 	/**
 	* Check if notification was already shown this session
@@ -1358,14 +1695,324 @@ function injectDialogStyles() {
 	document.head.appendChild(style);
 }
 //#endregion
+//#region widgets/modelIcons.ts
+/**
+* Model Icons — SVG Icon Constants
+*
+* Inline SVG strings for model status icons used in the model selector
+* dropdown and display widget. All icons use `currentColor` for stroke/fill
+* so CSS can control the color via the parent element's `color` property.
+*
+* @module voxcpm/widgets/model-icons
+*/
+/**
+* SVG icon strings for the model selector UI.
+*
+* Each icon is a self-contained `<svg>` element string that can be
+* assigned to `element.innerHTML`. Icons are sized 16x16px by default
+* with a 24x24 viewBox for scalability.
+*
+* Color is controlled via CSS `color` on the parent element, since
+* all icons use `stroke="currentColor"` or `fill="currentColor"`.
+*/
+var MODEL_ICONS = {
+	/** Cloud-download icon — model needs to be downloaded from remote */
+	CLOUD: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><polyline points="12 12 12 22"/><path d="m8 18 4 4 4-4"/></svg>`,
+	/** Checkmark icon — model exists locally on disk */
+	CHECK: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+	/** Shield icon — dropdown header decoration (cyber-security aesthetic) */
+	SHIELD: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+	/** Folder icon — model display widget (replaces emoji 📁) */
+	FOLDER: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+	/** Folder-open icon — custom path model (replaces emoji 📂) */
+	FOLDER_OPEN: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1"/><path d="M6 12h14l-2.5 7H8.5L6 12z"/></svg>`
+};
+//#endregion
+//#region widgets/ModelDropdown.ts
+/**
+* Model Dropdown — Custom Cyber-Security Themed Dropdown Panel
+*
+* Replaces `LiteGraph.ContextMenu` with a custom dropdown that supports:
+* - Rich model items with status icons (cloud/check), DEFAULT tags, and metadata
+* - Keyboard navigation (ArrowUp/Down, Enter, Escape)
+* - Click-outside dismissal
+* - Viewport-aware positioning (flips above anchor if near bottom)
+* - Cyber-security aesthetic (monospace font, neon green accent, scanline overlay)
+*
+* @module voxcpm/widgets/model-dropdown
+*/
+/** Cached model info from the backend API (null = not fetched yet) */
+var cachedModelInfo = null;
+/**
+* Fetch model info from the backend API, with session-level caching.
+*
+* On first call, fetches from `GET /voxcpm/model_info`. On subsequent
+* calls, returns the cached data. Cache is invalidated on WebSocket
+* reconnect (server restart) or by calling `invalidateModelInfoCache()`.
+*
+* @param fetchApi - The `api.fetchApi` function from ComfyUI's API module
+* @returns Array of model info items (may be empty on error)
+*/
+async function fetchModelInfo(fetchApi) {
+	if (cachedModelInfo !== null) return cachedModelInfo;
+	try {
+		const response = await fetchApi("/voxcpm/model_info");
+		if (response.ok) {
+			cachedModelInfo = (await response.json()).models || [];
+			return cachedModelInfo;
+		}
+	} catch (error) {
+		console.warn("[VoxCPM] Failed to fetch model info:", error);
+	}
+	return [];
+}
+/**
+* Invalidate the model info cache.
+*
+* Call this when the server reconnects or when model directories
+* may have changed (e.g., after a model download).
+*/
+function invalidateModelInfoCache() {
+	cachedModelInfo = null;
+}
+/**
+* Custom dropdown panel for model selection with cyber-security styling.
+*
+* Usage:
+* ```typescript
+* const dropdown = new ModelDropdown(modelInfo, anchorRect, scale);
+* const selectedModel = await dropdown.show();
+* if (selectedModel) { ... }
+* ```
+*
+* The dropdown is positioned below the anchor element. If there isn't
+* enough viewport space below, it flips above the anchor. Keyboard
+* navigation (ArrowUp/Down, Enter, Escape) and click-outside dismissal
+* are built in.
+*/
+var ModelDropdown = class {
+	constructor(modelInfo, anchorRect, scale) {
+		this.selectedIndex = -1;
+		this.resolveSelection = null;
+		this.cleanups = [];
+		this.isOpen = false;
+		this.modelInfo = modelInfo;
+		this.anchorRect = anchorRect;
+		this.scale = scale;
+		this.panel = document.createElement("div");
+		this.panel.className = MODEL_DROPDOWN_CLASSES.BLOCK;
+		this.panel.setAttribute("role", "listbox");
+		this.panel.setAttribute("aria-label", "Select model");
+		this.header = document.createElement("div");
+		this.header.className = MODEL_DROPDOWN_CLASSES.HEADER;
+		this.header.innerHTML = `${MODEL_ICONS.SHIELD} <span>${UI.MODEL_DROPDOWN.HEADER_TEXT}</span>`;
+		this.list = document.createElement("div");
+		this.list.className = MODEL_DROPDOWN_CLASSES.LIST;
+		this.panel.appendChild(this.header);
+		this.panel.appendChild(this.list);
+		this.renderItems();
+	}
+	/**
+	* Show the dropdown and return a promise that resolves with the selection.
+	*
+	* @returns The selected model name, or `null` if dismissed without selection
+	*/
+	show() {
+		return new Promise((resolve) => {
+			this.resolveSelection = resolve;
+			this.positionPanel();
+			document.body.appendChild(this.panel);
+			this.isOpen = true;
+			this.setupClickOutside();
+			this.setupKeyboardNav();
+			this.panel.tabIndex = -1;
+			this.panel.focus();
+		});
+	}
+	/**
+	* Close the dropdown and clean up all event listeners.
+	*
+	* @param selectedModel - The model name to resolve with, or null
+	*/
+	close(selectedModel = null) {
+		if (!this.isOpen) return;
+		this.isOpen = false;
+		for (const cleanup of this.cleanups) cleanup();
+		this.cleanups = [];
+		if (this.panel.parentElement) this.panel.parentElement.removeChild(this.panel);
+		if (this.resolveSelection) {
+			this.resolveSelection(selectedModel);
+			this.resolveSelection = null;
+		}
+	}
+	/**
+	* Render all model items into the list element.
+	*/
+	renderItems() {
+		this.list.innerHTML = "";
+		for (let i = 0; i < this.modelInfo.length; i++) {
+			const model = this.modelInfo[i];
+			const item = this.createElementItem(model, i);
+			this.list.appendChild(item);
+		}
+	}
+	/**
+	* Create a single model item element.
+	*/
+	createElementItem(model, index) {
+		const item = document.createElement("div");
+		item.className = MODEL_DROPDOWN_CLASSES.ITEM;
+		item.setAttribute("role", "option");
+		item.setAttribute("data-index", String(index));
+		item.setAttribute("data-model", model.name);
+		const icon = document.createElement("span");
+		const iconModifier = model.is_downloaded ? MODEL_DROPDOWN_CLASSES.ICON_CHECK : MODEL_DROPDOWN_CLASSES.ICON_CLOUD;
+		icon.className = `${MODEL_DROPDOWN_CLASSES.ICON} ${iconModifier}`;
+		icon.innerHTML = model.is_downloaded ? MODEL_ICONS.CHECK : MODEL_ICONS.CLOUD;
+		item.appendChild(icon);
+		const name = document.createElement("span");
+		name.className = MODEL_DROPDOWN_CLASSES.NAME;
+		name.textContent = model.name;
+		item.appendChild(name);
+		if (model.type === "official") {
+			const tag = document.createElement("span");
+			tag.className = MODEL_DROPDOWN_CLASSES.TAG;
+			tag.textContent = "DEFAULT";
+			item.appendChild(tag);
+		}
+		if (model.size_gb > 0) {
+			const meta = document.createElement("span");
+			meta.className = MODEL_DROPDOWN_CLASSES.META;
+			meta.textContent = `${model.size_gb} GB`;
+			item.appendChild(meta);
+		}
+		item.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.close(model.name);
+		});
+		item.addEventListener("mouseenter", () => {
+			this.setSelectedIndex(index);
+		});
+		return item;
+	}
+	/**
+	* Position the panel relative to the anchor element.
+	*
+	* Positions below the anchor by default. If there isn't enough
+	* viewport space below, flips above the anchor. Also adjusts
+	* horizontal position if the panel would overflow the viewport right edge.
+	*/
+	positionPanel() {
+		const gap = UI.MODEL_DROPDOWN.ANCHOR_GAP;
+		const viewportHeight = window.innerHeight;
+		const viewportWidth = window.innerWidth;
+		const itemHeight = UI.MODEL_DROPDOWN.ITEM_HEIGHT;
+		const headerHeight = 32;
+		const maxVisibleItems = UI.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS;
+		const estimatedHeight = headerHeight + Math.min(this.modelInfo.length, maxVisibleItems) * itemHeight;
+		let top;
+		const spaceBelow = viewportHeight - this.anchorRect.bottom;
+		const spaceAbove = this.anchorRect.top;
+		if (spaceBelow >= estimatedHeight + gap) top = this.anchorRect.bottom + gap;
+		else if (spaceAbove >= estimatedHeight + gap) top = this.anchorRect.top - estimatedHeight - gap;
+		else top = this.anchorRect.bottom + gap;
+		let left = this.anchorRect.left;
+		const estimatedWidth = 300;
+		if (left + estimatedWidth > viewportWidth) left = viewportWidth - estimatedWidth - 8;
+		left = Math.max(8, left);
+		this.panel.style.position = "fixed";
+		this.panel.style.top = `${top}px`;
+		this.panel.style.left = `${left}px`;
+		this.panel.style.zIndex = String(UI.MODEL_DROPDOWN.Z_INDEX);
+	}
+	/**
+	* Set up click-outside listener to close the dropdown.
+	*/
+	setupClickOutside() {
+		const handler = (e) => {
+			if (!this.isOpen) return;
+			const target = e.target;
+			if (!this.panel.contains(target)) this.close(null);
+		};
+		document.addEventListener("mousedown", handler, true);
+		this.cleanups.push(() => {
+			document.removeEventListener("mousedown", handler, true);
+		});
+	}
+	/**
+	* Set up keyboard navigation.
+	*
+	* - ArrowDown: Move to next item (wrap to first)
+	* - ArrowUp: Move to previous item (wrap to last)
+	* - Enter: Confirm selection
+	* - Escape: Close without selection
+	* - Tab: Close without selection
+	*/
+	setupKeyboardNav() {
+		const handler = (e) => {
+			if (!this.isOpen) return;
+			switch (e.key) {
+				case "ArrowDown": {
+					e.preventDefault();
+					e.stopPropagation();
+					const next = this.selectedIndex < this.modelInfo.length - 1 ? this.selectedIndex + 1 : 0;
+					this.setSelectedIndex(next);
+					break;
+				}
+				case "ArrowUp": {
+					e.preventDefault();
+					e.stopPropagation();
+					const prev = this.selectedIndex > 0 ? this.selectedIndex - 1 : this.modelInfo.length - 1;
+					this.setSelectedIndex(prev);
+					break;
+				}
+				case "Enter":
+					e.preventDefault();
+					e.stopPropagation();
+					if (this.selectedIndex >= 0 && this.selectedIndex < this.modelInfo.length) this.close(this.modelInfo[this.selectedIndex].name);
+					else this.close(null);
+					break;
+				case "Escape":
+					e.preventDefault();
+					e.stopPropagation();
+					this.close(null);
+					break;
+				case "Tab":
+					e.preventDefault();
+					this.close(null);
+					break;
+			}
+		};
+		document.addEventListener("keydown", handler, true);
+		this.cleanups.push(() => {
+			document.removeEventListener("keydown", handler, true);
+		});
+	}
+	/**
+	* Update the selected index and apply visual highlight.
+	*/
+	setSelectedIndex(index) {
+		const items = this.list.querySelectorAll(`.${MODEL_DROPDOWN_CLASSES.ITEM}`);
+		items.forEach((item) => {
+			item.classList.remove(MODEL_DROPDOWN_CLASSES.ITEM_SELECTED);
+		});
+		this.selectedIndex = index;
+		if (index >= 0 && index < items.length) {
+			const selectedItem = items[index];
+			selectedItem.classList.add(MODEL_DROPDOWN_CLASSES.ITEM_SELECTED);
+			selectedItem.scrollIntoView({ block: "nearest" });
+		}
+	}
+};
+//#endregion
 //#region widgets/ModelSelectorWidget.ts
 /**
 * Model Selector Widget
 *
 * Custom DOM widget that replaces the default model_name combo widget
 * with a professional-looking selector featuring:
-* - Styled model display with dropdown arrow
-* - Click-to-open dropdown using LiteGraph.ContextMenu
+* - Cyber-themed model display with dropdown arrow
+* - Click-to-open custom dropdown (ModelDropdown) with icons and tags
 * - Browse button for custom model path selection
 * - Custom path indicator when a non-default path is active
 * - Full data flow sync with the hidden model_name widget
@@ -1416,7 +2063,7 @@ function createModelSelectorWidget(node) {
 	modelDisplay.setAttribute("aria-haspopup", "listbox");
 	const folderIcon = document.createElement("span");
 	folderIcon.className = MODEL_SELECTOR_CLASSES.ICON;
-	folderIcon.textContent = UI.MODEL_SELECTOR.DEFAULT_ICON;
+	folderIcon.innerHTML = MODEL_ICONS.FOLDER;
 	const modelText = document.createElement("span");
 	modelText.className = MODEL_SELECTOR_CLASSES.TEXT;
 	modelText.textContent = modelWidget.value || UI.MODEL_SELECTOR.PLACEHOLDER;
@@ -1425,14 +2072,14 @@ function createModelSelectorWidget(node) {
 	arrow.textContent = UI.MODEL_SELECTOR.ARROW;
 	const browseBtn = document.createElement("button");
 	browseBtn.className = MODEL_SELECTOR_CLASSES.BROWSE;
-	browseBtn.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
+	browseBtn.innerHTML = MODEL_ICONS.FOLDER_OPEN;
 	browseBtn.title = "Browse for custom model directory";
 	browseBtn.setAttribute("role", "button");
 	const pathIndicator = document.createElement("div");
 	pathIndicator.className = MODEL_SELECTOR_CLASSES.PATH;
 	const savedCustomPath = node.properties?.["custom_model_path"];
 	if (savedCustomPath) {
-		folderIcon.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
+		folderIcon.innerHTML = MODEL_ICONS.FOLDER_OPEN;
 		pathIndicator.textContent = savedCustomPath;
 		pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
 	}
@@ -1532,19 +2179,20 @@ function hideDefaultComboWidget(widget) {
 	logger.debug("Hidden default combo widget:", widget.name);
 }
 /**
-* Open a LiteGraph ContextMenu as a dropdown for model selection.
+* Open a custom ModelDropdown for model selection.
 *
-* Uses the canvas scale for proper rendering at different zoom levels.
-* The "dark" className provides ComfyUI-consistent styling.
+* Fetches model metadata from the backend API (with session-level caching),
+* then shows a cyber-themed dropdown panel with status icons, DEFAULT tags,
+* and size metadata. Falls back to widget values if the API call fails.
 *
-* @param event - The triggering mouse event
+* @param event - The triggering mouse or keyboard event
 * @param modelWidget - The hidden model_name combo widget
 * @param modelText - The DOM element displaying the model name
 * @param folderIcon - The folder icon DOM element
 * @param pathIndicator - The custom path indicator DOM element
 * @param node - The parent node
 */
-function openModelDropdown(event, modelWidget, modelText, folderIcon, pathIndicator, node) {
+async function openModelDropdown(event, modelWidget, modelText, folderIcon, pathIndicator, node) {
 	const models = modelWidget.options?.values || [];
 	if (models.length === 0) {
 		logger.warn("No models available for dropdown");
@@ -1556,22 +2204,34 @@ function openModelDropdown(event, modelWidget, modelText, folderIcon, pathIndica
 		});
 		return;
 	}
+	let modelInfo = [];
+	try {
+		modelInfo = await fetchModelInfo(api.fetchApi.bind(api));
+	} catch (error) {
+		logger.error("Failed to fetch model info:", error);
+	}
+	if (modelInfo.length === 0) modelInfo = models.map((name) => ({
+		name,
+		type: "local",
+		architecture: "unknown",
+		sample_rate: 0,
+		size_gb: 0,
+		is_downloaded: true
+	}));
+	const anchorRect = event.currentTarget.getBoundingClientRect();
 	const canvas = app$1.canvas;
 	const scale = Math.max(1, canvas.ds?.scale || 1);
 	try {
-		new LiteGraph.ContextMenu(models, {
-			event,
-			title: "Select Model",
-			className: "dark",
-			scale,
-			callback: (selectedModel) => {
-				modelWidget.value = selectedModel;
-				modelText.textContent = selectedModel;
-				if (modelWidget.callback) modelWidget.callback(selectedModel);
-				if (node.setDirtyCanvas) node.setDirtyCanvas(true);
-				logger.debug("Model selected:", selectedModel, "for node:", node.id);
-			}
-		});
+		const selectedModel = await new ModelDropdown(modelInfo, anchorRect, scale).show();
+		if (selectedModel) {
+			modelWidget.value = selectedModel;
+			modelText.textContent = selectedModel;
+			const selectedInfo = modelInfo.find((m) => m.name === selectedModel);
+			if (selectedInfo) folderIcon.innerHTML = selectedInfo.is_downloaded ? MODEL_ICONS.CHECK : MODEL_ICONS.CLOUD;
+			if (modelWidget.callback) modelWidget.callback(selectedModel);
+			if (node.setDirtyCanvas) node.setDirtyCanvas(true);
+			logger.debug("Model selected:", selectedModel, "for node:", node.id);
+		}
 	} catch (error) {
 		logger.error("Failed to open model dropdown:", error);
 	}
@@ -1608,7 +2268,7 @@ async function handleBrowseClick(node, modelWidget, modelText, folderIcon, pathI
 			const data = await response.json();
 			logger.log("Models found at custom path:", data.models);
 			updateModelOptions(modelWidget, data.models, node);
-			folderIcon.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
+			folderIcon.innerHTML = MODEL_ICONS.FOLDER_OPEN;
 			pathIndicator.textContent = path;
 			pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
 			if (data.models.length > 0) modelText.textContent = modelWidget.value;
@@ -1679,11 +2339,11 @@ function syncModelSelectorDisplay(node, value) {
 	refs.modelText.textContent = displayValue;
 	const customPath = node.properties?.["custom_model_path"];
 	if (customPath) {
-		refs.folderIcon.textContent = UI.MODEL_SELECTOR.CUSTOM_ICON;
+		refs.folderIcon.innerHTML = MODEL_ICONS.FOLDER_OPEN;
 		refs.pathIndicator.textContent = customPath;
 		refs.pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
 	} else {
-		refs.folderIcon.textContent = UI.MODEL_SELECTOR.DEFAULT_ICON;
+		refs.folderIcon.innerHTML = MODEL_ICONS.FOLDER;
 		refs.pathIndicator.classList.remove(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
 	}
 	logger.debug("Synced model selector display for node:", node.id, "value:", displayValue);
@@ -1870,6 +2530,7 @@ var VoxCPMExtension = {
 		app.api.addEventListener("reconnected", () => {
 			logger.debug("WebSocket reconnected, waiting for config...");
 			widgetManager.configReceived = false;
+			invalidateModelInfoCache();
 			widgetManager.lastConfigValue = null;
 		});
 		app.api.addEventListener("status", () => {

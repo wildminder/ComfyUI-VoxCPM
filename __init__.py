@@ -208,6 +208,72 @@ try:
                 status=500
             )
 
+    @PromptServer.instance.routes.get("/voxcpm/model_info")
+    async def voxcpm_model_info_handler(request):
+        """Handle GET request for rich model metadata.
+
+        Returns model information including download status, architecture,
+        sample rate, and size for all known VoxCPM models.
+
+        Returns:
+            JSON response: {"models": [{"name", "type", "architecture",
+                           "sample_rate", "size_gb", "is_downloaded", ...}, ...]}
+        """
+        try:
+            models_list = []
+
+            for model_name, model_data in AVAILABLE_VOXCPM_MODELS.items():
+                model_type = model_data.get("type", "local")
+                architecture = model_data.get("architecture", "unknown")
+                sample_rate = model_data.get("sample_rate", 0)
+                size_gb = model_data.get("size_gb", 0)
+                repo_id = model_data.get("repo_id", "")
+
+                # Determine if model is downloaded by checking for config.json
+                is_downloaded = False
+                if model_type == "official":
+                    # Official models live under models/tts/VoxCPM/<model_name>/
+                    for tts_folder in folder_paths.get_folder_paths("tts"):
+                        model_dir = os.path.join(tts_folder, VOXCPM_SUBDIR_NAME, model_name)
+                        if os.path.isdir(model_dir):
+                            config_path = os.path.join(model_dir, "config.json")
+                            if os.path.exists(config_path):
+                                is_downloaded = True
+                                break
+                elif model_type == "local":
+                    # Local models: check the stored path
+                    model_path = model_data.get("path", "")
+                    if model_path and os.path.isdir(model_path):
+                        config_path = os.path.join(model_path, "config.json")
+                        if os.path.exists(config_path):
+                            is_downloaded = True
+
+                info = {
+                    "name": model_name,
+                    "type": model_type,
+                    "architecture": architecture,
+                    "sample_rate": sample_rate,
+                    "size_gb": size_gb,
+                    "is_downloaded": is_downloaded,
+                }
+
+                if repo_id:
+                    info["repo_id"] = repo_id
+
+                if model_type == "local" and "path" in model_data:
+                    info["path"] = model_data["path"]
+
+                models_list.append(info)
+
+            return web.json_response({"models": models_list})
+
+        except Exception as e:
+            logger.error(f"Error handling model info request: {e}")
+            return web.json_response(
+                {"error": str(e)},
+                status=500
+            )
+
     logger.debug("VoxCPM API routes registered")
 
 except Exception as e:
