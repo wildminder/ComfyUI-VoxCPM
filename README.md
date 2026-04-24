@@ -10,10 +10,9 @@
 <p align="center">
 A custom node for ComfyUI that integrates <strong>VoxCPM</strong>, a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.
 <br />
-<br />
-<a href="https://github.com/wildminder/ComfyUI-VoxCPM/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
-·
-<a href="https://github.com/wildminder/ComfyUI-VoxCPM/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
+  
+[![Report Bug][bug-shield]][bug-url] [![Request Feature][feature-shield]][feature-url]
+
 </p>
 </div>
 
@@ -21,8 +20,8 @@ A custom node for ComfyUI that integrates <strong>VoxCPM</strong>, a novel token
 <div align="center">
 
 [![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![Forks][forks-shield]][forks-url]
+[![Telegram][telegram-shield]][telegram-url]
+[![X][x-shield]][x-url]
 
 </div>
 
@@ -327,7 +326,11 @@ The VoxCPM model and its components are subject to the [Apache-2.0 License](http
 <!-- MARKDOWN LINKS & IMAGES -->
 [stars-shield]: https://img.shields.io/github/stars/wildminder/ComfyUI-VoxCPM.svg?style=for-the-badge
 [stars-url]: https://github.com/wildminder/ComfyUI-VoxCPM/stargazers
-[issues-shield]: https://img.shields.io/github/issues/wildminder/ComfyUI-VoxCPM.svg?style=for-the-badge
-[issues-url]: https://github.com/wildminder/ComfyUI-VoxCPM/issues
-[forks-shield]: https://img.shields.io/github/forks/wildminder/ComfyUI-VoxCPM.svg?style=for-the-badge
-[forks-url]: https://github.com/wildminder/ComfyUI-VoxCPM/network/members
+[telegram-shield]: https://img.shields.io/badge/Telegram-TokenDiff-26A5E4?style=for-the-badge&logo=telegram&logoColor=white
+[telegram-url]: https://t.me/TokenDiff
+[x-shield]: https://img.shields.io/badge/X-@wildmindai-000000?style=for-the-badge&logo=x&logoColor=white
+[x-url]: https://x.com/wildmindai
+[bug-shield]: https://img.shields.io/badge/Report-Bug-red?style=flat-square&logo=github
+[bug-url]: https://github.com/wildminder/ComfyUI-VoxCPM/issues/new?labels=bug&template=bug-report---.md
+[feature-shield]: https://img.shields.io/badge/Request-Feature-blue?style=flat-square&logo=github
+[feature-url]: https://github.com/wildminder/ComfyUI-VoxCPM/issues/new?labels=enhancement&template=feature-request---.md
