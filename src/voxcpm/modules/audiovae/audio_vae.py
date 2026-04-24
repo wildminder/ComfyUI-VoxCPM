@@ -5,8 +5,14 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.nn.utils import weight_norm
 from pydantic import BaseModel
+
+# Use the new parametrizations.weight_norm (PyTorch 2.4+) with fallback to deprecated version
+# for backward compatibility
+try:
+    from torch.nn.utils.parametrizations import weight_norm
+except ImportError:
+    from torch.nn.utils import weight_norm
 
 
 def WNConv1d(*args, **kwargs):

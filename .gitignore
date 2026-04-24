@@ -11,7 +11,8 @@ __pycache__/
 .skills
 .dev
 .idea
-tests/
+/tests/
+js-src/
 .Python
 __pycache__
 build/
@@ -157,6 +158,9 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Node.js
+node_modules/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

@@ -20,6 +20,7 @@ limitations under the License.
 
 import os
 import sys
+import logging
 from typing import Tuple, Union, Generator, List, Optional
 
 import torch
@@ -28,6 +29,8 @@ import torchaudio
 import warnings
 from einops import rearrange
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 try:
     from safetensors.torch import load_file
@@ -121,7 +124,7 @@ class VoxCPMModel(nn.Module):
                 self.device = "mps"
             else:
                 self.device = "cpu"
-        print(f"Running on device: {self.device}, dtype: {self.config.dtype}", file=sys.stderr)
+        logger.info(f"Running on device: {self.device}, dtype: {self.config.dtype}")
 
         # Text-Semantic LM
         self.base_lm = MiniCPMModel(config.lm_config)
@@ -233,7 +236,7 @@ class VoxCPMModel(nn.Module):
                 self.feat_decoder.estimator, mode="reduce-overhead", fullgraph=True
             )
         except Exception as e:
-            print(f"Warning: torch.compile disabled - {e}", file=sys.stderr)
+            logger.warning(f"torch.compile disabled - {e}")
         return self
 
     def forward(
@@ -335,7 +338,55 @@ class VoxCPMModel(nn.Module):
         }
 
     def _dtype(self):
+        """Get the configured dtype from config."""
         return get_dtype(self.config.dtype)
+
+    def _actual_dtype(self):
+        """Get the actual dtype of the model parameters.
+
+        This is useful after dtype casting, as it reflects the actual
+        dtype rather than the config dtype.
+        """
+        # Find first non-audio_vae parameter to get actual dtype
+        for name, param in self.named_parameters():
+            if 'audio_vae' not in name:
+                return param.dtype
+        # Fallback to config dtype if no parameters found
+        return get_dtype(self.config.dtype)
+
+    def to(self, *args, **kwargs):
+        """Override to() to update self.device attribute when model is moved.
+        
+        This ensures that self.device stays in sync when ComfyUI's memory manager
+        moves the model between devices (e.g., GPU -> CPU offloading).
+        """
+        result = super().to(*args, **kwargs)
+        
+        # Update self.device if a device was specified
+        if args:
+            if isinstance(args[0], torch.device):
+                self.device = str(args[0])
+            elif isinstance(args[0], str):
+                self.device = args[0]
+        elif 'device' in kwargs:
+            if isinstance(kwargs['device'], torch.device):
+                self.device = str(kwargs['device'])
+            else:
+                self.device = kwargs['device']
+        
+        # Reinitialize KV caches on the new device for LM models
+        # This is needed because the caches are device-specific
+        # Use _actual_dtype() to match the actual model dtype after casting
+        try:
+            actual_dtype = self._actual_dtype()
+            if hasattr(self.base_lm, 'setup_cache'):
+                self.base_lm.setup_cache(1, self.config.max_length, self.device, actual_dtype)
+            if hasattr(self.residual_lm, 'setup_cache'):
+                self.residual_lm.setup_cache(1, self.config.max_length, self.device, actual_dtype)
+        except Exception:
+            pass # Ignore cache setup errors during device transfer
+        
+        return result
 
     def generate(self, *args, **kwargs) -> torch.Tensor:
         return next_and_close(self._generate(*args, streaming=False, **kwargs))
@@ -439,7 +490,7 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(self.device)
         text_mask = text_mask.unsqueeze(0).to(self.device)
-        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(get_dtype(self.config.dtype))
+        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._actual_dtype())
         audio_mask = audio_mask.unsqueeze(0).to(self.device)
 
         target_text_length = len(self.text_tokenizer(target_text))
@@ -473,9 +524,8 @@ class VoxCPMModel(nn.Module):
                 latent_pred, pred_audio_feat = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
-                        print(
-                            f"  Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying...",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying..."
                         )
                         retry_badcase_times += 1
                         continue
@@ -705,7 +755,7 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(self.device)
         text_mask = text_mask.unsqueeze(0).to(self.device)
-        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(get_dtype(self.config.dtype))
+        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._actual_dtype())
         audio_mask = audio_mask.unsqueeze(0).to(self.device)
 
         # run inference
@@ -741,9 +791,8 @@ class VoxCPMModel(nn.Module):
                 latent_pred, pred_audio_feat = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
-                        print(
-                            f"  Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying...",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"Badcase detected, audio_text_ratio={pred_audio_feat.shape[0] / target_text_length}, retrying..."
                         )
                         retry_badcase_times += 1
                         continue
@@ -924,10 +973,10 @@ class VoxCPMModel(nn.Module):
         audiovae_safetensors_path = os.path.join(path, "audiovae.safetensors")
         audiovae_pth_path = os.path.join(path, "audiovae.pth")
         if os.path.exists(audiovae_safetensors_path) and SAFETENSORS_AVAILABLE:
-            print(f"Loading AudioVAE from safetensors: {audiovae_safetensors_path}", file=sys.stderr)
+            logger.info(f"Loading AudioVAE from safetensors: {audiovae_safetensors_path}")
             vae_state_dict = load_file(audiovae_safetensors_path, device="cpu")
         elif os.path.exists(audiovae_pth_path):
-            print(f"Loading AudioVAE from pytorch: {audiovae_pth_path}", file=sys.stderr)
+            logger.info(f"Loading AudioVAE from pytorch: {audiovae_pth_path}")
             checkpoint = torch.load(
                 audiovae_pth_path,
                 map_location="cpu",
@@ -957,10 +1006,10 @@ class VoxCPMModel(nn.Module):
         pytorch_model_path = os.path.join(path, "pytorch_model.bin")
 
         if os.path.exists(safetensors_path) and SAFETENSORS_AVAILABLE:
-            print(f"Loading model from safetensors: {safetensors_path}", file=sys.stderr)
+            logger.info(f"Loading model from safetensors: {safetensors_path}")
             model_state_dict = load_file(safetensors_path)
         elif os.path.exists(pytorch_model_path):
-            print(f"Loading model from pytorch_model.bin: {pytorch_model_path}", file=sys.stderr)
+            logger.info(f"Loading model from pytorch_model.bin: {pytorch_model_path}")
             checkpoint = torch.load(
                 pytorch_model_path,
                 map_location="cpu",
