@@ -1,5 +1,4 @@
-"""
-Shared utilities for VoxCPM nodes.
+"""Shared utilities for VoxCPM nodes.
 
 This module contains utility functions shared between voxcpm_nodes.py and voxcpm2_nodes.py
 to avoid circular imports.
@@ -10,37 +9,24 @@ import torch
 # Global cache for model patchers (shared across all nodes)
 VOXCPM_PATCHER_CACHE = {}
 
-
-def get_available_devices():
-    """Detects and returns a list of available PyTorch devices in order of preference."""
-    devices = []
-    if torch.cuda.is_available():
-        devices.append("cuda")
-
-    try:
-        import platform
-        if platform.system() == "Windows" and hasattr(torch.backends, 'directml') and torch.backends.directml.is_available():
-            devices.append("directml")
-    except:
-        pass
-
-    if hasattr(torch.version, 'hip') and torch.version.hip is not None:
-        try:
-            if torch.cuda.is_available() and torch.cuda.get_device_name(0).lower().find('amd') != -1:
-                devices.append("hip")
-        except:
-            pass
-
-    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        devices.append("mps")
-
-    devices.append("cpu")
-    return devices
+# Import device utilities for backward compatibility
+# New code should import directly from modules.device_utils
+from .device_utils import (
+    get_available_devices,
+    get_torch_device,
+    get_offload_device,
+    should_use_fp16,
+    should_use_bf16,
+    get_device_display_name,
+    DEVICE_CPU,
+    DEVICE_CUDA,
+    DEVICE_MPS,
+)
 
 
 def set_seed(seed: int):
     """Set random seed for reproducibility.
-    
+
     Args:
         seed: Seed value. Use -1 for random seed generation.
     """
@@ -55,11 +41,11 @@ def set_seed(seed: int):
 
 def is_voxcpm2_model(model_name: str, model_configs: dict) -> bool:
     """Check if the model is a VoxCPM2 variant.
-    
+
     Args:
         model_name: Name of the model to check
         model_configs: Dictionary of model configurations
-        
+
     Returns:
         True if the model is VoxCPM2, False otherwise
     """

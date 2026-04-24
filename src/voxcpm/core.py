@@ -3,6 +3,7 @@ import sys
 import re
 import json
 import tempfile
+import logging
 import torch
 import numpy as np
 from typing import Generator, Optional
@@ -10,6 +11,8 @@ from huggingface_hub import snapshot_download
 from .model.voxcpm import VoxCPMModel, LoRAConfig
 from .model.voxcpm2 import VoxCPM2Model
 from .model.utils import next_and_close
+
+logger = logging.getLogger(__name__)
 
 
 class VoxCPM:
@@ -37,9 +40,9 @@ class VoxCPM:
             lora_weights_path: Path to pre-trained LoRA weights (.pth file or directory
                 containing lora_weights.ckpt). If provided, LoRA weights will be loaded.
         """
-        print(
-            f"voxcpm_model_path: {voxcpm_model_path}, zipenhancer_model_path: {zipenhancer_model_path}, enable_denoiser: {enable_denoiser}",
-            file=sys.stderr,
+        logger.debug(
+            f"Initializing VoxCPM: model_path={voxcpm_model_path}, "
+            f"zipenhancer_path={zipenhancer_model_path}, enable_denoiser={enable_denoiser}"
         )
 
         # If lora_weights_path is provided but no lora_config, create a default one
@@ -49,7 +52,7 @@ class VoxCPM:
                 enable_dit=True,
                 enable_proj=False,
             )
-            print(f"Auto-created default LoRAConfig for loading weights from: {lora_weights_path}", file=sys.stderr)
+            logger.info(f"Auto-created default LoRAConfig for loading weights from: {lora_weights_path}")
 
         # Determine model type from config.json architecture field
         config_path = os.path.join(voxcpm_model_path, "config.json")
@@ -63,22 +66,22 @@ class VoxCPM:
                 optimize=optimize,
                 lora_config=lora_config,
             )
-            print("Loaded VoxCPM2Model", file=sys.stderr)
+            logger.info("Loaded VoxCPM2Model")
         elif arch == "voxcpm":
             self.tts_model = VoxCPMModel.from_local(
                 voxcpm_model_path,
                 optimize=optimize,
                 lora_config=lora_config,
             )
-            print("Loaded VoxCPMModel", file=sys.stderr)
+            logger.info("Loaded VoxCPMModel")
         else:
             raise ValueError(f"Unsupported architecture: {arch}")
 
         # Load LoRA weights if path is provided
         if lora_weights_path is not None:
-            print(f"Loading LoRA weights from: {lora_weights_path}", file=sys.stderr)
+            logger.info(f"Loading LoRA weights from: {lora_weights_path}")
             loaded_keys, skipped_keys = self.tts_model.load_lora_weights(lora_weights_path)
-            print(f"Loaded {len(loaded_keys)} LoRA parameters, skipped {len(skipped_keys)}", file=sys.stderr)
+            logger.info(f"Loaded {len(loaded_keys)} LoRA parameters, skipped {len(skipped_keys)}")
 
         self.text_normalizer = None
         self.denoiser = None
@@ -89,7 +92,7 @@ class VoxCPM:
         else:
             self.denoiser = None
         if optimize:
-            print("Warm up VoxCPMModel...", file=sys.stderr)
+            logger.debug("Warming up VoxCPMModel...")
             self.tts_model.generate(
                 target_text="Hello, this is the first test sentence.",
                 max_len=10,

@@ -5,8 +5,14 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.nn.utils import weight_norm
 from pydantic import BaseModel
+
+# Use the new parametrizations.weight_norm (PyTorch 2.4+) with fallback to deprecated version
+# for backward compatibility
+try:
+    from torch.nn.utils.parametrizations import weight_norm
+except ImportError:
+    from torch.nn.utils import weight_norm
 
 
 def WNConv1d(*args, **kwargs):
@@ -472,6 +478,20 @@ class AudioVAE(nn.Module):
                 sr_cond = torch.tensor([self.out_sample_rate], device=z.device, dtype=torch.int32)
         return self.decoder(z, sr_cond)
 
+    def streaming_decode(self):
+        """Return a ``StreamingVAEDecoder`` context manager for stateful
+        chunk-by-chunk decoding.  Each call to ``decode_chunk`` processes only
+        the new latent patch and carries causal-conv state internally, avoiding
+        the redundant overlap decode used previously.
+
+        Usage::
+
+            with vae.streaming_decode() as dec:
+                for patch in patches:
+                    audio_chunk = dec.decode_chunk(patch)
+        """
+        return StreamingVAEDecoder(self)
+
     def encode(self, audio_data: torch.Tensor, sample_rate: int):
         """
         Args:
@@ -485,3 +505,82 @@ class AudioVAE(nn.Module):
 
         audio_data = self.preprocess(audio_data, sample_rate)
         return self.encoder(audio_data)["mu"]
+
+
+class StreamingVAEDecoder:
+    """Stateful streaming wrapper for :class:`AudioVAE`.
+
+    Carries causal-convolution padding buffers between calls so that each
+    ``decode_chunk`` processes only the new latent patch — no overlap needed.
+    """
+
+    def __init__(self, vae: AudioVAE):
+        self._vae = vae
+        self._states: dict = {}
+        self._originals: list = []
+
+    # -- context manager --------------------------------------------------
+    def __enter__(self):
+        self._states.clear()
+        self._install()
+        return self
+
+    def __exit__(self, *exc):
+        self._restore()
+        self._states.clear()
+
+    # -- public API --------------------------------------------------------
+    def decode_chunk(self, z_chunk: torch.Tensor) -> torch.Tensor:
+        """Decode a single latent chunk and return the audio waveform."""
+        return self._vae.decode(z_chunk)
+
+    # -- internals ---------------------------------------------------------
+    def _install(self):
+        for name, mod in self._vae.decoder.named_modules():
+            if isinstance(mod, CausalConv1d):
+                pad = mod._CausalConv1d__padding * 2 - mod._CausalConv1d__output_padding
+                if pad > 0:
+                    self._patch_causal_conv(mod, pad)
+            elif isinstance(mod, CausalTransposeConv1d):
+                trim = mod._CausalTransposeConv1d__padding * 2 - mod._CausalTransposeConv1d__output_padding
+                ctx = (mod.kernel_size[0] - 1) // mod.stride[0]
+                if ctx > 0:
+                    self._patch_transpose_conv(mod, ctx, trim)
+
+    def _patch_causal_conv(self, mod, pad_size):
+        states = self._states
+        key = id(mod)
+        orig = mod.forward
+
+        def fwd(x, _k=key, _p=pad_size, _m=mod):
+            x_pad = torch.cat([states[_k], x], dim=-1) if _k in states else F.pad(x, (_p, 0))
+            if x.shape[-1] >= _p:
+                states[_k] = x[:, :, -_p:].detach()
+            else:
+                prev = states.get(_k, torch.zeros(x.shape[0], x.shape[1], _p,
+                                                  device=x.device, dtype=x.dtype))
+                states[_k] = torch.cat([prev, x], dim=-1)[:, :, -_p:].detach()
+            return nn.Conv1d.forward(_m, x_pad)
+
+        mod.forward = fwd
+        self._originals.append((mod, orig))
+
+    def _patch_transpose_conv(self, mod, ctx, trim):
+        states = self._states
+        key = id(mod)
+        orig = mod.forward
+
+        def fwd(x, _k=key, _c=ctx, _t=trim, _m=mod):
+            x_full = torch.cat([states[_k], x], dim=-1) if _k in states else F.pad(x, (_c, 0))
+            states[_k] = x[:, :, -_c:].detach()
+            out = nn.ConvTranspose1d.forward(_m, x_full)
+            left = _c * _m.stride[0]
+            return out[..., left:-_t] if _t > 0 else out[..., left:]
+
+        mod.forward = fwd
+        self._originals.append((mod, orig))
+
+    def _restore(self):
+        for mod, orig in self._originals:
+            mod.forward = orig
+        self._originals.clear()

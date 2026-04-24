@@ -1,19 +1,19 @@
 {
   "id": "332f7ac5-c30f-44aa-991a-aff51b05038a",
   "revision": 0,
-  "last_node_id": 21,
-  "last_link_id": 37,
+  "last_node_id": 25,
+  "last_link_id": 43,
   "nodes": [
     {
       "id": 6,
       "type": "MarkdownNote",
       "pos": [
-        -1850,
-        -870
+        -2640,
+        -1070
       ],
       "size": [
-        376.88634999999977,
-        580.2930250000001
+        710,
+        860
       ],
       "flags": {},
       "order": 0,
@@ -28,18 +28,147 @@
       "bgcolor": "#653"
     },
     {
+      "id": 4,
+      "type": "MarkdownNote",
+      "pos": [
+        -2630,
+        -160
+      ],
+      "size": [
+        700,
+        640
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note",
+      "properties": {},
+      "widgets_values": [
+        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Parameters | Sampling Rate | Languages | Description | Hugging Face Link |\n|:---|:---:|:---:|:---:|:---|:---|\n| **VoxCPM2** | 2B | 48kHz | 30+ | **New!** Voice design, reference cloning, multilingual | [openbmb/VoxCPM2](https://huggingface.co/openbmb/VoxCPM2) |\n| **VoxCPM1.5** | 800M | 44.1kHz | 2 | Recommended for v1. LoRA support, improved fidelity | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |\n| VoxCPM-0.5B | 640M | 16kHz | 2 | Original version | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n\n---\n\n### Check TG for more interesting stuff: [TokenDiffusion](https://t.me/TokenDiff)"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 24,
+      "type": "VoxCPM_TTS",
+      "pos": [
+        -1440,
+        -1060
+      ],
+      "size": [
+        400,
+        600
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "voice_config",
+          "shape": 7,
+          "type": "VOICE_CLONING_CONFIG",
+          "link": 41
+        },
+        {
+          "name": "advanced_params",
+          "shape": 7,
+          "type": "ADVANCED_PARAMS",
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Generated Audio",
+          "type": "AUDIO",
+          "links": [
+            43
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VoxCPM_TTS"
+      },
+      "widgets_values": [
+        "VoxCPM-0.5B",
+        "VoxCPM-0.5B",
+        "None",
+        "VoxCPM is an innovative TTS model designed to generate highly expressive speech.",
+        "",
+        2,
+        10,
+        true,
+        44049569499043,
+        "randomize",
+        false,
+        "cuda",
+        "auto"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 22,
+      "type": "VoxCPM_VoiceCloning",
+      "pos": [
+        -1880,
+        -810
+      ],
+      "size": [
+        380,
+        200
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt_audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 39
+        },
+        {
+          "name": "reference_audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 40
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VOICE_CONFIG",
+          "type": "VOICE_CLONING_CONFIG",
+          "links": [
+            41
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VoxCPM_VoiceCloning"
+      },
+      "widgets_values": [
+        false,
+        "Hope I'm not bothering you. Just doing some stretching, maybe a few poses. You'll tell me if I'm bothering you, right? I've even been singled out a few times. Probably because it's mostly pregnant women in the group. Still Brody must see something. Although I certainly don't. But then again I'm not the instructor, am I? Oh yuck! What happened to my ear?"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
       "id": 2,
       "type": "LoadAudio",
       "pos": [
-        -1850,
+        -1880,
         -1060
       ],
       "size": [
         380,
-        140
+        180
       ],
       "flags": {},
-      "order": 1,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -47,15 +176,15 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            36,
-            37
+            39,
+            40
           ]
         }
       ],
       "properties": {
+        "Node name for S&R": "LoadAudio",
         "cnr_id": "comfy-core",
         "ver": "0.3.52",
-        "Node name for S&R": "LoadAudio",
         "ue_properties": {
           "widget_ue_connectable": {
             "audio": true,
@@ -69,125 +198,36 @@
         "male_stewie.mp3",
         null,
         null
-      ]
-    },
-    {
-      "id": 4,
-      "type": "MarkdownNote",
-      "pos": [
-        -990.7606826953638,
-        -860.2656142766266
       ],
-      "size": [
-        488.203125,
-        395.64375000000007
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Note",
-      "properties": {},
-      "widgets_values": [
-        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Parameters | Sampling Rate | Languages | Description | Hugging Face Link |\n|:---|:---:|:---:|:---:|:---|:---|\n| **VoxCPM2** | 2B | 48kHz | 30+ | **New!** Voice design, reference cloning, multilingual | [openbmb/VoxCPM2](https://huggingface.co/openbmb/VoxCPM2) |\n| **VoxCPM1.5** | 800M | 44.1kHz | 2 | Recommended for v1. LoRA support, improved fidelity | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |\n| VoxCPM-0.5B | 640M | 16kHz | 2 | Original version | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n\n---\n\n### Check TG for more interesting stuff: [TokenDiffusion](https://t.me/TokenDiff)"
-      ],
-      "color": "#233",
-      "bgcolor": "#355"
-    },
-    {
-      "id": 21,
-      "type": "VoxCPM_TTS",
-      "pos": [
-        -1430,
-        -1060
-      ],
-      "size": [
-        390,
-        700
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "prompt_audio",
-          "shape": 7,
-          "type": "AUDIO",
-          "link": 37
-        },
-        {
-          "name": "reference_audio",
-          "shape": 7,
-          "type": "AUDIO",
-          "link": 36
-        }
-      ],
-      "outputs": [
-        {
-          "name": "Generated Audio",
-          "type": "AUDIO",
-          "links": [
-            34
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "ComfyUI-VoxCPM",
-        "ver": "c2d1bc512740edb0933113a550f8edb587656f14",
-        "Node name for S&R": "VoxCPM_TTS"
-      },
-      "widgets_values": [
-        "VoxCPM2",
-        "None",
-        "VoxCPM is an innovative TTS model designed to generate highly expressive speech.",
-        2,
-        10,
-        2,
-        2048,
-        true,
-        false,
-        1,
-        1,
-        true,
-        3,
-        6,
-        42,
-        "fixed",
-        false,
-        "cuda",
-        "",
-        "Hope I'm not bothering you. Just doing some stretching, maybe a few poses. You'll tell me if I'm bothering you, right? I've even been singled out a few times. Probably because it's mostly pregnant women in the group. Still Brody must see something. Although I certainly don't. But then again I'm not the instructor, am I? Oh yuck! What happened to my ear?\n"
-      ],
-      "color": "#232",
-      "bgcolor": "#353"
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
     },
     {
       "id": 1,
       "type": "SaveAudio",
       "pos": [
-        -991.1134658984888,
-        -1058.9567763860016
+        -990,
+        -1060
       ],
       "size": [
         270,
-        120
+        180
       ],
       "flags": {},
-      "order": 4,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 34
+          "link": 43
         }
       ],
       "outputs": [],
       "properties": {
+        "Node name for S&R": "SaveAudio",
         "cnr_id": "comfy-core",
         "ver": "0.3.52",
-        "Node name for S&R": "SaveAudio",
         "ue_properties": {
           "widget_ue_connectable": {
             "filename_prefix": true,
@@ -198,31 +238,88 @@
       },
       "widgets_values": [
         "audio/VoxCPM"
-      ]
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 23,
+      "type": "VoxCPM_AdvancedParams",
+      "pos": [
+        -1880,
+        -540
+      ],
+      "size": [
+        380,
+        300
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ADVANCED_PARAMS",
+          "type": "ADVANCED_PARAMS",
+          "links": [
+            42
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VoxCPM_AdvancedParams"
+      },
+      "widgets_values": [
+        2,
+        2048,
+        1,
+        1,
+        true,
+        3,
+        6
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
     }
   ],
   "links": [
     [
-      34,
-      21,
+      39,
+      2,
       0,
-      1,
+      22,
       0,
       "AUDIO"
     ],
     [
-      36,
+      40,
       2,
       0,
-      21,
+      22,
       1,
       "AUDIO"
     ],
     [
-      37,
-      2,
+      41,
+      22,
       0,
-      21,
+      24,
+      0,
+      "VOICE_CLONING_CONFIG"
+    ],
+    [
+      42,
+      23,
+      0,
+      24,
+      1,
+      "ADVANCED_PARAMS"
+    ],
+    [
+      43,
+      24,
+      0,
+      1,
       0,
       "AUDIO"
     ]
@@ -231,14 +328,14 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.9090909090909091,
+      "scale": 0.683013455365071,
       "offset": [
-        2339.6000000000004,
-        1273
+        2740,
+        1170
       ]
     },
     "workflowRendererVersion": "LG",
-    "frontendVersion": "1.41.21",
+    "frontendVersion": "1.42.10",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": true,
