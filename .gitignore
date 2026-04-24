@@ -12,7 +12,6 @@ __pycache__/
 .dev
 .idea
 /tests/
-!js-src/tests/
 .Python
 __pycache__
 build/
@@ -161,7 +160,6 @@ cython_debug/
 
 # Node.js
 node_modules/
-js-src/node_modules/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

@@ -1,67 +1,31 @@
-import { app } from "../../scripts/app.js";
-import { app as app$1 } from "../scripts/app.js";
-import { api } from "../scripts/api.js";
-//#region core/constants.ts
-/**
-* VoxCPM Constants
-* 
-* Central location for all constants used in the VoxCPM frontend extension.
-*/
-/**
-* Session storage keys for persisting state
-*/
-var STORAGE_KEYS = {
-	/** Key for tracking if notification was shown this session */
+import { app as e } from "../../scripts/app.js";
+import { app as t } from "../../scripts/app.js";
+import { api as n } from "../../scripts/api.js";
+
+var r = {
 	NOTIFICATION_SHOWN: "voxcpm.normalization_notification_shown",
-	/** Key for user preferences (future use) */
 	USER_PREFERENCES: "voxcpm.user_preferences",
-	/** Key for settings session cache */
 	SETTINGS: "voxcpm.settings",
-	/** Key for first run dialog shown flag */
 	FIRST_RUN_SHOWN: "voxcpm.first_run_shown",
-	/** Key for normalization available config (localStorage) */
 	NORMALIZATION_AVAILABLE: "voxcpm.normalization_available"
-};
-/**
-* WebSocket event names for server-to-client communication
-*/
-var EVENT_NAMES = {
-	/** Status notification event */
+}, i = {
 	STATUS: "voxcpm.status",
-	/** Model loaded event (future use) */
 	MODEL_LOADED: "voxcpm.model_loaded",
-	/** Generation progress event (future use) */
 	GENERATION_PROGRESS: "voxcpm.generation_progress",
-	/** Config event from server */
 	CONFIG: "voxcpm.config",
-	/** Settings update request */
 	SETTINGS_UPDATE: "voxcpm.settings_update"
-};
-/**
-* Default configuration values
-*/
-var DEFAULTS = {
-	/** Default toast notification lifetime in milliseconds */
+}, a = {
 	TOAST_LIFE: 1e4,
-	/** Default log prefix */
 	LOG_PREFIX: "[VoxCPM]",
-	/** Extension name for ComfyUI registration */
 	EXTENSION_NAME: "voxcpm.frontend",
-	/** Node class name for VoxCPM TTS nodes */
 	NODE_CLASS: "VoxCPM_TTS"
-};
-/**
-* UI-related constants
-*/
-var UI = {
-	/** Toast severity levels */
+}, o = {
 	SEVERITY: {
 		SUCCESS: "success",
 		INFO: "info",
 		WARN: "warn",
 		ERROR: "error"
 	},
-	/** Icon names (PrimeIcons) */
 	ICONS: {
 		VOLUME: "pi pi-volume-up",
 		WARNING: "pi pi-exclamation-triangle",
@@ -69,324 +33,82 @@ var UI = {
 		ERROR: "pi pi-times-circle",
 		SUCCESS: "pi pi-check-circle"
 	},
-	/** Model selector widget constants */
 	MODEL_SELECTOR: {
-		/** Widget name for the DOM widget */
 		WIDGET_NAME: "model_selector",
-		/** Widget type for addDOMWidget */
 		WIDGET_TYPE: "custom",
-		/** Height of the model selector widget in pixels (includes bottom spacing) */
 		MIN_HEIGHT: 44,
-		/** Default model icon (standard path) — deprecated, use MODEL_ICONS.FOLDER */
 		DEFAULT_ICON: "📁",
-		/** Custom path model icon — deprecated, use MODEL_ICONS.FOLDER_OPEN */
 		CUSTOM_ICON: "📂",
-		/** Dropdown arrow character */
 		ARROW: "▼",
-		/** Placeholder text when no model is selected */
 		PLACEHOLDER: "Select model...",
-		/** CSS class prefix for all model selector styles */
 		CSS_PREFIX: "voxcpm-model-"
 	},
-	/** Model dropdown constants (custom cyber-themed dropdown panel) */
 	MODEL_DROPDOWN: {
-		/** BEM block class name */
 		BLOCK_CLASS: "voxcpm-model-dropdown",
-		/** Header text displayed in the dropdown panel */
 		HEADER_TEXT: "SELECT MODEL",
-		/** Maximum visible items before scrolling */
 		MAX_VISIBLE_ITEMS: 8,
-		/** Item height in pixels (for scroll calculation) */
 		ITEM_HEIGHT: 36,
-		/** Gap between anchor and dropdown in pixels */
 		ANCHOR_GAP: 4,
-		/** Animation duration in ms */
 		ANIMATION_DURATION: 150,
-		/** Z-index for the dropdown panel */
 		Z_INDEX: 1e3
 	}
-};
-//#endregion
-//#region core/logger.ts
-/**
-* VoxCPM Logger Utility
-* 
-* Provides consistent logging with prefix for all VoxCPM frontend modules.
-*/
-/**
-* Logger instance with prefixed console output
-*/
-var logger = {
-	/**
-	* Log informational message
-	*/
-	log: (...args) => {
-		console.log(DEFAULTS.LOG_PREFIX, ...args);
+}, s = {
+	log: (...e) => {
+		console.log(a.LOG_PREFIX, ...e);
 	},
-	/**
-	* Log informational message (alias for log)
-	*/
-	info: (...args) => {
-		console.info(DEFAULTS.LOG_PREFIX, ...args);
+	info: (...e) => {
+		console.info(a.LOG_PREFIX, ...e);
 	},
-	/**
-	* Log warning message
-	*/
-	warn: (...args) => {
-		console.warn(DEFAULTS.LOG_PREFIX, ...args);
+	warn: (...e) => {
+		console.warn(a.LOG_PREFIX, ...e);
 	},
-	/**
-	* Log error message
-	*/
-	error: (...args) => {
-		console.error(DEFAULTS.LOG_PREFIX, ...args);
+	error: (...e) => {
+		console.error(a.LOG_PREFIX, ...e);
 	},
-	/**
-	* Log debug message (only in development)
-	*/
-	debug: (...args) => {
-		if (typeof window !== "undefined" && window.__VOXCPM_DEBUG__) console.debug(DEFAULTS.LOG_PREFIX, "[DEBUG]", ...args);
+	debug: (...e) => {
+		typeof window < "u" && window.__VOXCPM_DEBUG__ && console.debug(a.LOG_PREFIX, "[DEBUG]", ...e);
 	},
-	/**
-	* Log group start
-	*/
-	group: (label) => {
-		console.group(`${DEFAULTS.LOG_PREFIX} ${label}`);
+	group: (e) => {
+		console.group(`${a.LOG_PREFIX} ${e}`);
 	},
-	/**
-	* Log group end
-	*/
 	groupEnd: () => {
 		console.groupEnd();
 	},
-	/**
-	* Log table data
-	*/
-	table: (data) => {
-		console.log(DEFAULTS.LOG_PREFIX);
-		console.table(data);
+	table: (e) => {
+		console.log(a.LOG_PREFIX), console.table(e);
 	}
-};
-//#endregion
-//#region styles/tokens.ts
-/**
-* VoxCPM Design Tokens
-*
-* CSS custom properties (design tokens) for the VoxCPM frontend extension.
-* These tokens provide a semantic layer on top of ComfyUI's native CSS variables,
-* with fallback values for themes that don't define the ComfyUI variables.
-*
-* Token architecture:
-* ```
-* :root (ComfyUI-provided)
-* └── --comfy-input-bg, --fg-color, --border-color, etc.
-*
-* :root (VoxCPM design tokens)
-* └── --voxcpm-* (semantic tokens referencing ComfyUI tokens)
-*
-* Component (BEM block)
-* └── Uses --voxcpm-* tokens (no raw fallbacks needed)
-* ```
-*
-* @module voxcpm/styles/tokens
-*/
-/**
-* CSS custom property definitions for all VoxCPM design tokens.
-*
-* Injected into `:root` so they're available globally.
-* Each token references a ComfyUI variable with a fallback value
-* for themes that don't define the ComfyUI variable.
-*/
-var DESIGN_TOKEN_STYLES = `
-/* ============================================================================
- * VoxCPM Design Tokens
- * ============================================================================
- * Semantic tokens that reference ComfyUI's native CSS variables.
- * Fallback values ensure compatibility with all ComfyUI themes.
- * ============================================================================ */
-
-:root {
-  /* ── Spacing ── */
-  --voxcpm-space-2xs: 2px;
-  --voxcpm-space-xs: 4px;
-  --voxcpm-space-s: 6px;
-  --voxcpm-space-m: 8px;
-  --voxcpm-space-l: 12px;
-  --voxcpm-space-xl: 16px;
-  --voxcpm-space-2xl: 24px;
-
-  /* ── Typography ── */
-  --voxcpm-font-size-2xs: 10px;
-  --voxcpm-font-size-xs: 12px;
-  --voxcpm-font-size-s: 13px;
-  --voxcpm-font-size-m: 14px;
-  --voxcpm-font-size-l: 18px;
-  --voxcpm-font-size-xl: 24px;
-  --voxcpm-font-family: var(--comfy-font-family, Arial, sans-serif);
-  --voxcpm-font-family-mono: monospace;
-
-  /* ── Surfaces ── */
-  --voxcpm-bg-input: var(--comfy-input-bg, rgba(255, 255, 255, 0.05));
-  --voxcpm-bg-input-hover: var(--comfy-input-bg-hover, rgba(255, 255, 255, 0.08));
-  --voxcpm-bg-input-active: var(--comfy-input-bg-active, rgba(255, 255, 255, 0.1));
-  --voxcpm-bg-surface: var(--bg-color, #1e1e1e);
-  --voxcpm-bg-elevated: var(--input-bg, #2a2a2a);
-
-  /* ── Borders ── */
-  --voxcpm-border-color: var(--border-color, rgba(255, 255, 255, 0.15));
-  --voxcpm-border-color-hover: var(--comfy-input-border-hover, rgba(255, 255, 255, 0.3));
-  --voxcpm-border-radius-xs: 4px;
-  --voxcpm-border-radius-s: 6px;
-  --voxcpm-border-radius-m: 8px;
-
-  /* ── Text ── */
-  --voxcpm-text-primary: var(--fg-color, #ddd);
-  --voxcpm-text-secondary: var(--fg-color, rgba(255, 255, 255, 0.7));
-  --voxcpm-text-muted: var(--fg-color, rgba(255, 255, 255, 0.4));
-  --voxcpm-text-on-primary: #fff;
-
-  /* ── Accent ── */
-  --voxcpm-accent: var(--primary-color, #4a9eff);
-  --voxcpm-accent-hover: var(--primary-color-hover, #3a8eef);
-
-  /* ── Feedback ── */
-  --voxcpm-color-success: var(--success-color, #4caf50);
-  --voxcpm-color-error: var(--error-color, #f44336);
-
-  /* ── Motion ── */
-  --voxcpm-duration-fast: 150ms;
-  --voxcpm-duration-normal: 200ms;
-  --voxcpm-easing: ease;
-
-  /* ── Widget ── */
-  --voxcpm-widget-height: 44px;
-  --voxcpm-input-height: 26px;
-  --voxcpm-browse-width: 30px;
-
-  /* ── Focus ── */
-  --voxcpm-focus-ring-color: var(--voxcpm-accent);
-  --voxcpm-focus-ring-width: 2px;
-  --voxcpm-focus-ring-offset: 1px;
-
-  /* ── Cyber Theme ── */
-  --voxcpm-cyber-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  --voxcpm-cyber-accent: #00ff9d;
-  --voxcpm-cyber-accent-dim: rgba(0, 255, 157, 0.15);
-  --voxcpm-cyber-border: rgba(0, 255, 157, 0.3);
-  --voxcpm-cyber-glow: 0 0 8px rgba(0, 255, 157, 0.4);
-  --voxcpm-cyber-text: #e0e0e0;
-  --voxcpm-cyber-text-dim: rgba(224, 224, 224, 0.5);
-  --voxcpm-cyber-bg: rgba(10, 15, 20, 0.95);
-  --voxcpm-cyber-bg-hover: rgba(0, 255, 157, 0.08);
-  --voxcpm-cyber-bg-active: rgba(0, 255, 157, 0.12);
-  --voxcpm-cyber-tag-bg: rgba(0, 255, 157, 0.15);
-  --voxcpm-cyber-tag-border: rgba(0, 255, 157, 0.4);
-  --voxcpm-cyber-tag-text: #00ff9d;
-  --voxcpm-cyber-scanline: rgba(0, 255, 157, 0.03);
-}
-`.trim();
-/** ID for the injected design token style element */
-var STYLE_ELEMENT_ID$2 = "voxcpm-design-tokens";
-/** Whether design tokens have been injected */
-var tokensInjected = false;
-/**
-* Inject VoxCPM design token CSS custom properties into the document head.
-*
-* This function is idempotent — calling it multiple times has no effect
-* after the first injection. Tokens are injected once per page load
-* into `:root` so they're available globally to all components.
-*
-* Should be called early in the extension lifecycle (e.g., `init()` hook)
-* before any component styles reference the `--voxcpm-*` tokens.
-*/
-function injectDesignTokens() {
-	if (tokensInjected) return;
-	if (document.getElementById(STYLE_ELEMENT_ID$2)) {
-		tokensInjected = true;
+}, c = "\n\n:root {\n  \n  --voxcpm-space-2xs: 2px;\n  --voxcpm-space-xs: 4px;\n  --voxcpm-space-s: 6px;\n  --voxcpm-space-m: 8px;\n  --voxcpm-space-l: 12px;\n  --voxcpm-space-xl: 16px;\n  --voxcpm-space-2xl: 24px;\n\n  \n  --voxcpm-font-size-2xs: 10px;\n  --voxcpm-font-size-xs: 12px;\n  --voxcpm-font-size-s: 13px;\n  --voxcpm-font-size-m: 14px;\n  --voxcpm-font-size-l: 18px;\n  --voxcpm-font-size-xl: 24px;\n  --voxcpm-font-family: var(--comfy-font-family, Arial, sans-serif);\n  --voxcpm-font-family-mono: monospace;\n\n  \n  --voxcpm-bg-input: var(--comfy-input-bg, rgba(255, 255, 255, 0.05));\n  --voxcpm-bg-input-hover: var(--comfy-input-bg-hover, rgba(255, 255, 255, 0.08));\n  --voxcpm-bg-input-active: var(--comfy-input-bg-active, rgba(255, 255, 255, 0.1));\n  --voxcpm-bg-surface: var(--bg-color, #1e1e1e);\n  --voxcpm-bg-elevated: var(--input-bg, #2a2a2a);\n\n  \n  --voxcpm-border-color: var(--border-color, rgba(255, 255, 255, 0.15));\n  --voxcpm-border-color-hover: var(--comfy-input-border-hover, rgba(255, 255, 255, 0.3));\n  --voxcpm-border-radius-xs: 4px;\n  --voxcpm-border-radius-s: 6px;\n  --voxcpm-border-radius-m: 8px;\n\n  \n  --voxcpm-text-primary: var(--fg-color, #ddd);\n  --voxcpm-text-secondary: var(--fg-color, rgba(255, 255, 255, 0.7));\n  --voxcpm-text-muted: var(--fg-color, rgba(255, 255, 255, 0.4));\n  --voxcpm-text-on-primary: #fff;\n\n  \n  --voxcpm-accent: var(--primary-color, #4a9eff);\n  --voxcpm-accent-hover: var(--primary-color-hover, #3a8eef);\n\n  \n  --voxcpm-color-success: var(--success-color, #4caf50);\n  --voxcpm-color-error: var(--error-color, #f44336);\n\n  \n  --voxcpm-duration-fast: 150ms;\n  --voxcpm-duration-normal: 200ms;\n  --voxcpm-easing: ease;\n\n  \n  --voxcpm-widget-height: 44px;\n  --voxcpm-input-height: 26px;\n  --voxcpm-browse-width: 30px;\n\n  \n  --voxcpm-focus-ring-color: var(--voxcpm-accent);\n  --voxcpm-focus-ring-width: 2px;\n  --voxcpm-focus-ring-offset: 1px;\n\n  \n  --voxcpm-cyber-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;\n  --voxcpm-cyber-accent: #00ff9d;\n  --voxcpm-cyber-accent-dim: rgba(0, 255, 157, 0.15);\n  --voxcpm-cyber-border: rgba(0, 255, 157, 0.3);\n  --voxcpm-cyber-glow: 0 0 8px rgba(0, 255, 157, 0.4);\n  --voxcpm-cyber-text: #e0e0e0;\n  --voxcpm-cyber-text-dim: rgba(224, 224, 224, 0.5);\n  --voxcpm-cyber-bg: rgba(10, 15, 20, 0.95);\n  --voxcpm-cyber-bg-hover: rgba(0, 255, 157, 0.08);\n  --voxcpm-cyber-bg-active: rgba(0, 255, 157, 0.12);\n  --voxcpm-cyber-tag-bg: rgba(0, 255, 157, 0.15);\n  --voxcpm-cyber-tag-border: rgba(0, 255, 157, 0.4);\n  --voxcpm-cyber-tag-text: #00ff9d;\n  --voxcpm-cyber-scanline: rgba(0, 255, 157, 0.03);\n}", l = "voxcpm-design-tokens", u = !1;
+function d() {
+	if (u) return;
+	if (document.getElementById(l)) {
+		u = !0;
 		return;
 	}
-	const style = document.createElement("style");
-	style.id = STYLE_ELEMENT_ID$2;
-	style.textContent = DESIGN_TOKEN_STYLES;
-	document.head.appendChild(style);
-	tokensInjected = true;
+	let e = document.createElement("style");
+	e.id = l, e.textContent = c, document.head.appendChild(e), u = !0;
 }
-//#endregion
-//#region widgets/modelSelectorStyles.ts
-/**
-* Model Selector Widget Styles (BEM)
-*
-* CSS styles for the custom model selector DOM widget.
-* Uses BEM naming convention: `.voxcpm-model-selector__element--modifier`
-* Uses VoxCPM design tokens: `var(--voxcpm-*)` for all values.
-*
-* @module voxcpm/widgets/model-selector-styles
-*/
-/**
-* BEM class names for the model selector widget.
-*
-* Centralized here so both CSS and TypeScript use the same names.
-* If a class name changes, update it here and the CSS will follow.
-*/
-var MODEL_SELECTOR_CLASSES = {
-	/** Block — the widget container (applied to the container div, and also to WidgetDOM.vue parent div in Node 2.0 mode) */
-	BLOCK: "voxcpm-model-selector",
-	/** Element — horizontal row containing display + browse button */
-	ROW: "voxcpm-model-selector__row",
-	/** Element — clickable model display area (opens dropdown) */
-	DISPLAY: "voxcpm-model-selector__display",
-	/** Element — folder icon in the display area */
-	ICON: "voxcpm-model-selector__icon",
-	/** Element — model name text in the display area */
-	TEXT: "voxcpm-model-selector__text",
-	/** Element — dropdown arrow in the display area */
-	ARROW: "voxcpm-model-selector__arrow",
-	/** Modifier — arrow highlighted (dropdown open) */
-	ARROW_ACTIVE: "voxcpm-model-selector__arrow--active",
-	/** Element — browse button for custom path selection */
-	BROWSE: "voxcpm-model-selector__browse",
-	/** Element — custom path indicator shown below the row */
-	PATH: "voxcpm-model-selector__path",
-	/** Modifier — path indicator visible state */
-	PATH_VISIBLE: "voxcpm-model-selector__path--visible"
-};
-/** CSS styles for the model selector widget */
-var MODEL_SELECTOR_STYLES = `
-/* ============================================================================
- * VoxCPM Model Selector Widget (BEM)
- * Block: .voxcpm-model-selector
- * ============================================================================ */
 
-/* ── Block ── */
-.${MODEL_SELECTOR_CLASSES.BLOCK} {
+var f = {
+	BLOCK: "voxcpm-model-selector",
+	ROW: "voxcpm-model-selector__row",
+	DISPLAY: "voxcpm-model-selector__display",
+	ICON: "voxcpm-model-selector__icon",
+	TEXT: "voxcpm-model-selector__text",
+	ARROW: "voxcpm-model-selector__arrow",
+	ARROW_ACTIVE: "voxcpm-model-selector__arrow--active",
+	BROWSE: "voxcpm-model-selector__browse",
+	PATH: "voxcpm-model-selector__path",
+	PATH_VISIBLE: "voxcpm-model-selector__path--visible"
+}, p = `
+
+.${f.BLOCK} {
   display: flex;
   flex-direction: column;
   gap: 0;
   width: 100%;
   padding: var(--voxcpm-space-2xs) 0;
   box-sizing: border-box;
-  /* Prevent vertical stretching in Node 2.0 mode.
-   *
-   * WidgetDOM.vue wraps DOM widgets with class="flex flex-col *:flex-1",
-   * which applies flex:1 to ALL direct children via the universal selector.
-   * This causes DOM widgets to stretch vertically like text areas.
-   *
-   * Two-part fix:
-   * 1. flex:none !important — overrides the *:flex-1 rule to prevent
-   *    flex growth/shrink. The !important is required because the parent's
-   *    *:flex-1 selector has equal specificity (0,1,0) but we need to win.
-   * 2. align-self:flex-start !important — prevents the flex container from
-   *    stretching this item along the cross axis (vertical in flex-col).
-   *    Without this, even with flex:none, the parent's align-items:stretch
-   *    (the default) would still make the widget fill the full column height.
-   *
- * Additionally, --comfy-widget-min-height and --comfy-widget-max-height
- * CSS custom properties are set equal as a safety net. These are read
- * by DOMWidgetImpl.computeLayoutSize() as a fallback, but since we
- * intentionally do NOT set computeLayoutSize() on the widget (to avoid
- * triggering 'auto' grid row sizing in Node 2.0), these properties
- * serve as documentation of the intended height rather than an active
- * layout mechanism. */
+  
   flex: none !important;
   align-self: flex-start !important;
   --comfy-widget-min-height: var(--voxcpm-widget-height);
@@ -394,8 +116,7 @@ var MODEL_SELECTOR_STYLES = `
   --comfy-widget-height: var(--voxcpm-widget-height);
 }
 
-/* ── Row: display + browse (horizontal layout) ── */
-.${MODEL_SELECTOR_CLASSES.ROW} {
+.${f.ROW} {
   display: flex;
   align-items: center;
   gap: var(--voxcpm-space-xs);
@@ -403,8 +124,7 @@ var MODEL_SELECTOR_STYLES = `
   box-sizing: border-box;
 }
 
-/* ── Display: clickable area to open dropdown ── */
-.${MODEL_SELECTOR_CLASSES.DISPLAY} {
+.${f.DISPLAY} {
   display: flex;
   align-items: center;
   gap: var(--voxcpm-space-s);
@@ -425,17 +145,16 @@ var MODEL_SELECTOR_STYLES = `
   overflow: hidden;
 }
 
-.${MODEL_SELECTOR_CLASSES.DISPLAY}:hover {
+.${f.DISPLAY}:hover {
   border-color: var(--voxcpm-cyber-accent);
   box-shadow: var(--voxcpm-cyber-glow);
 }
 
-.${MODEL_SELECTOR_CLASSES.DISPLAY}:active {
+.${f.DISPLAY}:active {
   background: var(--voxcpm-cyber-bg-active);
 }
 
-/* ── Icon: folder icon indicating model source ── */
-.${MODEL_SELECTOR_CLASSES.ICON} {
+.${f.ICON} {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -445,13 +164,12 @@ var MODEL_SELECTOR_STYLES = `
   color: var(--voxcpm-cyber-accent);
 }
 
-.${MODEL_SELECTOR_CLASSES.ICON} svg {
+.${f.ICON} svg {
   width: 16px;
   height: 16px;
 }
 
-/* ── Text: model name ── */
-.${MODEL_SELECTOR_CLASSES.TEXT} {
+.${f.TEXT} {
   flex: 1;
   color: var(--voxcpm-cyber-text);
   font-size: var(--voxcpm-font-size-xs);
@@ -461,8 +179,7 @@ var MODEL_SELECTOR_STYLES = `
   line-height: 1.3;
 }
 
-/* ── Arrow: dropdown indicator ── */
-.${MODEL_SELECTOR_CLASSES.ARROW} {
+.${f.ARROW} {
   font-size: 9px;
   color: var(--voxcpm-cyber-accent);
   margin-left: auto;
@@ -472,16 +189,14 @@ var MODEL_SELECTOR_STYLES = `
   transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);
 }
 
-/* Arrow highlighted on display hover */
-.${MODEL_SELECTOR_CLASSES.DISPLAY}:hover .${MODEL_SELECTOR_CLASSES.ARROW},
-/* Arrow highlighted when dropdown is open */
-.${MODEL_SELECTOR_CLASSES.ARROW_ACTIVE} {
+.${f.DISPLAY}:hover .${f.ARROW},
+
+.${f.ARROW_ACTIVE} {
   opacity: 1;
 }
 
-/* ── Browse: custom path button ── */
-.${MODEL_SELECTOR_CLASSES.BROWSE} {
-  /* Reset ComfyUI's global button styles */
+.${f.BROWSE} {
+  
   all: initial;
   display: flex;
   align-items: center;
@@ -504,17 +219,16 @@ var MODEL_SELECTOR_STYLES = `
   box-sizing: border-box;
 }
 
-.${MODEL_SELECTOR_CLASSES.BROWSE}:hover {
+.${f.BROWSE}:hover {
   border-color: var(--voxcpm-cyber-accent);
   box-shadow: var(--voxcpm-cyber-glow);
 }
 
-.${MODEL_SELECTOR_CLASSES.BROWSE}:active {
+.${f.BROWSE}:active {
   background: var(--voxcpm-cyber-bg-active);
 }
 
-/* ── Path: custom path indicator (below row, hidden by default) ── */
-.${MODEL_SELECTOR_CLASSES.PATH} {
+.${f.PATH} {
   font-size: var(--voxcpm-font-size-2xs);
   color: var(--voxcpm-cyber-text-dim);
   padding: var(--voxcpm-space-2xs) 0 0 0;
@@ -527,103 +241,49 @@ var MODEL_SELECTOR_STYLES = `
   font-family: var(--voxcpm-cyber-font);
 }
 
-.${MODEL_SELECTOR_CLASSES.PATH_VISIBLE} {
+.${f.PATH_VISIBLE} {
   display: block;
 }
 
-/* ── Focus: keyboard accessibility ── */
-.${MODEL_SELECTOR_CLASSES.DISPLAY}:focus-visible,
-.${MODEL_SELECTOR_CLASSES.BROWSE}:focus-visible {
+.${f.DISPLAY}:focus-visible,
+.${f.BROWSE}:focus-visible {
   outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-cyber-accent);
   outline-offset: var(--voxcpm-focus-ring-offset);
 }
 
-/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .${MODEL_SELECTOR_CLASSES.BLOCK} *,
-  .${MODEL_SELECTOR_CLASSES.BLOCK} *::before,
-  .${MODEL_SELECTOR_CLASSES.BLOCK} *::after {
+  .${f.BLOCK} *,
+  .${f.BLOCK} *::before,
+  .${f.BLOCK} *::after {
     transition-duration: 0ms !important;
   }
 }
-`.trim();
-/** ID for the injected style element */
-var STYLE_ELEMENT_ID$1 = "voxcpm-model-selector-styles";
-/** Whether styles have been injected */
-var stylesInjected$1 = false;
-/**
-* Inject model selector CSS styles into the document head.
-*
-* This function is idempotent — calling it multiple times has no effect
-* after the first injection. Styles are injected once per page load.
-*
-* Requires design tokens to be injected first (via `injectDesignTokens()`).
-*/
-function injectModelSelectorStyles() {
-	if (stylesInjected$1) return;
-	if (document.getElementById(STYLE_ELEMENT_ID$1)) {
-		stylesInjected$1 = true;
+`.trim(), m = "voxcpm-model-selector-styles", h = !1;
+function g() {
+	if (h) return;
+	if (document.getElementById(m)) {
+		h = !0;
 		return;
 	}
-	const style = document.createElement("style");
-	style.id = STYLE_ELEMENT_ID$1;
-	style.textContent = MODEL_SELECTOR_STYLES;
-	document.head.appendChild(style);
-	stylesInjected$1 = true;
+	let e = document.createElement("style");
+	e.id = m, e.textContent = p, document.head.appendChild(e), h = !0;
 }
-//#endregion
-//#region widgets/modelDropdownStyles.ts
-/**
-* Model Dropdown Styles (BEM + Cyber Theme)
-*
-* CSS styles for the custom model selector dropdown panel.
-* Uses BEM naming convention: `.voxcpm-model-dropdown__element--modifier`
-* Uses cyber-theme design tokens: `var(--voxcpm-cyber-*)` for all values.
-*
-* @module voxcpm/widgets/model-dropdown-styles
-*/
-/**
-* BEM class names for the model dropdown panel.
-*
-* Centralized here so both CSS and TypeScript use the same names.
-* If a class name changes, update it here and the CSS will follow.
-*/
-var MODEL_DROPDOWN_CLASSES = {
-	/** Block — the dropdown panel container */
-	BLOCK: "voxcpm-model-dropdown",
-	/** Element — header bar with shield icon and title */
-	HEADER: "voxcpm-model-dropdown__header",
-	/** Element — scrollable item list */
-	LIST: "voxcpm-model-dropdown__list",
-	/** Element — model item row */
-	ITEM: "voxcpm-model-dropdown__item",
-	/** Modifier — keyboard-selected item */
-	ITEM_SELECTED: "voxcpm-model-dropdown__item--selected",
-	/** Element — status icon container */
-	ICON: "voxcpm-model-dropdown__icon",
-	/** Modifier — cloud icon (model needs download) */
-	ICON_CLOUD: "voxcpm-model-dropdown__icon--cloud",
-	/** Modifier — check icon (model available locally) */
-	ICON_CHECK: "voxcpm-model-dropdown__icon--check",
-	/** Element — model name text */
-	NAME: "voxcpm-model-dropdown__name",
-	/** Element — "DEFAULT" tag for official models */
-	TAG: "voxcpm-model-dropdown__tag",
-	/** Element — size/architecture metadata */
-	META: "voxcpm-model-dropdown__meta"
-};
-/** CSS styles for the model dropdown panel */
-var MODEL_DROPDOWN_STYLES = `
-/* ============================================================================
- * VoxCPM Model Dropdown (BEM + Cyber Theme)
- * Block: .voxcpm-model-dropdown
- * ============================================================================
- * Custom dropdown panel replacing LiteGraph.ContextMenu.
- * Cyber-security aesthetic: monospace font, neon green accent, scanline overlay.
- * ============================================================================ */
 
-/* ── Block: Panel ── */
-.${MODEL_DROPDOWN_CLASSES.BLOCK} {
+var _ = {
+	BLOCK: "voxcpm-model-dropdown",
+	HEADER: "voxcpm-model-dropdown__header",
+	LIST: "voxcpm-model-dropdown__list",
+	ITEM: "voxcpm-model-dropdown__item",
+	ITEM_SELECTED: "voxcpm-model-dropdown__item--selected",
+	ICON: "voxcpm-model-dropdown__icon",
+	ICON_CLOUD: "voxcpm-model-dropdown__icon--cloud",
+	ICON_CHECK: "voxcpm-model-dropdown__icon--check",
+	NAME: "voxcpm-model-dropdown__name",
+	TAG: "voxcpm-model-dropdown__tag",
+	META: "voxcpm-model-dropdown__meta"
+}, v = `
+
+.${_.BLOCK} {
   position: fixed;
   z-index: 1000;
   min-width: 280px;
@@ -641,8 +301,7 @@ var MODEL_DROPDOWN_STYLES = `
   outline: none;
 }
 
-/* Scanline overlay — subtle cyber texture */
-.${MODEL_DROPDOWN_CLASSES.BLOCK}::after {
+.${_.BLOCK}::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -657,8 +316,7 @@ var MODEL_DROPDOWN_STYLES = `
   z-index: 1;
 }
 
-/* ── Element: Header ── */
-.${MODEL_DROPDOWN_CLASSES.HEADER} {
+.${_.HEADER} {
   padding: 8px 12px;
   border-bottom: 1px solid var(--voxcpm-cyber-border);
   font-size: 10px;
@@ -673,14 +331,13 @@ var MODEL_DROPDOWN_STYLES = `
   user-select: none;
 }
 
-.${MODEL_DROPDOWN_CLASSES.HEADER} svg {
+.${_.HEADER} svg {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
 }
 
-/* ── Element: List ── */
-.${MODEL_DROPDOWN_CLASSES.LIST} {
+.${_.LIST} {
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 280px;
@@ -688,26 +345,24 @@ var MODEL_DROPDOWN_STYLES = `
   z-index: 2;
 }
 
-/* Custom scrollbar — cyber style */
-.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar {
+.${_.LIST}::-webkit-scrollbar {
   width: 4px;
 }
 
-.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar-track {
+.${_.LIST}::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar-thumb {
+.${_.LIST}::-webkit-scrollbar-thumb {
   background: var(--voxcpm-cyber-border);
   border-radius: 0;
 }
 
-.${MODEL_DROPDOWN_CLASSES.LIST}::-webkit-scrollbar-thumb:hover {
+.${_.LIST}::-webkit-scrollbar-thumb:hover {
   background: var(--voxcpm-cyber-accent);
 }
 
-/* ── Element: Item ── */
-.${MODEL_DROPDOWN_CLASSES.ITEM} {
+.${_.ITEM} {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -720,18 +375,17 @@ var MODEL_DROPDOWN_STYLES = `
   user-select: none;
 }
 
-.${MODEL_DROPDOWN_CLASSES.ITEM}:hover,
-.${MODEL_DROPDOWN_CLASSES.ITEM_SELECTED} {
+.${_.ITEM}:hover,
+.${_.ITEM_SELECTED} {
   background: var(--voxcpm-cyber-bg-hover);
   border-left-color: var(--voxcpm-cyber-accent);
 }
 
-.${MODEL_DROPDOWN_CLASSES.ITEM}:active {
+.${_.ITEM}:active {
   background: var(--voxcpm-cyber-bg-active);
 }
 
-/* ── Element: Icon ── */
-.${MODEL_DROPDOWN_CLASSES.ICON} {
+.${_.ICON} {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -740,23 +394,20 @@ var MODEL_DROPDOWN_STYLES = `
   flex-shrink: 0;
 }
 
-.${MODEL_DROPDOWN_CLASSES.ICON} svg {
+.${_.ICON} svg {
   width: 16px;
   height: 16px;
 }
 
-/* Modifier: Cloud icon (needs download) — blue accent */
-.${MODEL_DROPDOWN_CLASSES.ICON_CLOUD} {
+.${_.ICON_CLOUD} {
   color: var(--voxcpm-accent);
 }
 
-/* Modifier: Check icon (available locally) — green success */
-.${MODEL_DROPDOWN_CLASSES.ICON_CHECK} {
+.${_.ICON_CHECK} {
   color: var(--voxcpm-color-success);
 }
 
-/* ── Element: Name ── */
-.${MODEL_DROPDOWN_CLASSES.NAME} {
+.${_.NAME} {
   flex: 0 1 auto;
   color: var(--voxcpm-cyber-text);
   font-size: var(--voxcpm-font-size-xs);
@@ -767,8 +418,7 @@ var MODEL_DROPDOWN_STYLES = `
   min-width: 0;
 }
 
-/* ── Element: Meta (size info, after name) ── */
-.${MODEL_DROPDOWN_CLASSES.META} {
+.${_.META} {
   font-size: 10px;
   color: var(--voxcpm-cyber-text-dim);
   font-family: var(--voxcpm-cyber-font);
@@ -776,8 +426,7 @@ var MODEL_DROPDOWN_STYLES = `
   margin-left: 6px;
 }
 
-/* ── Element: Tag ("DEFAULT", right-aligned) ── */
-.${MODEL_DROPDOWN_CLASSES.TAG} {
+.${_.TAG} {
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -792,11 +441,6 @@ var MODEL_DROPDOWN_STYLES = `
   margin-left: auto;
 }
 
-/* ── Animation: Entrance ── */
-/* NOTE: The dropdown uses transform:scale() for zoom matching.
-   The entrance animation must preserve the scale value by using
-   a CSS variable (--voxcpm-dropdown-scale, default 1) so that
-   the scale is maintained throughout the animation. */
 @keyframes voxcpm-dropdown-in {
   from {
     opacity: 0;
@@ -808,490 +452,194 @@ var MODEL_DROPDOWN_STYLES = `
   }
 }
 
-/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .${MODEL_DROPDOWN_CLASSES.BLOCK} {
+  .${_.BLOCK} {
     animation: none;
   }
 }
-`.trim();
-/** ID for the injected style element */
-var STYLE_ELEMENT_ID = "voxcpm-model-dropdown-styles";
-/** Whether styles have been injected */
-var stylesInjected = false;
-/**
-* Inject model dropdown CSS styles into the document head.
-*
-* This function is idempotent — calling it multiple times has no effect
-* after the first injection. Styles are injected once per page load.
-*
-* Requires design tokens to be injected first (via `injectDesignTokens()`).
-*/
-function injectModelDropdownStyles() {
-	if (stylesInjected) return;
-	if (document.getElementById(STYLE_ELEMENT_ID)) {
-		stylesInjected = true;
+`.trim(), y = "voxcpm-model-dropdown-styles", b = !1;
+function x() {
+	if (b) return;
+	if (document.getElementById(y)) {
+		b = !0;
 		return;
 	}
-	const style = document.createElement("style");
-	style.id = STYLE_ELEMENT_ID;
-	style.textContent = MODEL_DROPDOWN_STYLES;
-	document.head.appendChild(style);
-	stylesInjected = true;
+	let e = document.createElement("style");
+	e.id = y, e.textContent = v, document.head.appendChild(e), b = !0;
 }
-//#endregion
-//#region styles/index.ts
-/**
-* VoxCPM Styles — Central Injection Entry Point
-*
-* Provides a single `injectAllStyles()` function that injects all VoxCPM
-* CSS styles in the correct order:
-*
-* 1. Design tokens (`:root` custom properties) — must be first
-* 2. Component styles (model selector, dialog, path indicator)
-*
-* This module ensures styles are injected exactly once per page load,
-* regardless of how many times `injectAllStyles()` is called.
-*
-* @module voxcpm/styles
-*/
-/** Whether all styles have been injected */
-var allStylesInjected = false;
-/**
-* Inject all VoxCPM CSS styles into the document head.
-*
-* Injection order matters:
-* 1. **Design tokens** — `:root` custom properties that other styles reference
-* 2. **Component styles** — BEM-block styles that use the design tokens
-*
-* This function is idempotent — calling it multiple times has no effect
-* after the first successful injection.
-*
-* Should be called once during extension initialization (e.g., `init()` hook)
-* before any widgets or dialogs are created.
-*/
-function injectAllStyles() {
-	if (allStylesInjected) return;
-	injectDesignTokens();
-	injectModelSelectorStyles();
-	injectModelDropdownStyles();
-	allStylesInjected = true;
+
+var S = !1;
+function C() {
+	S || (d(), g(), x(), S = !0);
 }
-//#endregion
-//#region core/session.ts
-/**
-* VoxCPM Session State Management
-* 
-* Provides utilities for managing session-scoped state using sessionStorage.
-* Session state persists until the browser tab/window is closed.
-*/
-/**
-* Get a value from session storage
-* 
-* @param key - Storage key
-* @returns Stored value or null if not found
-*/
-function getSessionItem(key) {
+
+function w(e) {
 	try {
-		return sessionStorage.getItem(key);
+		return sessionStorage.getItem(e);
 	} catch {
 		return null;
 	}
 }
-/**
-* Set a value in session storage
-* 
-* @param key - Storage key
-* @param value - Value to store
-* @returns True if successful, false if storage not available
-*/
-function setSessionItem(key, value) {
+function T(e, t) {
 	try {
-		sessionStorage.setItem(key, value);
-		return true;
+		return sessionStorage.setItem(e, t), !0;
 	} catch {
-		return false;
+		return !1;
 	}
 }
-/**
-* Remove a value from session storage
-* 
-* @param key - Storage key
-* @returns True if successful, false if storage not available
-*/
-function removeSessionItem(key) {
+function E(e) {
 	try {
-		sessionStorage.removeItem(key);
-		return true;
+		return sessionStorage.removeItem(e), !0;
 	} catch {
-		return false;
+		return !1;
 	}
 }
-/**
-* Check if a session flag is set
-* 
-* @param key - Storage key for the flag
-* @returns True if flag is set
-*/
-function isSessionFlagSet$1(key) {
-	return getSessionItem(key) !== null;
+function D(e) {
+	return w(e) !== null;
 }
-/**
-* Set a session flag
-* 
-* @param key - Storage key for the flag
-* @returns True if successful
-*/
-function setSessionFlag$1(key) {
-	return setSessionItem(key, "true");
+function O(e) {
+	return T(e, "true");
 }
-/**
-* Clear a session flag
-* 
-* @param key - Storage key for the flag
-* @returns True if successful
-*/
-function clearSessionFlag(key) {
-	return removeSessionItem(key);
+function ee(e) {
+	return E(e);
 }
-/**
-* Get and parse a JSON value from session storage
-* 
-* @param key - Storage key
-* @returns Parsed value or null if not found/invalid
-*/
-function getSessionJSON(key) {
-	const value = getSessionItem(key);
-	if (value === null) return null;
+function te(e) {
+	let t = w(e);
+	if (t === null) return null;
 	try {
-		return JSON.parse(value);
+		return JSON.parse(t);
 	} catch {
 		return null;
 	}
 }
-/**
-* Stringify and set a JSON value in session storage
-* 
-* @param key - Storage key
-* @param value - Value to store
-* @returns True if successful
-*/
-function setSessionJSON(key, value) {
+function k(e, t) {
 	try {
-		return setSessionItem(key, JSON.stringify(value));
+		return T(e, JSON.stringify(t));
 	} catch {
-		return false;
+		return !1;
 	}
 }
-//#endregion
-//#region notifications/NotificationManager.ts
-/**
-* Notification Manager
-* 
-* Handles notification display with session-based deduplication.
-* Ensures notifications are shown only once per browser session.
-*/
-/**
-* Manages notification display with session-based deduplication
-*/
-var NotificationManager = class {
-	/**
-	* Create a new NotificationManager
-	* 
-	* @param config - Manager configuration
-	*/
-	constructor(config) {
-		this.sessionKey = config.sessionKey;
-		this.defaultLife = config.defaultLife;
+var A = new class {
+	constructor(e) {
+		this.sessionKey = e.sessionKey, this.defaultLife = e.defaultLife;
 	}
-	/**
-	* Show a notification if not already shown this session
-	* 
-	* @param options - Notification options
-	* @returns Result indicating if notification was shown
-	*/
-	show(options) {
-		if (isSessionFlagSet$1(this.sessionKey)) {
-			logger.log("Notification already shown this session, skipping");
-			return {
-				shown: false,
-				reason: "already_shown"
-			};
-		}
+	show(e) {
+		if (D(this.sessionKey)) return s.log("Notification already shown this session, skipping"), {
+			shown: !1,
+			reason: "already_shown"
+		};
 		try {
-			app$1.extensionManager.toast.add({
-				severity: options.severity,
-				summary: options.summary,
-				detail: options.detail,
-				life: options.life ?? this.defaultLife,
-				closable: options.closable ?? true
-			});
-			setSessionFlag$1(this.sessionKey);
-			logger.log("Toast notification displayed:", options.summary);
-			return { shown: true };
-		} catch (error) {
-			logger.warn("Toast not available:", error);
-			logger.log(`${options.summary}: ${options.detail ?? ""}`);
-			setSessionFlag$1(this.sessionKey);
-			return {
-				shown: false,
+			return t.extensionManager.toast.add({
+				severity: e.severity,
+				summary: e.summary,
+				detail: e.detail,
+				life: e.life ?? this.defaultLife,
+				closable: e.closable ?? !0
+			}), O(this.sessionKey), s.log("Toast notification displayed:", e.summary), { shown: !0 };
+		} catch (t) {
+			return s.warn("Toast not available:", t), s.log(`${e.summary}: ${e.detail ?? ""}`), O(this.sessionKey), {
+				shown: !1,
 				reason: "toast_unavailable"
 			};
 		}
 	}
-	/**
-	* Show a notification without session deduplication
-	* 
-	* @param options - Notification options
-	* @returns Result indicating if notification was shown
-	*/
-	showAlways(options) {
+	showAlways(e) {
 		try {
-			app$1.extensionManager.toast.add({
-				severity: options.severity,
-				summary: options.summary,
-				detail: options.detail,
-				life: options.life ?? this.defaultLife,
-				closable: options.closable ?? true
-			});
-			logger.log("Toast notification displayed:", options.summary);
-			return { shown: true };
-		} catch (error) {
-			logger.warn("Toast not available:", error);
-			logger.log(`${options.summary}: ${options.detail ?? ""}`);
-			return {
-				shown: false,
+			return t.extensionManager.toast.add({
+				severity: e.severity,
+				summary: e.summary,
+				detail: e.detail,
+				life: e.life ?? this.defaultLife,
+				closable: e.closable ?? !0
+			}), s.log("Toast notification displayed:", e.summary), { shown: !0 };
+		} catch (t) {
+			return s.warn("Toast not available:", t), s.log(`${e.summary}: ${e.detail ?? ""}`), {
+				shown: !1,
 				reason: "toast_unavailable"
 			};
 		}
 	}
-	/**
-	* Reset notification state (for testing)
-	*/
 	reset() {
-		clearSessionFlag(this.sessionKey);
+		ee(this.sessionKey);
 	}
-	/**
-	* Check if notification was already shown this session
-	*/
 	wasShown() {
-		return isSessionFlagSet$1(this.sessionKey);
+		return D(this.sessionKey);
 	}
-};
-/**
-* Default notification manager instance for missing dependency warnings
-*/
-var notificationManager = new NotificationManager({
+}({
 	sessionKey: "voxcpm.normalization_notification_shown",
 	defaultLife: 1e4
-});
-//#endregion
-//#region settings/SettingsManager.ts
-/**
-* Settings Manager
-*
-* Manages VoxCPM user settings with ComfyUI integration.
-* Uses both session storage and ComfyUI's settings system.
-*/
-/** Session storage key for settings */
-var SETTINGS_SESSION_KEY = "voxcpm.settings";
-/**
-* Manages VoxCPM user settings
-*/
-var SettingsManager = class {
+}), j = "voxcpm.settings", M = new class {
 	constructor() {
-		this.settings = null;
-		this.initialized = false;
+		this.settings = null, this.initialized = !1;
 	}
-	/**
-	* Initialize settings from server config
-	*/
-	async initialize(configDetail) {
-		this.settings = configDetail.settings;
-		this.initialized = true;
-		setSessionJSON(SETTINGS_SESSION_KEY, this.settings);
-		logger.log("Settings initialized:", this.settings);
+	async initialize(e) {
+		this.settings = e.settings, this.initialized = !0, k(j, this.settings), s.log("Settings initialized:", this.settings);
 	}
-	/**
-	* Get current settings
-	*/
 	getSettings() {
 		if (this.settings) return this.settings;
-		const cached = getSessionJSON(SETTINGS_SESSION_KEY);
-		if (cached) {
-			this.settings = cached;
-			return this.settings;
-		}
-		return null;
+		let e = te(j);
+		return e ? (this.settings = e, this.settings) : null;
 	}
-	/**
-	* Check if this is the first run
-	*/
 	isFirstRun() {
-		return this.getSettings()?.first_run ?? true;
+		return this.getSettings()?.first_run ?? !0;
 	}
-	/**
-	* Check if using custom path
-	*/
 	isUsingCustomPath() {
-		return this.getSettings()?.use_custom_path ?? false;
+		return this.getSettings()?.use_custom_path ?? !1;
 	}
-	/**
-	* Get effective model path
-	*/
 	getEffectivePath() {
 		return this.getSettings()?.effective_path ?? null;
 	}
-	/**
-	* Update settings via server
-	*/
-	async updateSettings(updates) {
+	async updateSettings(e) {
 		try {
-			for (const [key, value] of Object.entries(updates)) await app$1.api.storeSetting(`voxcpm.${key}`, value);
-			if (this.settings) {
-				Object.assign(this.settings, updates);
-				setSessionJSON(SETTINGS_SESSION_KEY, this.settings);
-			}
-			logger.log("Settings updated:", updates);
-			return true;
-		} catch (error) {
-			logger.warn("Failed to update settings:", error);
-			return false;
+			for (let [n, r] of Object.entries(e)) await t.api.storeSetting(`voxcpm.${n}`, r);
+			return this.settings && (Object.assign(this.settings, e), k(j, this.settings)), s.log("Settings updated:", e), !0;
+		} catch (e) {
+			return s.warn("Failed to update settings:", e), !1;
 		}
 	}
-	/**
-	* Mark first run as complete
-	*/
 	async markFirstRunComplete() {
-		return this.updateSettings({ first_run: false });
+		return this.updateSettings({ first_run: !1 });
 	}
-	/**
-	* Set custom path preference
-	*/
-	async setCustomPath(path) {
+	async setCustomPath(e) {
 		return this.updateSettings({
-			use_custom_path: true,
-			custom_model_path: path
+			use_custom_path: !0,
+			custom_model_path: e
 		});
 	}
-	/**
-	* Set default path preference
-	*/
 	async setDefaultPath() {
 		return this.updateSettings({
-			use_custom_path: false,
+			use_custom_path: !1,
 			custom_model_path: null
 		});
 	}
-	/**
-	* Check if settings are initialized
-	*/
 	isInitialized() {
 		return this.initialized;
 	}
-};
-/**
-* Default settings manager instance
-*/
-var settingsManager = new SettingsManager();
-//#endregion
-//#region dialogs/index.ts
-/**
-* Dialog Components Module Exports
-*
-* Exports all Vue dialog components.
-*/
-/** Active dialog instance */
-var activeDialog = null;
-/**
-* Show the welcome dialog
-*
-* @returns Promise that resolves with 'default' or 'custom' selection
-*/
-function showWelcomeDialog() {
-	return new Promise((resolve) => {
-		closeActiveDialog();
-		const overlay = document.createElement("div");
-		overlay.className = "voxcpm-dialog__overlay";
-		overlay.innerHTML = `
-    <div class="voxcpm-dialog">
-    <div class="voxcpm-dialog__header">
-    <span class="voxcpm-dialog__icon">🎙️</span>
-    <h2 class="voxcpm-dialog__title">VoxCPM Model Setup</h2>
-    </div>
-    <div class="voxcpm-dialog__body">
-    <p class="voxcpm-dialog__description">
-    Welcome to VoxCPM! How would you like to configure your model path?
-    </p>
-    <div class="voxcpm-dialog__options">
-    <button class="voxcpm-dialog__option" data-option="default">
-    <div class="voxcpm-dialog__option-icon">📁</div>
-    <div class="voxcpm-dialog__option-content">
-    <h3>Use Default Path</h3>
-    <p class="voxcpm-dialog__option-path">models/tts/VoxCPM/</p>
-    <p class="voxcpm-dialog__option-description">
-    Official models will be downloaded automatically.
-    </p>
-    </div>
-    </button>
-    <button class="voxcpm-dialog__option" data-option="custom">
-    <div class="voxcpm-dialog__option-icon">📂</div>
-    <div class="voxcpm-dialog__option-content">
-    <h3>Use Custom Path</h3>
-    <p class="voxcpm-dialog__option-description">
-    Select a custom directory where your VoxCPM models are located.
-    Useful for existing model collections.
-    </p>
-    </div>
-    </button>
-    </div>
-    </div>
-    <div class="voxcpm-dialog__footer">
-    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--secondary" id="voxcpm-cancel">Cancel</button>
-    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--primary" id="voxcpm-continue" disabled>
-    Continue
-    </button>
-    </div>
-    </div>
-    `;
-		let selectedOption = null;
-		const optionCards = overlay.querySelectorAll(".voxcpm-dialog__option");
-		optionCards.forEach((card) => {
-			card.addEventListener("click", () => {
-				optionCards.forEach((c) => c.classList.remove("voxcpm-dialog__option--selected"));
-				card.classList.add("voxcpm-dialog__option--selected");
-				selectedOption = card.getAttribute("data-option");
-				const continueBtn = overlay.querySelector("#voxcpm-continue");
-				if (continueBtn) continueBtn.disabled = false;
+}(), N = null;
+function P() {
+	return new Promise((e) => {
+		I();
+		let t = document.createElement("div");
+		t.className = "voxcpm-dialog__overlay", t.innerHTML = "\n    <div class=\"voxcpm-dialog\">\n    <div class=\"voxcpm-dialog__header\">\n    <span class=\"voxcpm-dialog__icon\">🎙️</span>\n    <h2 class=\"voxcpm-dialog__title\">VoxCPM Model Setup</h2>\n    </div>\n    <div class=\"voxcpm-dialog__body\">\n    <p class=\"voxcpm-dialog__description\">\n    Welcome to VoxCPM! How would you like to configure your model path?\n    </p>\n    <div class=\"voxcpm-dialog__options\">\n    <button class=\"voxcpm-dialog__option\" data-option=\"default\">\n    <div class=\"voxcpm-dialog__option-icon\">📁</div>\n    <div class=\"voxcpm-dialog__option-content\">\n    <h3>Use Default Path</h3>\n    <p class=\"voxcpm-dialog__option-path\">models/tts/VoxCPM/</p>\n    <p class=\"voxcpm-dialog__option-description\">\n    Official models will be downloaded automatically.\n    </p>\n    </div>\n    </button>\n    <button class=\"voxcpm-dialog__option\" data-option=\"custom\">\n    <div class=\"voxcpm-dialog__option-icon\">📂</div>\n    <div class=\"voxcpm-dialog__option-content\">\n    <h3>Use Custom Path</h3>\n    <p class=\"voxcpm-dialog__option-description\">\n    Select a custom directory where your VoxCPM models are located.\n    Useful for existing model collections.\n    </p>\n    </div>\n    </button>\n    </div>\n    </div>\n    <div class=\"voxcpm-dialog__footer\">\n    <button class=\"voxcpm-dialog__btn voxcpm-dialog__btn--secondary\" id=\"voxcpm-cancel\">Cancel</button>\n    <button class=\"voxcpm-dialog__btn voxcpm-dialog__btn--primary\" id=\"voxcpm-continue\" disabled>\n    Continue\n    </button>\n    </div>\n    </div>\n    ";
+		let n = null, r = t.querySelectorAll(".voxcpm-dialog__option");
+		r.forEach((e) => {
+			e.addEventListener("click", () => {
+				r.forEach((e) => e.classList.remove("voxcpm-dialog__option--selected")), e.classList.add("voxcpm-dialog__option--selected"), n = e.getAttribute("data-option");
+				let i = t.querySelector("#voxcpm-continue");
+				i && (i.disabled = !1);
 			});
-		});
-		overlay.querySelector("#voxcpm-cancel")?.addEventListener("click", () => {
-			closeActiveDialog();
-			resolve(null);
-		});
-		overlay.querySelector("#voxcpm-continue")?.addEventListener("click", () => {
-			if (selectedOption) {
-				closeActiveDialog();
-				resolve(selectedOption);
-			}
-		});
-		document.body.appendChild(overlay);
-		activeDialog = overlay;
-		injectDialogStyles();
+		}), t.querySelector("#voxcpm-cancel")?.addEventListener("click", () => {
+			I(), e(null);
+		}), t.querySelector("#voxcpm-continue")?.addEventListener("click", () => {
+			n && (I(), e(n));
+		}), document.body.appendChild(t), N = t, L();
 	});
 }
-/**
-* Show the path selection dialog
-*
-* @param initialPath Optional initial path value
-* @returns Promise that resolves with the selected path or null
-*/
-function showPathSelectionDialog(initialPath) {
-	return new Promise((resolve) => {
-		closeActiveDialog();
-		const overlay = document.createElement("div");
-		overlay.className = "voxcpm-dialog__overlay";
-		overlay.innerHTML = `
+function F(e) {
+	return new Promise((t) => {
+		I();
+		let n = document.createElement("div");
+		n.className = "voxcpm-dialog__overlay", n.innerHTML = `
     <div class="voxcpm-dialog voxcpm-dialog--large">
     <div class="voxcpm-dialog__header">
     <h2 class="voxcpm-dialog__title">Select Model Directory</h2>
@@ -1302,7 +650,7 @@ function showPathSelectionDialog(initialPath) {
     type="text"
     class="voxcpm-dialog__input"
     placeholder="Enter model directory path"
-    value="${initialPath || ""}"
+    value="${e || ""}"
     id="voxcpm-path-input"
     />
     <button class="voxcpm-dialog__btn voxcpm-dialog__btn--secondary" id="voxcpm-browse">
@@ -1323,951 +671,271 @@ function showPathSelectionDialog(initialPath) {
     </div>
     </div>
     `;
-		let isValid = false;
-		let currentPath = initialPath || "";
-		const pathInput = overlay.querySelector("#voxcpm-path-input");
-		const modelsPreview = overlay.querySelector("#voxcpm-models-preview");
-		const modelsList = overlay.querySelector("#voxcpm-models-list");
-		const modelCount = overlay.querySelector("#voxcpm-model-count");
-		const validationMessage = overlay.querySelector("#voxcpm-validation-message");
-		const confirmBtn = overlay.querySelector("#voxcpm-confirm");
-		async function validatePath(path) {
-			if (!path) {
-				modelsPreview.style.display = "none";
-				validationMessage.textContent = "";
-				confirmBtn.disabled = true;
-				isValid = false;
+		let r = !1, i = e || "", a = n.querySelector("#voxcpm-path-input"), o = n.querySelector("#voxcpm-models-preview"), c = n.querySelector("#voxcpm-models-list"), l = n.querySelector("#voxcpm-model-count"), u = n.querySelector("#voxcpm-validation-message"), d = n.querySelector("#voxcpm-confirm");
+		async function f(e) {
+			if (!e) {
+				o.style.display = "none", u.textContent = "", d.disabled = !0, r = !1;
 				return;
 			}
 			try {
-				const { app } = await import("../scripts/app.js");
-				const result = await (await app.api.fetchApi(`/voxcpm/validate_path?path=${encodeURIComponent(path)}`)).json();
-				isValid = result.valid;
-				if (result.valid && result.models?.length > 0) {
-					modelsPreview.style.display = "block";
-					modelCount.textContent = result.models.length.toString();
-					modelsList.innerHTML = result.models.map((m) => `
+				let { app: t } = await import("../../scripts/app.js"), n = await (await t.api.fetchApi(`/voxcpm/validate_path?path=${encodeURIComponent(e)}`)).json();
+				r = n.valid, n.valid && n.models?.length > 0 ? (o.style.display = "block", l.textContent = n.models.length.toString(), c.innerHTML = n.models.map((e) => `
           <li>
           <span class="voxcpm-dialog__model-icon">📁</span>
-          <span class="voxcpm-dialog__model-name">${m.name}</span>
+          <span class="voxcpm-dialog__model-name">${e.name}</span>
           </li>
-          `).join("");
-					validationMessage.innerHTML = `<span class="voxcpm-dialog__validation--success">Found ${result.models.length} VoxCPM-compatible models</span>`;
-					confirmBtn.disabled = false;
-				} else {
-					modelsPreview.style.display = "none";
-					validationMessage.innerHTML = `<span class="voxcpm-dialog__validation--error">${result.error || "Invalid path or no models found"}</span>`;
-					confirmBtn.disabled = true;
-				}
-			} catch (error) {
-				logger.warn("Path validation failed:", error);
-				modelsPreview.style.display = "none";
-				validationMessage.innerHTML = `<span class="voxcpm-dialog__validation--error">Failed to validate path</span>`;
-				confirmBtn.disabled = true;
-				isValid = false;
+          `).join(""), u.innerHTML = `<span class="voxcpm-dialog__validation--success">Found ${n.models.length} VoxCPM-compatible models</span>`, d.disabled = !1) : (o.style.display = "none", u.innerHTML = `<span class="voxcpm-dialog__validation--error">${n.error || "Invalid path or no models found"}</span>`, d.disabled = !0);
+			} catch (e) {
+				s.warn("Path validation failed:", e), o.style.display = "none", u.innerHTML = "<span class=\"voxcpm-dialog__validation--error\">Failed to validate path</span>", d.disabled = !0, r = !1;
 			}
 		}
-		pathInput?.addEventListener("input", () => {
-			currentPath = pathInput.value;
-			validatePath(currentPath);
-		});
-		overlay.querySelector("#voxcpm-browse")?.addEventListener("click", () => {
+		a?.addEventListener("input", () => {
+			i = a.value, f(i);
+		}), n.querySelector("#voxcpm-browse")?.addEventListener("click", () => {
 			alert("Please enter the path manually. Native folder picker requires server support.");
-		});
-		overlay.querySelector("#voxcpm-cancel")?.addEventListener("click", () => {
-			closeActiveDialog();
-			resolve(null);
-		});
-		confirmBtn?.addEventListener("click", () => {
-			if (isValid && currentPath) {
-				closeActiveDialog();
-				resolve(currentPath);
-			}
-		});
-		document.body.appendChild(overlay);
-		activeDialog = overlay;
-		injectDialogStyles();
-		if (initialPath) validatePath(initialPath);
+		}), n.querySelector("#voxcpm-cancel")?.addEventListener("click", () => {
+			I(), t(null);
+		}), d?.addEventListener("click", () => {
+			r && i && (I(), t(i));
+		}), document.body.appendChild(n), N = n, L(), e && f(e);
 	});
 }
-/**
-* Close the active dialog
-*/
-function closeActiveDialog() {
-	if (activeDialog) {
-		activeDialog.remove();
-		activeDialog = null;
-	}
+function I() {
+	N && (N.remove(), N = null);
 }
-/**
-* Inject dialog styles if not already present
-*/
-function injectDialogStyles() {
-	const styleId = "voxcpm-dialog-styles";
-	if (document.getElementById(styleId)) return;
-	const css = `
-/* ============================================================================
- * VoxCPM Dialog Styles (BEM)
- * Block: .voxcpm-dialog
- * ============================================================================ */
-
-/* ── Overlay ── */
-.voxcpm-dialog__overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
+function L() {
+	let e = "voxcpm-dialog-styles";
+	if (document.getElementById(e)) return;
+	let t = document.createElement("style");
+	t.id = e, t.textContent = "\n\n\n\n.voxcpm-dialog__overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 10000;\n}\n\n\n.voxcpm-dialog {\n  background: var(--voxcpm-bg-surface);\n  border-radius: var(--voxcpm-border-radius-m);\n  max-width: 500px;\n  width: 90%;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);\n}\n\n.voxcpm-dialog--large {\n  max-width: 600px;\n}\n\n\n.voxcpm-dialog__header {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-l);\n  padding: var(--voxcpm-space-2xl);\n  border-bottom: 1px solid var(--voxcpm-border-color);\n}\n\n.voxcpm-dialog__icon {\n  font-size: var(--voxcpm-font-size-xl);\n}\n\n.voxcpm-dialog__title {\n  margin: 0;\n  font-size: var(--voxcpm-font-size-l);\n  color: var(--voxcpm-text-primary);\n}\n\n\n.voxcpm-dialog__body {\n  padding: var(--voxcpm-space-2xl);\n}\n\n.voxcpm-dialog__description {\n  margin: 0 0 20px;\n  color: var(--voxcpm-text-secondary);\n  line-height: 1.5;\n}\n\n\n.voxcpm-dialog__options {\n  display: flex;\n  flex-direction: column;\n  gap: var(--voxcpm-space-l);\n}\n\n\n.voxcpm-dialog__option {\n  display: flex;\n  gap: var(--voxcpm-space-xl);\n  padding: var(--voxcpm-space-xl);\n  background: var(--voxcpm-bg-elevated);\n  border: 2px solid var(--voxcpm-border-color);\n  border-radius: var(--voxcpm-border-radius-m);\n  cursor: pointer;\n  text-align: left;\n  transition: border-color var(--voxcpm-duration-normal) var(--voxcpm-easing),\n              background var(--voxcpm-duration-normal) var(--voxcpm-easing);\n}\n\n.voxcpm-dialog__option:hover {\n  border-color: var(--voxcpm-accent);\n}\n\n.voxcpm-dialog__option--selected {\n  border-color: var(--voxcpm-accent);\n  background: var(--voxcpm-bg-input-hover);\n}\n\n.voxcpm-dialog__option-icon {\n  font-size: 32px;\n  flex-shrink: 0;\n}\n\n.voxcpm-dialog__option-content h3 {\n  margin: 0 0 var(--voxcpm-space-xs);\n  color: var(--voxcpm-text-primary);\n  font-size: var(--voxcpm-font-size-m);\n}\n\n.voxcpm-dialog__option-path {\n  margin: 0 0 var(--voxcpm-space-m);\n  font-family: var(--voxcpm-font-family-mono);\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n.voxcpm-dialog__option-description {\n  margin: 0;\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n\n.voxcpm-dialog__footer {\n  display: flex;\n  justify-content: flex-end;\n  gap: var(--voxcpm-space-l);\n  padding: var(--voxcpm-space-xl) var(--voxcpm-space-2xl);\n  border-top: 1px solid var(--voxcpm-border-color);\n}\n\n\n.voxcpm-dialog__btn {\n  padding: var(--voxcpm-space-m) var(--voxcpm-space-xl);\n  border-radius: var(--voxcpm-border-radius-xs);\n  font-size: var(--voxcpm-font-size-m);\n  cursor: pointer;\n  transition: background var(--voxcpm-duration-normal) var(--voxcpm-easing),\n              border-color var(--voxcpm-duration-normal) var(--voxcpm-easing);\n}\n\n.voxcpm-dialog__btn--secondary {\n  background: transparent;\n  border: 1px solid var(--voxcpm-border-color);\n  color: var(--voxcpm-text-secondary);\n}\n\n.voxcpm-dialog__btn--secondary:hover {\n  background: var(--voxcpm-bg-elevated);\n}\n\n.voxcpm-dialog__btn--primary {\n  background: var(--voxcpm-accent);\n  border: none;\n  color: var(--voxcpm-text-on-primary);\n}\n\n.voxcpm-dialog__btn--primary:hover:not(:disabled) {\n  background: var(--voxcpm-accent-hover);\n}\n\n.voxcpm-dialog__btn--primary:disabled {\n  opacity: 0.5;\n  cursor: not-allowed;\n}\n\n\n.voxcpm-dialog__input-group {\n  display: flex;\n  gap: var(--voxcpm-space-m);\n  margin-bottom: var(--voxcpm-space-xl);\n}\n\n.voxcpm-dialog__input {\n  flex: 1;\n  padding: var(--voxcpm-space-m) var(--voxcpm-space-l);\n  background: var(--voxcpm-bg-elevated);\n  border: 1px solid var(--voxcpm-border-color);\n  border-radius: var(--voxcpm-border-radius-xs);\n  color: var(--voxcpm-text-primary);\n  font-size: var(--voxcpm-font-size-m);\n  font-family: var(--voxcpm-font-family);\n}\n\n.voxcpm-dialog__input:focus {\n  outline: none;\n  border-color: var(--voxcpm-accent);\n}\n\n\n.voxcpm-dialog__preview {\n  background: var(--voxcpm-bg-elevated);\n  border-radius: var(--voxcpm-border-radius-xs);\n  padding: var(--voxcpm-space-l);\n  margin-bottom: var(--voxcpm-space-xl);\n}\n\n.voxcpm-dialog__preview h4 {\n  margin: 0 0 var(--voxcpm-space-m);\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n.voxcpm-dialog__models-list {\n  list-style: none;\n  margin: 0;\n  padding: 0;\n}\n\n.voxcpm-dialog__models-list li {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-m);\n  padding: var(--voxcpm-space-xs) 0;\n}\n\n.voxcpm-dialog__model-icon {\n  font-size: var(--voxcpm-font-size-m);\n}\n\n.voxcpm-dialog__model-name {\n  font-size: var(--voxcpm-font-size-s);\n  color: var(--voxcpm-text-secondary);\n}\n\n\n.voxcpm-dialog__validation {\n  font-size: var(--voxcpm-font-size-xs);\n}\n\n.voxcpm-dialog__validation--success {\n  color: var(--voxcpm-color-success);\n}\n\n.voxcpm-dialog__validation--error {\n  color: var(--voxcpm-color-error);\n}\n\n\n.voxcpm-dialog__option:focus-visible,\n.voxcpm-dialog__btn:focus-visible,\n.voxcpm-dialog__input:focus-visible {\n  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);\n  outline-offset: var(--voxcpm-focus-ring-offset);\n}\n\n\n@media (prefers-reduced-motion: reduce) {\n  .voxcpm-dialog *,\n  .voxcpm-dialog *::before,\n  .voxcpm-dialog *::after {\n    transition-duration: 0ms !important;\n  }\n}\n\n\n\n.voxcpm-path-indicator {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-m);\n  padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);\n  background: var(--voxcpm-bg-elevated);\n  border-radius: var(--voxcpm-border-radius-xs);\n  font-size: var(--voxcpm-font-size-xs);\n}\n\n.voxcpm-path-indicator__text {\n  color: var(--voxcpm-text-muted);\n  font-family: var(--voxcpm-font-family-mono);\n}\n\n.voxcpm-path-indicator__change-btn {\n  background: transparent;\n  border: none;\n  cursor: pointer;\n  font-size: var(--voxcpm-font-size-m);\n  padding: var(--voxcpm-space-2xs);\n  color: var(--voxcpm-text-primary);\n  transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);\n}\n\n.voxcpm-path-indicator__change-btn:hover {\n  opacity: 0.8;\n}\n\n.voxcpm-path-indicator__change-btn:focus-visible {\n  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);\n  outline-offset: var(--voxcpm-focus-ring-offset);\n}\n", document.head.appendChild(t);
 }
 
-/* ── Block: Dialog Container ── */
-.voxcpm-dialog {
-  background: var(--voxcpm-bg-surface);
-  border-radius: var(--voxcpm-border-radius-m);
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-}
-
-.voxcpm-dialog--large {
-  max-width: 600px;
-}
-
-/* ── Header ── */
-.voxcpm-dialog__header {
-  display: flex;
-  align-items: center;
-  gap: var(--voxcpm-space-l);
-  padding: var(--voxcpm-space-2xl);
-  border-bottom: 1px solid var(--voxcpm-border-color);
-}
-
-.voxcpm-dialog__icon {
-  font-size: var(--voxcpm-font-size-xl);
-}
-
-.voxcpm-dialog__title {
-  margin: 0;
-  font-size: var(--voxcpm-font-size-l);
-  color: var(--voxcpm-text-primary);
-}
-
-/* ── Body ── */
-.voxcpm-dialog__body {
-  padding: var(--voxcpm-space-2xl);
-}
-
-.voxcpm-dialog__description {
-  margin: 0 0 20px;
-  color: var(--voxcpm-text-secondary);
-  line-height: 1.5;
-}
-
-/* ── Options Container ── */
-.voxcpm-dialog__options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--voxcpm-space-l);
-}
-
-/* ── Option Card ── */
-.voxcpm-dialog__option {
-  display: flex;
-  gap: var(--voxcpm-space-xl);
-  padding: var(--voxcpm-space-xl);
-  background: var(--voxcpm-bg-elevated);
-  border: 2px solid var(--voxcpm-border-color);
-  border-radius: var(--voxcpm-border-radius-m);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color var(--voxcpm-duration-normal) var(--voxcpm-easing),
-              background var(--voxcpm-duration-normal) var(--voxcpm-easing);
-}
-
-.voxcpm-dialog__option:hover {
-  border-color: var(--voxcpm-accent);
-}
-
-.voxcpm-dialog__option--selected {
-  border-color: var(--voxcpm-accent);
-  background: var(--voxcpm-bg-input-hover);
-}
-
-.voxcpm-dialog__option-icon {
-  font-size: 32px;
-  flex-shrink: 0;
-}
-
-.voxcpm-dialog__option-content h3 {
-  margin: 0 0 var(--voxcpm-space-xs);
-  color: var(--voxcpm-text-primary);
-  font-size: var(--voxcpm-font-size-m);
-}
-
-.voxcpm-dialog__option-path {
-  margin: 0 0 var(--voxcpm-space-m);
-  font-family: var(--voxcpm-font-family-mono);
-  font-size: var(--voxcpm-font-size-xs);
-  color: var(--voxcpm-text-muted);
-}
-
-.voxcpm-dialog__option-description {
-  margin: 0;
-  font-size: var(--voxcpm-font-size-xs);
-  color: var(--voxcpm-text-muted);
-}
-
-/* ── Footer ── */
-.voxcpm-dialog__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--voxcpm-space-l);
-  padding: var(--voxcpm-space-xl) var(--voxcpm-space-2xl);
-  border-top: 1px solid var(--voxcpm-border-color);
-}
-
-/* ── Buttons ── */
-.voxcpm-dialog__btn {
-  padding: var(--voxcpm-space-m) var(--voxcpm-space-xl);
-  border-radius: var(--voxcpm-border-radius-xs);
-  font-size: var(--voxcpm-font-size-m);
-  cursor: pointer;
-  transition: background var(--voxcpm-duration-normal) var(--voxcpm-easing),
-              border-color var(--voxcpm-duration-normal) var(--voxcpm-easing);
-}
-
-.voxcpm-dialog__btn--secondary {
-  background: transparent;
-  border: 1px solid var(--voxcpm-border-color);
-  color: var(--voxcpm-text-secondary);
-}
-
-.voxcpm-dialog__btn--secondary:hover {
-  background: var(--voxcpm-bg-elevated);
-}
-
-.voxcpm-dialog__btn--primary {
-  background: var(--voxcpm-accent);
-  border: none;
-  color: var(--voxcpm-text-on-primary);
-}
-
-.voxcpm-dialog__btn--primary:hover:not(:disabled) {
-  background: var(--voxcpm-accent-hover);
-}
-
-.voxcpm-dialog__btn--primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ── Input Group ── */
-.voxcpm-dialog__input-group {
-  display: flex;
-  gap: var(--voxcpm-space-m);
-  margin-bottom: var(--voxcpm-space-xl);
-}
-
-.voxcpm-dialog__input {
-  flex: 1;
-  padding: var(--voxcpm-space-m) var(--voxcpm-space-l);
-  background: var(--voxcpm-bg-elevated);
-  border: 1px solid var(--voxcpm-border-color);
-  border-radius: var(--voxcpm-border-radius-xs);
-  color: var(--voxcpm-text-primary);
-  font-size: var(--voxcpm-font-size-m);
-  font-family: var(--voxcpm-font-family);
-}
-
-.voxcpm-dialog__input:focus {
-  outline: none;
-  border-color: var(--voxcpm-accent);
-}
-
-/* ── Models Preview ── */
-.voxcpm-dialog__preview {
-  background: var(--voxcpm-bg-elevated);
-  border-radius: var(--voxcpm-border-radius-xs);
-  padding: var(--voxcpm-space-l);
-  margin-bottom: var(--voxcpm-space-xl);
-}
-
-.voxcpm-dialog__preview h4 {
-  margin: 0 0 var(--voxcpm-space-m);
-  font-size: var(--voxcpm-font-size-xs);
-  color: var(--voxcpm-text-muted);
-}
-
-.voxcpm-dialog__models-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.voxcpm-dialog__models-list li {
-  display: flex;
-  align-items: center;
-  gap: var(--voxcpm-space-m);
-  padding: var(--voxcpm-space-xs) 0;
-}
-
-.voxcpm-dialog__model-icon {
-  font-size: var(--voxcpm-font-size-m);
-}
-
-.voxcpm-dialog__model-name {
-  font-size: var(--voxcpm-font-size-s);
-  color: var(--voxcpm-text-secondary);
-}
-
-/* ── Validation ── */
-.voxcpm-dialog__validation {
-  font-size: var(--voxcpm-font-size-xs);
-}
-
-.voxcpm-dialog__validation--success {
-  color: var(--voxcpm-color-success);
-}
-
-.voxcpm-dialog__validation--error {
-  color: var(--voxcpm-color-error);
-}
-
-/* ── Focus: keyboard accessibility ── */
-.voxcpm-dialog__option:focus-visible,
-.voxcpm-dialog__btn:focus-visible,
-.voxcpm-dialog__input:focus-visible {
-  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);
-  outline-offset: var(--voxcpm-focus-ring-offset);
-}
-
-/* ── Reduced motion ── */
-@media (prefers-reduced-motion: reduce) {
-  .voxcpm-dialog *,
-  .voxcpm-dialog *::before,
-  .voxcpm-dialog *::after {
-    transition-duration: 0ms !important;
-  }
-}
-
-/* ============================================================================
- * VoxCPM Path Indicator Widget (BEM)
- * Block: .voxcpm-path-indicator
- * ============================================================================ */
-
-.voxcpm-path-indicator {
-  display: flex;
-  align-items: center;
-  gap: var(--voxcpm-space-m);
-  padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);
-  background: var(--voxcpm-bg-elevated);
-  border-radius: var(--voxcpm-border-radius-xs);
-  font-size: var(--voxcpm-font-size-xs);
-}
-
-.voxcpm-path-indicator__text {
-  color: var(--voxcpm-text-muted);
-  font-family: var(--voxcpm-font-family-mono);
-}
-
-.voxcpm-path-indicator__change-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: var(--voxcpm-font-size-m);
-  padding: var(--voxcpm-space-2xs);
-  color: var(--voxcpm-text-primary);
-  transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);
-}
-
-.voxcpm-path-indicator__change-btn:hover {
-  opacity: 0.8;
-}
-
-.voxcpm-path-indicator__change-btn:focus-visible {
-  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);
-  outline-offset: var(--voxcpm-focus-ring-offset);
-}
-`;
-	const style = document.createElement("style");
-	style.id = styleId;
-	style.textContent = css;
-	document.head.appendChild(style);
-}
-//#endregion
-//#region widgets/modelIcons.ts
-/**
-* Model Icons — SVG Icon Constants
-*
-* Inline SVG strings for model status icons used in the model selector
-* dropdown and display widget. All icons use `currentColor` for stroke/fill
-* so CSS can control the color via the parent element's `color` property.
-*
-* @module voxcpm/widgets/model-icons
-*/
-/**
-* SVG icon strings for the model selector UI.
-*
-* Each icon is a self-contained `<svg>` element string that can be
-* assigned to `element.innerHTML`. Icons are sized 16x16px by default
-* with a 24x24 viewBox for scalability.
-*
-* Color is controlled via CSS `color` on the parent element, since
-* all icons use `stroke="currentColor"` or `fill="currentColor"`.
-*/
-var MODEL_ICONS = {
-	/** Cloud-download icon — model needs to be downloaded from remote */
-	CLOUD: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><polyline points="12 12 12 22"/><path d="m8 18 4 4 4-4"/></svg>`,
-	/** Checkmark icon — model exists locally on disk */
-	CHECK: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-	/** Shield icon — dropdown header decoration (cyber-security aesthetic) */
-	SHIELD: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
-	/** Folder icon — model display widget (replaces emoji 📁) */
-	FOLDER: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
-	/** Folder-open icon — custom path model (replaces emoji 📂) */
-	FOLDER_OPEN: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1"/><path d="M6 12h14l-2.5 7H8.5L6 12z"/></svg>`
-};
-//#endregion
-//#region widgets/ModelDropdown.ts
-/**
-* Model Dropdown — Custom Cyber-Security Themed Dropdown Panel
-*
-* Replaces `LiteGraph.ContextMenu` with a custom dropdown that supports:
-* - Rich model items with status icons (cloud/check), DEFAULT tags, and metadata
-* - Keyboard navigation (ArrowUp/Down, Enter, Escape)
-* - Click-outside dismissal
-* - Viewport-aware positioning (flips above anchor if near bottom)
-* - Cyber-security aesthetic (monospace font, neon green accent, scanline overlay)
-*
-* @module voxcpm/widgets/model-dropdown
-*/
-/** Cached model info from the backend API (null = not fetched yet) */
-var cachedModelInfo = null;
-/**
-* Fetch model info from the backend API, with session-level caching.
-*
-* On first call, fetches from `GET /voxcpm/model_info`. On subsequent
-* calls, returns the cached data. Cache is invalidated on WebSocket
-* reconnect (server restart) or by calling `invalidateModelInfoCache()`.
-*
-* @param fetchApi - The `api.fetchApi` function from ComfyUI's API module
-* @returns Array of model info items (may be empty on error)
-*/
-async function fetchModelInfo(fetchApi) {
-	if (cachedModelInfo !== null) return cachedModelInfo;
+var R = {
+	CLOUD: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/><polyline points=\"12 12 12 22\"/><path d=\"m8 18 4 4 4-4\"/></svg>",
+	CHECK: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg>",
+	SHIELD: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/></svg>",
+	FOLDER: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z\"/></svg>",
+	FOLDER_OPEN: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1\"/><path d=\"M6 12h14l-2.5 7H8.5L6 12z\"/></svg>"
+}, z = null;
+async function B(e) {
+	if (z !== null) return z;
 	try {
-		const response = await fetchApi("/voxcpm/model_info");
-		if (response.ok) {
-			cachedModelInfo = (await response.json()).models || [];
-			return cachedModelInfo;
-		}
-	} catch (error) {
-		console.warn("[VoxCPM] Failed to fetch model info:", error);
+		let t = await e("/voxcpm/model_info");
+		if (t.ok) return z = (await t.json()).models || [], z;
+	} catch (e) {
+		console.warn("[VoxCPM] Failed to fetch model info:", e);
 	}
 	return [];
 }
-/**
-* Invalidate the model info cache.
-*
-* Call this when the server reconnects or when model directories
-* may have changed (e.g., after a model download).
-*/
-function invalidateModelInfoCache() {
-	cachedModelInfo = null;
+function V() {
+	z = null;
 }
-/**
-* Custom dropdown panel for model selection with cyber-security styling.
-*
-* Usage:
-* ```typescript
-* const dropdown = new ModelDropdown(modelInfo, anchorRect, scale);
-* const selectedModel = await dropdown.show();
-* if (selectedModel) { ... }
-* ```
-*
-* The dropdown is positioned below the anchor element. If there isn't
-* enough viewport space below, it flips above the anchor. Keyboard
-* navigation (ArrowUp/Down, Enter, Escape) and click-outside dismissal
-* are built in.
-*/
-var ModelDropdown = class ModelDropdown {
-	constructor(modelInfo, anchorRect, scale, widgetElement) {
-		this.selectedIndex = -1;
-		this.resolveSelection = null;
-		this.cleanups = [];
-		this.isOpen = false;
-		this.modelInfo = modelInfo;
-		this.anchorRect = anchorRect;
-		this.scale = scale;
-		this.widgetElement = widgetElement || null;
-		this.panel = document.createElement("div");
-		this.panel.className = MODEL_DROPDOWN_CLASSES.BLOCK;
-		this.panel.setAttribute("role", "listbox");
-		this.panel.setAttribute("aria-label", "Select model");
-		this.header = document.createElement("div");
-		this.header.className = MODEL_DROPDOWN_CLASSES.HEADER;
-		this.header.innerHTML = `${MODEL_ICONS.SHIELD} <span>${UI.MODEL_DROPDOWN.HEADER_TEXT}</span>`;
-		this.list = document.createElement("div");
-		this.list.className = MODEL_DROPDOWN_CLASSES.LIST;
-		this.panel.appendChild(this.header);
-		this.panel.appendChild(this.list);
-		this.renderItems();
+var H = class e {
+	constructor(e, t, n, r) {
+		this.selectedIndex = -1, this.resolveSelection = null, this.cleanups = [], this.isOpen = !1, this.modelInfo = e, this.anchorRect = t, this.scale = n, this.widgetElement = r || null, this.panel = document.createElement("div"), this.panel.className = _.BLOCK, this.panel.setAttribute("role", "listbox"), this.panel.setAttribute("aria-label", "Select model"), this.header = document.createElement("div"), this.header.className = _.HEADER, this.header.innerHTML = `${R.SHIELD} <span>${o.MODEL_DROPDOWN.HEADER_TEXT}</span>`, this.list = document.createElement("div"), this.list.className = _.LIST, this.panel.appendChild(this.header), this.panel.appendChild(this.list), this.renderItems();
 	}
-	/**
-	* Show the dropdown and return a promise that resolves with the selection.
-	*
-	* If another dropdown is already open, it is closed first (only one
-	* dropdown can be open at a time).
-	*
-	* @returns The selected model name, or `null` if dismissed without selection
-	*/
 	show() {
-		return new Promise((resolve) => {
-			this.resolveSelection = resolve;
-			if (ModelDropdown.currentDropdown && ModelDropdown.currentDropdown !== this) ModelDropdown.currentDropdown.close(null);
-			this.positionPanel();
-			document.body.appendChild(this.panel);
-			this.isOpen = true;
-			ModelDropdown.currentDropdown = this;
-			this.setupClickOutside();
-			this.setupKeyboardNav();
-			this.setupZoomChangeListener();
-			this.panel.tabIndex = -1;
-			this.panel.focus();
+		return new Promise((t) => {
+			this.resolveSelection = t, e.currentDropdown && e.currentDropdown !== this && e.currentDropdown.close(null), this.positionPanel(), document.body.appendChild(this.panel), this.isOpen = !0, e.currentDropdown = this, this.setupClickOutside(), this.setupKeyboardNav(), this.setupZoomChangeListener(), this.panel.tabIndex = -1, this.panel.focus();
 		});
 	}
-	/**
-	* Close the dropdown and clean up all event listeners.
-	*
-	* @param selectedModel - The model name to resolve with, or null
-	*/
-	close(selectedModel = null) {
-		if (!this.isOpen) return;
-		this.isOpen = false;
-		if (ModelDropdown.currentDropdown === this) ModelDropdown.currentDropdown = null;
-		for (const cleanup of this.cleanups) cleanup();
-		this.cleanups = [];
-		if (this.panel.parentElement) this.panel.parentElement.removeChild(this.panel);
-		if (this.resolveSelection) {
-			this.resolveSelection(selectedModel);
-			this.resolveSelection = null;
+	close(t = null) {
+		if (this.isOpen) {
+			this.isOpen = !1, e.currentDropdown === this && (e.currentDropdown = null);
+			for (let e of this.cleanups) e();
+			this.cleanups = [], this.panel.parentElement && this.panel.parentElement.removeChild(this.panel), this.resolveSelection && (this.resolveSelection(t), this.resolveSelection = null);
 		}
 	}
-	/**
-	* Render all model items into the list element.
-	*/
 	renderItems() {
 		this.list.innerHTML = "";
-		for (let i = 0; i < this.modelInfo.length; i++) {
-			const model = this.modelInfo[i];
-			const item = this.createElementItem(model, i);
-			this.list.appendChild(item);
+		for (let e = 0; e < this.modelInfo.length; e++) {
+			let t = this.modelInfo[e], n = this.createElementItem(t, e);
+			this.list.appendChild(n);
 		}
 	}
-	/**
-	* Create a single model item element.
-	*/
-	createElementItem(model, index) {
-		const item = document.createElement("div");
-		item.className = MODEL_DROPDOWN_CLASSES.ITEM;
-		item.setAttribute("role", "option");
-		item.setAttribute("data-index", String(index));
-		item.setAttribute("data-model", model.name);
-		const icon = document.createElement("span");
-		const iconModifier = model.is_downloaded ? MODEL_DROPDOWN_CLASSES.ICON_CHECK : MODEL_DROPDOWN_CLASSES.ICON_CLOUD;
-		icon.className = `${MODEL_DROPDOWN_CLASSES.ICON} ${iconModifier}`;
-		icon.innerHTML = model.is_downloaded ? MODEL_ICONS.CHECK : MODEL_ICONS.CLOUD;
-		item.appendChild(icon);
-		const name = document.createElement("span");
-		name.className = MODEL_DROPDOWN_CLASSES.NAME;
-		name.textContent = model.name;
-		item.appendChild(name);
-		if (model.size_gb > 0) {
-			const meta = document.createElement("span");
-			meta.className = MODEL_DROPDOWN_CLASSES.META;
-			meta.textContent = `${model.size_gb} GB`;
-			item.appendChild(meta);
+	createElementItem(e, t) {
+		let n = document.createElement("div");
+		n.className = _.ITEM, n.setAttribute("role", "option"), n.setAttribute("data-index", String(t)), n.setAttribute("data-model", e.name);
+		let r = document.createElement("span"), i = e.is_downloaded ? _.ICON_CHECK : _.ICON_CLOUD;
+		r.className = `${_.ICON} ${i}`, r.innerHTML = e.is_downloaded ? R.CHECK : R.CLOUD, n.appendChild(r);
+		let a = document.createElement("span");
+		if (a.className = _.NAME, a.textContent = e.name, n.appendChild(a), e.size_gb > 0) {
+			let t = document.createElement("span");
+			t.className = _.META, t.textContent = `${e.size_gb} GB`, n.appendChild(t);
 		}
-		if (model.type === "official") {
-			const tag = document.createElement("span");
-			tag.className = MODEL_DROPDOWN_CLASSES.TAG;
-			tag.textContent = "DEFAULT";
-			item.appendChild(tag);
+		if (e.type === "official") {
+			let e = document.createElement("span");
+			e.className = _.TAG, e.textContent = "DEFAULT", n.appendChild(e);
 		}
-		item.addEventListener("click", (e) => {
-			e.stopPropagation();
-			this.close(model.name);
-		});
-		item.addEventListener("mouseenter", () => {
-			this.setSelectedIndex(index);
-		});
-		return item;
+		return n.addEventListener("click", (t) => {
+			t.stopPropagation(), this.close(e.name);
+		}), n.addEventListener("mouseenter", () => {
+			this.setSelectedIndex(t);
+		}), n;
 	}
-	/**
-	* Position the panel relative to the anchor element.
-	*
-	* Positions below the anchor by default. If there isn't enough
-	* viewport space below, flips above the anchor. Also adjusts
-	* horizontal position if the panel would overflow the viewport right edge.
-	*
-	* When the canvas is zoomed (scale > 1), the dropdown is scaled up
-	* to match the visual size of the widget. The CSS transform origin
-	* is set to "top left" so that the top-left corner stays at the
-	* calculated position. The visual size of the panel is
-	* `estimatedSize * scale`, so all viewport boundary checks use
-	* the scaled dimensions.
-	*/
 	positionPanel() {
-		const scale = this.scale;
-		const gap = UI.MODEL_DROPDOWN.ANCHOR_GAP;
-		const viewportHeight = window.innerHeight;
-		const viewportWidth = window.innerWidth;
-		const itemHeight = UI.MODEL_DROPDOWN.ITEM_HEIGHT;
-		const headerHeight = 32;
-		const maxVisibleItems = UI.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS;
-		const scaledHeight = (headerHeight + Math.min(this.modelInfo.length, maxVisibleItems) * itemHeight) * scale;
-		const scaledWidth = 300 * scale;
-		let top;
-		const spaceBelow = viewportHeight - this.anchorRect.bottom;
-		const spaceAbove = this.anchorRect.top;
-		if (spaceBelow >= scaledHeight + gap) top = this.anchorRect.bottom + gap;
-		else if (spaceAbove >= scaledHeight + gap) top = this.anchorRect.top - scaledHeight - gap;
-		else top = this.anchorRect.bottom + gap;
-		let left = this.anchorRect.left;
-		if (left + scaledWidth > viewportWidth) left = viewportWidth - scaledWidth - 8;
-		left = Math.max(8, left);
-		this.panel.style.position = "fixed";
-		this.panel.style.top = `${top}px`;
-		this.panel.style.left = `${left}px`;
-		this.panel.style.zIndex = String(UI.MODEL_DROPDOWN.Z_INDEX);
-		this.panel.style.transformOrigin = "top left";
-		this.panel.style.transform = `scale(${scale})`;
-		this.panel.style.setProperty("--voxcpm-dropdown-scale", String(scale));
+		let e = this.scale, t = o.MODEL_DROPDOWN.ANCHOR_GAP, n = window.innerHeight, r = window.innerWidth, i = o.MODEL_DROPDOWN.ITEM_HEIGHT, a = o.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS, s = (32 + Math.min(this.modelInfo.length, a) * i) * e, c = 300 * e, l, u = n - this.anchorRect.bottom, d = this.anchorRect.top;
+		l = u >= s + t ? this.anchorRect.bottom + t : d >= s + t ? this.anchorRect.top - s - t : this.anchorRect.bottom + t;
+		let f = this.anchorRect.left;
+		f + c > r && (f = r - c - 8), f = Math.max(8, f), this.panel.style.position = "fixed", this.panel.style.top = `${l}px`, this.panel.style.left = `${f}px`, this.panel.style.zIndex = String(o.MODEL_DROPDOWN.Z_INDEX), this.panel.style.transformOrigin = "top left", this.panel.style.transform = `scale(${e})`, this.panel.style.setProperty("--voxcpm-dropdown-scale", String(e));
 	}
-	/**
-	* Set up click-outside listener to close the dropdown.
-	*/
 	setupClickOutside() {
-		const handler = (e) => {
+		let e = (e) => {
 			if (!this.isOpen) return;
-			const target = e.target;
-			if (this.panel.contains(target)) return;
-			if (this.widgetElement && this.widgetElement.contains(target)) return;
-			this.close(null);
+			let t = e.target;
+			this.panel.contains(t) || this.widgetElement && this.widgetElement.contains(t) || this.close(null);
 		};
-		document.addEventListener("pointerdown", handler, true);
-		this.cleanups.push(() => {
-			document.removeEventListener("pointerdown", handler, true);
+		document.addEventListener("pointerdown", e, !0), this.cleanups.push(() => {
+			document.removeEventListener("pointerdown", e, !0);
 		});
 	}
-	/**
-	* Set up keyboard navigation.
-	*
-	* - ArrowDown: Move to next item (wrap to first)
-	* - ArrowUp: Move to previous item (wrap to last)
-	* - Enter: Confirm selection
-	* - Escape: Close without selection
-	* - Tab: Close without selection
-	*/
 	setupKeyboardNav() {
-		const handler = (e) => {
-			if (!this.isOpen) return;
-			switch (e.key) {
+		let e = (e) => {
+			if (this.isOpen) switch (e.key) {
 				case "ArrowDown": {
-					e.preventDefault();
-					e.stopPropagation();
-					const next = this.selectedIndex < this.modelInfo.length - 1 ? this.selectedIndex + 1 : 0;
-					this.setSelectedIndex(next);
+					e.preventDefault(), e.stopPropagation();
+					let t = this.selectedIndex < this.modelInfo.length - 1 ? this.selectedIndex + 1 : 0;
+					this.setSelectedIndex(t);
 					break;
 				}
 				case "ArrowUp": {
-					e.preventDefault();
-					e.stopPropagation();
-					const prev = this.selectedIndex > 0 ? this.selectedIndex - 1 : this.modelInfo.length - 1;
-					this.setSelectedIndex(prev);
+					e.preventDefault(), e.stopPropagation();
+					let t = this.selectedIndex > 0 ? this.selectedIndex - 1 : this.modelInfo.length - 1;
+					this.setSelectedIndex(t);
 					break;
 				}
 				case "Enter":
-					e.preventDefault();
-					e.stopPropagation();
-					if (this.selectedIndex >= 0 && this.selectedIndex < this.modelInfo.length) this.close(this.modelInfo[this.selectedIndex].name);
-					else this.close(null);
+					e.preventDefault(), e.stopPropagation(), this.selectedIndex >= 0 && this.selectedIndex < this.modelInfo.length ? this.close(this.modelInfo[this.selectedIndex].name) : this.close(null);
 					break;
 				case "Escape":
-					e.preventDefault();
-					e.stopPropagation();
-					this.close(null);
+					e.preventDefault(), e.stopPropagation(), this.close(null);
 					break;
 				case "Tab":
-					e.preventDefault();
-					this.close(null);
+					e.preventDefault(), this.close(null);
 					break;
 			}
 		};
-		document.addEventListener("keydown", handler, true);
-		this.cleanups.push(() => {
-			document.removeEventListener("keydown", handler, true);
+		document.addEventListener("keydown", e, !0), this.cleanups.push(() => {
+			document.removeEventListener("keydown", e, !0);
 		});
 	}
-	/**
-	* Set up a listener for canvas zoom/pan changes.
-	*
-	* When the user zooms or pans the canvas while the dropdown is open,
-	* the dropdown position becomes stale (it's positioned in fixed screen
-	* coordinates but the widget has moved). Rather than trying to
-	* reposition, we simply close the dropdown — this matches the behavior
-	* of native context menus in most UI frameworks.
-	*
-	* Uses `canvas.ds.onChanged` — the callback that LiteGraph's
-	* DragAndScale manager calls whenever scale or offset changes.
-	* We chain onto the existing handler (if any) to avoid breaking
-	* ComfyUI's internal zoom tracking (e.g., canvasStore scale sync).
-	*/
 	setupZoomChangeListener() {
-		const canvas = app$1.canvas;
-		if (!canvas?.ds) return;
-		const originalOnChanged = canvas.ds.onChanged;
-		canvas.ds.onChanged = (scale, offset) => {
-			if (this.isOpen) this.close(null);
-			originalOnChanged?.(scale, offset);
-		};
-		this.cleanups.push(() => {
-			if (canvas.ds) canvas.ds.onChanged = originalOnChanged;
+		let e = t.canvas;
+		if (!e?.ds) return;
+		let n = e.ds.onChanged;
+		e.ds.onChanged = (e, t) => {
+			this.isOpen && this.close(null), n?.(e, t);
+		}, this.cleanups.push(() => {
+			e.ds && (e.ds.onChanged = n);
 		});
 	}
-	/**
-	* Update the selected index and apply visual highlight.
-	*/
-	setSelectedIndex(index) {
-		const items = this.list.querySelectorAll(`.${MODEL_DROPDOWN_CLASSES.ITEM}`);
-		items.forEach((item) => {
-			item.classList.remove(MODEL_DROPDOWN_CLASSES.ITEM_SELECTED);
-		});
-		this.selectedIndex = index;
-		if (index >= 0 && index < items.length) {
-			const selectedItem = items[index];
-			selectedItem.classList.add(MODEL_DROPDOWN_CLASSES.ITEM_SELECTED);
-			selectedItem.scrollIntoView({ block: "nearest" });
+	setSelectedIndex(e) {
+		let t = this.list.querySelectorAll(`.${_.ITEM}`);
+		if (t.forEach((e) => {
+			e.classList.remove(_.ITEM_SELECTED);
+		}), this.selectedIndex = e, e >= 0 && e < t.length) {
+			let n = t[e];
+			n.classList.add(_.ITEM_SELECTED), n.scrollIntoView({ block: "nearest" });
 		}
 	}
 };
-ModelDropdown.currentDropdown = null;
-//#endregion
-//#region widgets/ModelSelectorWidget.ts
-/**
-* Model Selector Widget
-*
-* Custom DOM widget that replaces the default model_name combo widget
-* with a professional-looking selector featuring:
-* - Cyber-themed model display with dropdown arrow
-* - Click-to-open custom dropdown (ModelDropdown) with icons and tags
-* - Browse button for custom model path selection
-* - Custom path indicator when a non-default path is active
-* - Full data flow sync with the hidden model_name widget
-*
-* @module voxcpm/widgets/model-selector
-*/
-/**
-* Stores DOM element references for model selector widgets keyed by node ID.
-*
-* Using a WeakMap instead of node.properties avoids circular reference errors
-* during JSON.stringify (LiteGraph serialization). DOM elements and widget
-* objects have circular references back to the node, which would cause
-* "Maximum call stack size exceeded" if stored in serializable properties.
-*/
-var selectorRefsMap = /* @__PURE__ */ new Map();
-/**
-* Create and attach a custom model selector DOM widget to a VoxCPM node.
-*
-* This function:
-* 1. Injects CSS styles (idempotent)
-* 2. Hides the default model_name combo widget
-* 3. Creates a DOM widget with model display + browse button
-* 4. Sets up event handlers for dropdown and browse
-* 5. Syncs state between DOM widget and hidden combo widget
-*
-* @param node - The VoxCPM TTS node to add the widget to
-*/
-function createModelSelectorWidget(node) {
-	const widgets = node.widgets;
-	if (!widgets) {
-		logger.warn("No widgets found on node:", node.id);
+H.currentDropdown = null;
+
+var U =  new Map();
+function W(e) {
+	let t = e.widgets;
+	if (!t) {
+		s.warn("No widgets found on node:", e.id);
 		return;
 	}
-	const modelWidget = widgets.find((w) => w.name === "model_name");
-	if (!modelWidget) {
-		logger.warn("model_name widget not found on node:", node.id);
+	let n = t.find((e) => e.name === "model_name");
+	if (!n) {
+		s.warn("model_name widget not found on node:", e.id);
 		return;
 	}
-	hideDefaultComboWidget(modelWidget);
-	const container = document.createElement("div");
-	container.className = MODEL_SELECTOR_CLASSES.BLOCK;
-	const modelDisplay = document.createElement("div");
-	modelDisplay.className = MODEL_SELECTOR_CLASSES.DISPLAY;
-	modelDisplay.title = "Click to select a model";
-	modelDisplay.tabIndex = 0;
-	modelDisplay.setAttribute("role", "combobox");
-	modelDisplay.setAttribute("aria-expanded", "false");
-	modelDisplay.setAttribute("aria-haspopup", "listbox");
-	const folderIcon = document.createElement("span");
-	folderIcon.className = MODEL_SELECTOR_CLASSES.ICON;
-	folderIcon.innerHTML = MODEL_ICONS.FOLDER;
-	const modelText = document.createElement("span");
-	modelText.className = MODEL_SELECTOR_CLASSES.TEXT;
-	modelText.textContent = modelWidget.value || UI.MODEL_SELECTOR.PLACEHOLDER;
-	const arrow = document.createElement("span");
-	arrow.className = MODEL_SELECTOR_CLASSES.ARROW;
-	arrow.textContent = UI.MODEL_SELECTOR.ARROW;
-	const browseBtn = document.createElement("button");
-	browseBtn.className = MODEL_SELECTOR_CLASSES.BROWSE;
-	browseBtn.innerHTML = MODEL_ICONS.FOLDER_OPEN;
-	browseBtn.title = "Browse for custom model directory";
-	browseBtn.setAttribute("role", "button");
-	const pathIndicator = document.createElement("div");
-	pathIndicator.className = MODEL_SELECTOR_CLASSES.PATH;
-	const savedCustomPath = node.properties?.["custom_model_path"];
-	if (savedCustomPath) {
-		folderIcon.innerHTML = MODEL_ICONS.FOLDER_OPEN;
-		pathIndicator.textContent = savedCustomPath;
-		pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
-	}
-	modelDisplay.append(folderIcon, modelText, arrow);
-	const row = document.createElement("div");
-	row.className = MODEL_SELECTOR_CLASSES.ROW;
-	row.append(modelDisplay, browseBtn);
-	container.append(row, pathIndicator);
-	container.addEventListener("mouseup", (e) => e.stopPropagation());
-	container.addEventListener("click", (e) => e.stopPropagation());
-	modelDisplay.addEventListener("click", (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		if (isDropdownOpen()) {
-			closeCurrentDropdown();
+	G(n);
+	let r = document.createElement("div");
+	r.className = f.BLOCK;
+	let i = document.createElement("div");
+	i.className = f.DISPLAY, i.title = "Click to select a model", i.tabIndex = 0, i.setAttribute("role", "combobox"), i.setAttribute("aria-expanded", "false"), i.setAttribute("aria-haspopup", "listbox");
+	let a = document.createElement("span");
+	a.className = f.ICON, a.innerHTML = R.FOLDER;
+	let c = document.createElement("span");
+	c.className = f.TEXT, c.textContent = n.value || o.MODEL_SELECTOR.PLACEHOLDER;
+	let l = document.createElement("span");
+	l.className = f.ARROW, l.textContent = o.MODEL_SELECTOR.ARROW;
+	let u = document.createElement("button");
+	u.className = f.BROWSE, u.innerHTML = R.FOLDER_OPEN, u.title = "Browse for custom model directory", u.setAttribute("role", "button");
+	let d = document.createElement("div");
+	d.className = f.PATH;
+	let p = e.properties?.custom_model_path;
+	p && (a.innerHTML = R.FOLDER_OPEN, d.textContent = p, d.classList.add(f.PATH_VISIBLE)), i.append(a, c, l);
+	let m = document.createElement("div");
+	m.className = f.ROW, m.append(i, u), r.append(m, d), r.addEventListener("mouseup", (e) => e.stopPropagation()), r.addEventListener("click", (e) => e.stopPropagation()), i.addEventListener("click", (t) => {
+		if (t.preventDefault(), t.stopPropagation(), K()) {
+			q();
 			return;
 		}
-		openModelDropdown(e, modelWidget, modelText, folderIcon, pathIndicator, node, modelDisplay, arrow);
-	});
-	modelDisplay.addEventListener("keydown", (e) => {
-		if (e.key === "Enter" || e.key === " ") {
-			e.preventDefault();
-			e.stopPropagation();
-			if (isDropdownOpen()) {
-				closeCurrentDropdown();
+		J(t, n, c, a, d, e, i, l);
+	}), i.addEventListener("keydown", (t) => {
+		if (t.key === "Enter" || t.key === " ") {
+			if (t.preventDefault(), t.stopPropagation(), K()) {
+				q();
 				return;
 			}
-			openModelDropdown(e, modelWidget, modelText, folderIcon, pathIndicator, node, modelDisplay, arrow);
+			J(t, n, c, a, d, e, i, l);
 		}
+	}), u.addEventListener("click", async (t) => {
+		t.preventDefault(), t.stopPropagation(), await Y(e, n, c, a, d);
 	});
-	browseBtn.addEventListener("click", async (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		await handleBrowseClick(node, modelWidget, modelText, folderIcon, pathIndicator);
-	});
-	const domWidget = node.addDOMWidget("model_selector", "custom", container, {
-		serialize: false,
-		hideOnZoom: false,
+	let h = e.addDOMWidget("model_selector", "custom", r, {
+		serialize: !1,
+		hideOnZoom: !1,
 		selectOn: ["click"],
-		getValue: () => modelWidget.value,
-		setValue: (v) => {
-			modelWidget.value = v;
-			modelText.textContent = v;
+		getValue: () => n.value,
+		setValue: (e) => {
+			n.value = e, c.textContent = e;
+		}
+	}), g = new MutationObserver(() => {
+		let t = m.parentElement;
+		if (t) {
+			let n = t.parentElement;
+			n && n !== document.body ? (n.classList.add(f.BLOCK), n.setAttribute("node-id", String(e.id)), s.debug("Added", f.BLOCK, "class + node-id to WidgetDOM parent div for node:", e.id)) : s.debug("No WidgetDOM grandparent found (LiteGraph mode) for node:", e.id), g.disconnect();
 		}
 	});
-	const parentObserver = new MutationObserver(() => {
-		const rowParent = row.parentElement;
-		if (rowParent) {
-			const grandparent = rowParent.parentElement;
-			if (grandparent && grandparent !== document.body) {
-				grandparent.classList.add(MODEL_SELECTOR_CLASSES.BLOCK);
-				grandparent.setAttribute("node-id", String(node.id));
-				logger.debug("Added", MODEL_SELECTOR_CLASSES.BLOCK, "class + node-id to WidgetDOM parent div for node:", node.id);
-			} else logger.debug("No WidgetDOM grandparent found (LiteGraph mode) for node:", node.id);
-			parentObserver.disconnect();
-		}
-	});
-	parentObserver.observe(document.body, {
-		childList: true,
-		subtree: true
-	});
-	domWidget.tooltip = "Select the VoxCPM model to use";
-	domWidget.computeSize = () => [0, UI.MODEL_SELECTOR.MIN_HEIGHT];
-	domWidget.computeLayoutSize = void 0;
-	const allWidgets = node.widgets;
-	if (allWidgets && allWidgets.length > 1) {
-		const widgetIndex = allWidgets.indexOf(domWidget);
-		if (widgetIndex > 0) {
-			allWidgets.splice(widgetIndex, 1);
-			allWidgets.unshift(domWidget);
-			logger.debug("Moved model selector widget to position 0 for node:", node.id);
-		}
+	g.observe(document.body, {
+		childList: !0,
+		subtree: !0
+	}), h.tooltip = "Select the VoxCPM model to use", h.computeSize = () => [0, o.MODEL_SELECTOR.MIN_HEIGHT], h.computeLayoutSize = void 0;
+	let _ = e.widgets;
+	if (_ && _.length > 1) {
+		let t = _.indexOf(h);
+		t > 0 && (_.splice(t, 1), _.unshift(h), s.debug("Moved model selector widget to position 0 for node:", e.id));
 	}
-	const modelInput = node.inputs?.find((inp) => inp.name === "model_name");
-	if (modelInput) {
-		modelInput.widget = {
-			name: "model_selector",
-			_originalWidget: modelInput.widget?.name
-		};
-		logger.debug("Bound model_name input to model_selector widget for node:", node.id);
-	}
-	selectorRefsMap.set(node.id, {
-		modelText,
-		folderIcon,
-		pathIndicator,
-		modelWidget
-	});
-	logger.debug("Created model selector widget for node:", node.id);
+	let v = e.inputs?.find((e) => e.name === "model_name");
+	v && (v.widget = {
+		name: "model_selector",
+		_originalWidget: v.widget?.name
+	}, s.debug("Bound model_name input to model_selector widget for node:", e.id)), U.set(e.id, {
+		modelText: c,
+		folderIcon: a,
+		pathIndicator: d,
+		modelWidget: n
+	}), s.debug("Created model selector widget for node:", e.id);
 }
-/**
-* Hide the default LiteGraph combo widget by converting it to an invisible
-* "converted-widget" type. The widget remains in the node's widget list
-* for data flow (serialization, API calls) but is not rendered.
-*
-* @param widget - The combo widget to hide
-*/
-function hideDefaultComboWidget(widget) {
-	widget.type = "converted-widget";
-	widget.computeSize = () => [0, -4];
-	widget.draw = () => {};
-	if (!widget.options) widget.options = {};
-	widget.options.canvasOnly = true;
-	logger.debug("Hidden default combo widget:", widget.name);
+function G(e) {
+	e.type = "converted-widget", e.computeSize = () => [0, -4], e.draw = () => {}, e.options || (e.options = {}), e.options.canvasOnly = !0, s.debug("Hidden default combo widget:", e.name);
 }
-/**
-* Check if a ModelDropdown is currently open.
-*/
-function isDropdownOpen() {
-	return ModelDropdown.currentDropdown !== null;
+function K() {
+	return H.currentDropdown !== null;
 }
-/**
-* Close the currently open ModelDropdown (if any).
-*/
-function closeCurrentDropdown() {
-	if (ModelDropdown.currentDropdown) ModelDropdown.currentDropdown.close(null);
+function q() {
+	H.currentDropdown && H.currentDropdown.close(null);
 }
-/**
-* Open a custom ModelDropdown for model selection.
-*
-* Fetches model metadata from the backend API (with session-level caching),
-* then shows a cyber-themed dropdown panel with status icons, DEFAULT tags,
-* and size metadata. Falls back to widget values if the API call fails.
-*
-* @param event - The triggering mouse or keyboard event
-* @param modelWidget - The hidden model_name combo widget
-* @param modelText - The DOM element displaying the model name
-* @param folderIcon - The folder icon DOM element
-* @param pathIndicator - The custom path indicator DOM element
-* @param node - The parent node
-*/
-async function openModelDropdown(event, modelWidget, modelText, folderIcon, pathIndicator, node, displayEl, arrowEl) {
-	const models = modelWidget.options?.values || [];
-	if (models.length === 0) {
-		logger.warn("No models available for dropdown");
-		notificationManager.show({
+async function J(e, r, i, a, o, c, l, u) {
+	let d = r.options?.values || [];
+	if (d.length === 0) {
+		s.warn("No models available for dropdown"), A.show({
 			severity: "warn",
 			summary: "No Models Available",
 			detail: "No models found. Try browsing for a custom model directory.",
@@ -2275,98 +943,68 @@ async function openModelDropdown(event, modelWidget, modelText, folderIcon, path
 		});
 		return;
 	}
-	let modelInfo = [];
+	let p = [];
 	try {
-		modelInfo = await fetchModelInfo(api.fetchApi.bind(api));
-	} catch (error) {
-		logger.error("Failed to fetch model info:", error);
+		p = await B(n.fetchApi.bind(n));
+	} catch (e) {
+		s.error("Failed to fetch model info:", e);
 	}
-	if (modelInfo.length === 0) modelInfo = models.map((name) => ({
-		name,
+	p.length === 0 && (p = d.map((e) => ({
+		name: e,
 		type: "local",
 		architecture: "unknown",
 		sample_rate: 0,
 		size_gb: 0,
-		is_downloaded: true
-	}));
-	const anchorRect = displayEl.getBoundingClientRect();
-	const scale = app$1.canvas.ds?.scale || 1;
-	arrowEl.classList.add(MODEL_SELECTOR_CLASSES.ARROW_ACTIVE);
-	displayEl.setAttribute("aria-expanded", "true");
+		is_downloaded: !0
+	})));
+	let m = l.getBoundingClientRect(), h = t.canvas.ds?.scale || 1;
+	u.classList.add(f.ARROW_ACTIVE), l.setAttribute("aria-expanded", "true");
 	try {
-		const selectedModel = await new ModelDropdown(modelInfo, anchorRect, scale, displayEl).show();
-		if (selectedModel) {
-			modelWidget.value = selectedModel;
-			modelText.textContent = selectedModel;
-			const selectedInfo = modelInfo.find((m) => m.name === selectedModel);
-			if (selectedInfo) folderIcon.innerHTML = selectedInfo.is_downloaded ? MODEL_ICONS.CHECK : MODEL_ICONS.CLOUD;
-			if (modelWidget.callback) modelWidget.callback(selectedModel);
-			if (node.setDirtyCanvas) node.setDirtyCanvas(true);
-			logger.debug("Model selected:", selectedModel, "for node:", node.id);
+		let e = await new H(p, m, h, l).show();
+		if (e) {
+			r.value = e, i.textContent = e;
+			let t = p.find((t) => t.name === e);
+			t && (a.innerHTML = t.is_downloaded ? R.CHECK : R.CLOUD), r.callback && r.callback(e), c.setDirtyCanvas && c.setDirtyCanvas(!0), s.debug("Model selected:", e, "for node:", c.id);
 		}
-	} catch (error) {
-		logger.error("Failed to open model dropdown:", error);
+	} catch (e) {
+		s.error("Failed to open model dropdown:", e);
 	} finally {
-		arrowEl.classList.remove(MODEL_SELECTOR_CLASSES.ARROW_ACTIVE);
-		displayEl.setAttribute("aria-expanded", "false");
+		u.classList.remove(f.ARROW_ACTIVE), l.setAttribute("aria-expanded", "false");
 	}
 }
-/**
-* Handle the browse button click.
-*
-* Opens the path selection dialog, fetches models from the selected path,
-* updates the model_name widget options, and refreshes the DOM display.
-*
-* @param node - The parent node
-* @param modelWidget - The hidden model_name combo widget
-* @param modelText - The DOM element displaying the model name
-* @param folderIcon - The folder icon DOM element
-* @param pathIndicator - The custom path indicator DOM element
-*/
-async function handleBrowseClick(node, modelWidget, modelText, folderIcon, pathIndicator) {
-	logger.log("Browse button clicked for node:", node.id);
-	const path = await showPathSelectionDialog();
-	if (!path) {
-		logger.debug("Browse cancelled by user");
+async function Y(e, t, r, i, a) {
+	s.log("Browse button clicked for node:", e.id);
+	let o = await F();
+	if (!o) {
+		s.debug("Browse cancelled by user");
 		return;
 	}
-	logger.log("User selected custom path:", path);
-	node.properties = node.properties || {};
-	node.properties["custom_model_path"] = path;
+	s.log("User selected custom path:", o), e.properties = e.properties || {}, e.properties.custom_model_path = o;
 	try {
-		const response = await api.fetchApi("/voxcpm/models", {
+		let c = await n.fetchApi("/voxcpm/models", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ path })
+			body: JSON.stringify({ path: o })
 		});
-		if (response.ok) {
-			const data = await response.json();
-			logger.log("Models found at custom path:", data.models);
-			updateModelOptions(modelWidget, data.models, node);
-			folderIcon.innerHTML = MODEL_ICONS.FOLDER_OPEN;
-			pathIndicator.textContent = path;
-			pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
-			if (data.models.length > 0) modelText.textContent = modelWidget.value;
-			else modelText.textContent = "No models found";
-			notificationManager.show({
+		if (c.ok) {
+			let n = await c.json();
+			s.log("Models found at custom path:", n.models), X(t, n.models, e), i.innerHTML = R.FOLDER_OPEN, a.textContent = o, a.classList.add(f.PATH_VISIBLE), n.models.length > 0 ? r.textContent = t.value : r.textContent = "No models found", A.show({
 				severity: "success",
 				summary: "Custom Model Path Set",
-				detail: `Found ${data.models.length} model(s) in: ${path}`,
+				detail: `Found ${n.models.length} model(s) in: ${o}`,
 				life: 5e3
 			});
 		} else {
-			const errorText = response.statusText || "Unknown error";
-			logger.error("Failed to get models:", errorText);
-			notificationManager.show({
+			let e = c.statusText || "Unknown error";
+			s.error("Failed to get models:", e), A.show({
 				severity: "error",
 				summary: "Error",
-				detail: `Failed to scan model directory: ${errorText}`,
+				detail: `Failed to scan model directory: ${e}`,
 				life: 5e3
 			});
 		}
-	} catch (error) {
-		logger.error("Error fetching models:", error);
-		notificationManager.show({
+	} catch (e) {
+		s.error("Error fetching models:", e), A.show({
 			severity: "error",
 			summary: "Error",
 			detail: "Failed to connect to server",
@@ -2374,202 +1012,80 @@ async function handleBrowseClick(node, modelWidget, modelText, folderIcon, pathI
 		});
 	}
 }
-/**
-* Update the model_name combo widget's options list.
-*
-* This updates the hidden widget's values array and sets the current
-* value to the first model if the current selection is not in the new list.
-*
-* @param modelWidget - The hidden model_name combo widget
-* @param models - The new list of available model names
-* @param node - The parent node (for dirty canvas notification)
-*/
-function updateModelOptions(modelWidget, models, node) {
-	if (modelWidget.options) modelWidget.options.values = models;
-	else modelWidget.options = { values: models };
-	if (models.length > 0 && !models.includes(modelWidget.value)) {
-		modelWidget.value = models[0];
-		if (modelWidget.callback) modelWidget.callback(models[0]);
-	}
-	if (node.setDirtyCanvas) node.setDirtyCanvas(true);
-	logger.debug("Updated model options:", models);
+function X(e, t, n) {
+	e.options ? e.options.values = t : e.options = { values: t }, t.length > 0 && !t.includes(e.value) && (e.value = t[0], e.callback && e.callback(t[0])), n.setDirtyCanvas && n.setDirtyCanvas(!0), s.debug("Updated model options:", t);
 }
-/**
-* Update the model selector DOM widget display from an external source.
-*
-* Use this when the hidden model_name widget value changes externally
-* (e.g., workflow load, API callback) and the DOM display needs to be
-* synchronized.
-*
-* @param node - The node whose selector should be updated
-* @param value - The new model name to display (optional, reads from widget if not provided)
-*/
-function syncModelSelectorDisplay(node, value) {
-	const refs = selectorRefsMap.get(node.id);
-	if (!refs) {
-		logger.debug("No selector refs found for node:", node.id);
+function Z(e, t) {
+	let n = U.get(e.id);
+	if (!n) {
+		s.debug("No selector refs found for node:", e.id);
 		return;
 	}
-	const displayValue = value || refs.modelWidget.value;
-	refs.modelText.textContent = displayValue;
-	const customPath = node.properties?.["custom_model_path"];
-	if (customPath) {
-		refs.folderIcon.innerHTML = MODEL_ICONS.FOLDER_OPEN;
-		refs.pathIndicator.textContent = customPath;
-		refs.pathIndicator.classList.add(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
-	} else {
-		refs.folderIcon.innerHTML = MODEL_ICONS.FOLDER;
-		refs.pathIndicator.classList.remove(MODEL_SELECTOR_CLASSES.PATH_VISIBLE);
-	}
-	logger.debug("Synced model selector display for node:", node.id, "value:", displayValue);
+	let r = t || n.modelWidget.value;
+	n.modelText.textContent = r;
+	let i = e.properties?.custom_model_path;
+	i ? (n.folderIcon.innerHTML = R.FOLDER_OPEN, n.pathIndicator.textContent = i, n.pathIndicator.classList.add(f.PATH_VISIBLE)) : (n.folderIcon.innerHTML = R.FOLDER, n.pathIndicator.classList.remove(f.PATH_VISIBLE)), s.debug("Synced model selector display for node:", e.id, "value:", r);
 }
-//#endregion
-//#region extension.ts
-/**
-* VoxCPM Frontend Extension
-*
-* Main extension file that integrates all VoxCPM frontend functionality.
-* This file is written in TypeScript and compiled to extension.js for ComfyUI.
-*
-* Features:
-* - Session-based notification deduplication
-* - Event handling for server-to-client communication
-* - Settings management with ComfyUI integration
-* - First-run dialog for model path configuration
-* - Widget state management (normalize_text widget)
-* - Per-node custom model path selection
-*
-* Build: npm run build:extension
-*/
-/**
-* Check if a session flag is set
-* @param key - Storage key to check
-* @returns The stored value or null if not set
-*/
-function isSessionFlagSet(key) {
+
+function ne(e) {
 	try {
-		const stored = sessionStorage.getItem(key);
-		if (stored !== null) return stored;
+		let t = sessionStorage.getItem(e);
+		if (t !== null) return t;
 	} catch {}
 	return null;
 }
-/**
-* Set a session flag
-* @param key - Storage key to set
-* @param value - Value to store
-*/
-function setSessionFlag(key, value) {
+function re(e, t) {
 	try {
-		sessionStorage.setItem(key, value);
-	} catch (e) {
-		logger.warn(`Failed to set session flag ${key}:`, e);
+		sessionStorage.setItem(e, t);
+	} catch (t) {
+		s.warn(`Failed to set session flag ${e}:`, t);
 	}
 }
-/**
-* Get stored normalization config from localStorage
-* @returns The stored config value or null if not set
-*/
-function getStoredConfig() {
+function ie() {
 	try {
-		const stored = localStorage.getItem(STORAGE_KEYS.NORMALIZATION_AVAILABLE);
-		if (stored !== null) return stored === "true";
+		let e = localStorage.getItem(r.NORMALIZATION_AVAILABLE);
+		if (e !== null) return e === "true";
 	} catch {}
 	return null;
 }
-/**
-* Store config to localStorage
-* @param value - normalization_available value
-*/
-function storeConfig(value) {
+function ae(e) {
 	try {
-		localStorage.setItem(STORAGE_KEYS.NORMALIZATION_AVAILABLE, String(value));
-		logger.debug("Config stored to localStorage:", value);
+		localStorage.setItem(r.NORMALIZATION_AVAILABLE, String(e)), s.debug("Config stored to localStorage:", e);
 	} catch (e) {
-		logger.warn("Failed to store config to localStorage:", e);
+		s.warn("Failed to store config to localStorage:", e);
 	}
 }
-/**
-* Manages widget state based on server configuration
-*/
-var widgetManager = {
-	normalizationAvailable: true,
-	configReceived: false,
+var Q = {
+	normalizationAvailable: !0,
+	configReceived: !1,
 	lastConfigValue: null,
-	initialized: false,
-	/**
-	* Initialize from localStorage
-	*/
+	initialized: !1,
 	init() {
 		if (this.initialized) return;
-		this.initialized = true;
-		const stored = getStoredConfig();
-		if (stored !== null) {
-			this.normalizationAvailable = stored;
-			logger.debug("Loaded config from localStorage:", stored);
-		}
+		this.initialized = !0;
+		let e = ie();
+		e !== null && (this.normalizationAvailable = e, s.debug("Loaded config from localStorage:", e));
 	},
-	/**
-	* Update the normalize_text widget state based on config
-	*/
-	updateNormalizationWidget(node) {
-		if (!this.initialized) this.init();
-		const normalizeWidget = node.widgets?.find((w) => w.name === "normalize_text");
-		if (!normalizeWidget) return false;
-		if (this.normalizationAvailable) {
-			if (normalizeWidget.disabled) {
-				logger.debug("Re-enabling normalize_text widget for node:", node.id);
-				normalizeWidget.disabled = false;
-				normalizeWidget.value = true;
-				if (normalizeWidget.options) normalizeWidget.options.tooltip = void 0;
-			}
-			return false;
-		} else {
-			if (!normalizeWidget.disabled) {
-				logger.debug("Disabling normalize_text widget for node:", node.id);
-				normalizeWidget.disabled = true;
-				normalizeWidget.value = false;
-				normalizeWidget.options = normalizeWidget.options || {};
-				normalizeWidget.options.tooltip = "Text normalization disabled: 'inflect' and 'wetext' packages not installed. Install with: pip install inflect wetext";
-			}
-			return true;
-		}
+	updateNormalizationWidget(e) {
+		this.initialized || this.init();
+		let t = e.widgets?.find((e) => e.name === "normalize_text");
+		return t ? this.normalizationAvailable ? (t.disabled && (s.debug("Re-enabling normalize_text widget for node:", e.id), t.disabled = !1, t.value = !0, t.options && (t.options.tooltip = void 0)), !1) : (t.disabled || (s.debug("Disabling normalize_text widget for node:", e.id), t.disabled = !0, t.value = !1, t.options = t.options || {}, t.options.tooltip = "Text normalization disabled: 'inflect' and 'wetext' packages not installed. Install with: pip install inflect wetext"), !0) : !1;
 	},
-	/**
-	* Update all existing VoxCPM nodes in the graph
-	*/
 	updateAllNodes() {
-		if (!this.initialized) this.init();
-		const graph = app.graph || app.rootGraph;
-		if (graph && graph._nodes) {
-			for (const node of graph._nodes) if (node.comfyClass === DEFAULTS.NODE_CLASS) this.updateNormalizationWidget(node);
-		}
+		this.initialized || this.init();
+		let t = e.graph || e.rootGraph;
+		if (t && t._nodes) for (let e of t._nodes) e.comfyClass === a.NODE_CLASS && this.updateNormalizationWidget(e);
 	}
 };
-widgetManager.init();
-/**
-* VoxCPM Frontend Extension
-*
-* Provides:
-* - Session-based notification deduplication
-* - Event handling for server-to-client communication
-* - Settings management with ComfyUI integration
-* - First-run dialog for model path configuration
-* - Widget state management
-*/
-var VoxCPMExtension = {
-	/** Extension name for ComfyUI registration */
-	name: DEFAULTS.EXTENSION_NAME,
-	/**
-	* Register settings with ComfyUI
-	*
-	* These settings appear in ComfyUI's settings panel.
-	*/
+Q.init();
+var $ = {
+	name: a.EXTENSION_NAME,
 	settings: [{
 		id: "voxcpm.use_custom_path",
 		category: ["VoxCPM", "Model Path"],
 		name: "Use Custom Model Path",
 		type: "boolean",
-		defaultValue: false,
+		defaultValue: !1,
 		tooltip: "Enable to use a custom directory for VoxCPM models"
 	}, {
 		id: "voxcpm.custom_model_path",
@@ -2579,135 +1095,75 @@ var VoxCPMExtension = {
 		defaultValue: "",
 		tooltip: "Path to custom VoxCPM models directory"
 	}],
-	/**
-	* Initialize extension (before nodes are registered)
-	*
-	* Called after canvas is created, before nodes are loaded.
-	*/
 	async init() {
-		injectAllStyles();
-		logger.log("Frontend extension initialized");
+		C(), s.log("Frontend extension initialized");
 	},
-	/**
-	* Setup extension (after app is fully loaded)
-	*
-	* Called after the app is fully loaded and ready.
-	* Use for registering event listeners and UI components.
-	*/
 	async setup() {
-		logger.debug("Frontend extension loaded");
-		app.api.addEventListener(EVENT_NAMES.STATUS, ((event) => {
-			this.handleStatusEvent(event.detail);
-		}));
-		app.api.addEventListener(EVENT_NAMES.CONFIG, ((event) => {
-			this.handleConfigEvent(event.detail);
-		}));
-		app.api.addEventListener("reconnected", () => {
-			logger.debug("WebSocket reconnected, waiting for config...");
-			widgetManager.configReceived = false;
-			invalidateModelInfoCache();
-			widgetManager.lastConfigValue = null;
-		});
-		app.api.addEventListener("status", () => {
-			if (!widgetManager.configReceived) logger.debug("Status received, waiting for config...");
-		});
-		logger.log("Event listeners registered");
+		s.debug("Frontend extension loaded"), e.api.addEventListener(i.STATUS, ((e) => {
+			this.handleStatusEvent(e.detail);
+		})), e.api.addEventListener(i.CONFIG, ((e) => {
+			this.handleConfigEvent(e.detail);
+		})), e.api.addEventListener("reconnected", () => {
+			s.debug("WebSocket reconnected, waiting for config..."), Q.configReceived = !1, V(), Q.lastConfigValue = null;
+		}), e.api.addEventListener("status", () => {
+			Q.configReceived || s.debug("Status received, waiting for config...");
+		}), s.log("Event listeners registered");
 	},
-	/**
-	* Called after a node is created
-	*/
-	nodeCreated(node) {
-		if (node.comfyClass !== DEFAULTS.NODE_CLASS) return;
-		logger.debug("VoxCPM node created:", node.id);
-		widgetManager.updateNormalizationWidget(node);
-		createModelSelectorWidget(node);
+	nodeCreated(e) {
+		e.comfyClass === a.NODE_CLASS && (s.debug("VoxCPM node created:", e.id), Q.updateNormalizationWidget(e), W(e));
 	},
-	/**
-	* Called when a node is loaded from a saved workflow
-	*/
-	loadedGraphNode(node) {
-		if (node.comfyClass !== DEFAULTS.NODE_CLASS) return;
-		logger.debug("VoxCPM node loaded from workflow:", node.id);
-		widgetManager.updateNormalizationWidget(node);
-		setTimeout(() => {
-			syncModelSelectorDisplay(node);
-		}, 50);
+	loadedGraphNode(e) {
+		e.comfyClass === a.NODE_CLASS && (s.debug("VoxCPM node loaded from workflow:", e.id), Q.updateNormalizationWidget(e), setTimeout(() => {
+			Z(e);
+		}, 50));
 	},
-	/**
-	* Handle status event from server
-	*/
-	handleStatusEvent(detail) {
-		if (!detail || !detail.severity || !detail.summary) {
-			logger.warn("Invalid status event: missing severity or summary", detail);
+	handleStatusEvent(e) {
+		if (!e || !e.severity || !e.summary) {
+			s.warn("Invalid status event: missing severity or summary", e);
 			return;
 		}
-		notificationManager.show({
-			severity: detail.severity,
-			summary: detail.summary,
-			detail: detail.detail,
-			life: detail.life
+		A.show({
+			severity: e.severity,
+			summary: e.summary,
+			detail: e.detail,
+			life: e.life
 		});
 	},
-	/**
-	* Handle config event from server
-	*/
-	async handleConfigEvent(detail) {
-		logger.log("Received config event:", detail);
-		if (!detail) {
-			logger.warn("Config event has no detail");
+	async handleConfigEvent(e) {
+		if (s.log("Received config event:", e), !e) {
+			s.warn("Config event has no detail");
 			return;
 		}
-		if (typeof detail.normalization_available === "boolean") {
-			if (!(widgetManager.lastConfigValue !== detail.normalization_available) && widgetManager.configReceived) {
-				logger.debug("Config already processed, skipping");
+		if (typeof e.normalization_available == "boolean") {
+			if (Q.lastConfigValue === e.normalization_available && Q.configReceived) {
+				s.debug("Config already processed, skipping");
 				return;
 			}
-			widgetManager.normalizationAvailable = detail.normalization_available;
-			widgetManager.configReceived = true;
-			widgetManager.lastConfigValue = detail.normalization_available;
-			storeConfig(detail.normalization_available);
-			logger.debug("Text normalization available:", widgetManager.normalizationAvailable);
-			setTimeout(() => {
-				widgetManager.updateAllNodes();
+			Q.normalizationAvailable = e.normalization_available, Q.configReceived = !0, Q.lastConfigValue = e.normalization_available, ae(e.normalization_available), s.debug("Text normalization available:", Q.normalizationAvailable), setTimeout(() => {
+				Q.updateAllNodes();
 			}, 100);
 		}
-		if (detail.settings) {
-			logger.log("Initializing settings manager with:", detail.settings);
-			await settingsManager.initialize(detail);
-			const isFirst = settingsManager.isFirstRun();
-			logger.log("Is first run:", isFirst);
-			if (isFirst) {
-				logger.log("Calling showFirstRunDialog()");
-				this.showFirstRunDialog();
-			}
-		} else logger.warn("No settings in config event");
+		if (e.settings) {
+			s.log("Initializing settings manager with:", e.settings), await M.initialize(e);
+			let t = M.isFirstRun();
+			s.log("Is first run:", t), t && (s.log("Calling showFirstRunDialog()"), this.showFirstRunDialog());
+		} else s.warn("No settings in config event");
 	},
-	/**
-	* Show first run dialog
-	*/
 	async showFirstRunDialog() {
-		const shownKey = STORAGE_KEYS.FIRST_RUN_SHOWN;
-		if (isSessionFlagSet(shownKey)) {
-			logger.log("First run dialog already shown this session");
+		let e = r.FIRST_RUN_SHOWN;
+		if (ne(e)) {
+			s.log("First run dialog already shown this session");
 			return;
 		}
-		setSessionFlag(shownKey, "true");
-		logger.log("First run detected - showing welcome dialog");
-		const selection = await showWelcomeDialog();
-		if (selection === "default") {
-			await settingsManager.setDefaultPath();
-			await settingsManager.markFirstRunComplete();
-			logger.log("User selected default path");
-		} else if (selection === "custom") {
-			const path = await showPathSelectionDialog();
-			if (path) {
-				await settingsManager.setCustomPath(path);
-				await settingsManager.markFirstRunComplete();
-				logger.log("User selected custom path:", path);
-			}
-		} else logger.log("User cancelled first run dialog");
+		re(e, "true"), s.log("First run detected - showing welcome dialog");
+		let t = await P();
+		if (t === "default") await M.setDefaultPath(), await M.markFirstRunComplete(), s.log("User selected default path");
+		else if (t === "custom") {
+			let e = await F();
+			e && (await M.setCustomPath(e), await M.markFirstRunComplete(), s.log("User selected custom path:", e));
+		} else s.log("User cancelled first run dialog");
 	}
 };
-app.registerExtension(VoxCPMExtension);
-//#endregion
-export { VoxCPMExtension, VoxCPMExtension as default };
+e.registerExtension($);
+
+export { $ as VoxCPMExtension, $ as default };
