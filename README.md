@@ -34,7 +34,7 @@ VoxCPM is a novel tokenizer-free Text-to-Speech system that redefines realism in
 
 <div align="center">
 
-<img alt="ComfyUI-VoxCPM example workflow" src="https://github.com/user-attachments/assets/9e5bc5a3-f5bb-4184-b5a9-d57db3acb6aa" />
+<img alt="ComfyUI-VoxCPM example workflow"  src="https://github.com/user-attachments/assets/bfb28fa2-c143-4542-97f7-936a67941125" />
 
 </div>
 
