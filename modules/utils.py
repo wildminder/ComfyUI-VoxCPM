@@ -9,15 +9,9 @@ import torch
 # Global cache for model patchers (shared across all nodes)
 VOXCPM_PATCHER_CACHE = {}
 
-# Import device utilities for backward compatibility
+# Device type constants re-exported for convenience
 # New code should import directly from modules.device_utils
 from .device_utils import (
-    get_available_devices,
-    get_torch_device,
-    get_offload_device,
-    should_use_fp16,
-    should_use_bf16,
-    get_device_display_name,
     DEVICE_CPU,
     DEVICE_CUDA,
     DEVICE_MPS,

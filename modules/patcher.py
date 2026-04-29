@@ -5,7 +5,7 @@ import comfy.model_patcher
 import comfy.model_management as model_management
 
 from .loader import VoxCPMLoader, LOADED_MODELS_CACHE
-from .dtype_utils import cast_model_to_dtype
+from .dtype_utils import cast_model_to_dtype, get_dtype_str
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,45 @@ class VoxCPMPatcher(comfy.model_patcher.ModelPatcher):
             logger.debug(f"Casting model to dtype: {self.target_dtype}")
             cast_model_to_dtype(self.model.model.tts_model, self.target_dtype)
 
-            # Verify dtype casting - AudioVAE should be in FP32, rest in target dtype
+            # Sync config.dtype with the actual dtype after casting.
+            # This ensures _dtype() returns the correct value even when
+            # reading from config (e.g., during __init__ before first to()).
+            tts_model = self.model.model.tts_model
+            if hasattr(tts_model, 'config') and hasattr(tts_model.config, 'dtype'):
+                new_dtype_str = get_dtype_str(self.target_dtype)
+                if tts_model.config.dtype != new_dtype_str:
+                    logger.debug(
+                        f"Syncing config.dtype: {tts_model.config.dtype} -> {new_dtype_str}"
+                    )
+                    tts_model.config.dtype = new_dtype_str
+
+        # Sync model.device with the actual device after ComfyUI placement.
+        # The model's __init__ may have set device from config.json, but
+        # ComfyUI's ModelPatcher controls the actual device.
+        #
+        # IMPORTANT: Normalize device string to exclude GPU index.
+        # torch.device("cuda:0") → "cuda", not "cuda:0".
+        # This ensures string comparisons like `self.device != "cuda"` in
+        # compile_model() and other checks work correctly regardless of
+        # whether ComfyUI provides an indexed or non-indexed device.
+        tts_model = self.model.model.tts_model
+        if isinstance(target_device, torch.device):
+            # Normalize: "cuda:0" → "cuda", "mps" → "mps", "cpu" → "cpu"
+            normalized_device = target_device.type
+        else:
+            # String input: strip any index suffix
+            normalized_device = str(target_device).split(":")[0]
+
+        if hasattr(tts_model, 'device'):
+            if tts_model.device != normalized_device:
+                logger.debug(f"Syncing model.device: {tts_model.device} -> {normalized_device}")
+                tts_model.device = normalized_device
+        if hasattr(tts_model, 'config') and hasattr(tts_model.config, 'device'):
+            if tts_model.config.device != normalized_device:
+                tts_model.config.device = normalized_device
+
+        # Verify dtype casting - AudioVAE should be in FP32, rest in target dtype
+        if self.target_dtype is not None:
             dtype_str = str(self.target_dtype)
             for name, param in self.model.model.tts_model.named_parameters():
                 if 'audio_vae' in name:

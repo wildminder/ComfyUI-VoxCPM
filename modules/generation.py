@@ -15,7 +15,7 @@ import folder_paths
 from .loader import VoxCPMModelHandler
 from .patcher import VoxCPMPatcher
 from .utils import VOXCPM_PATCHER_CACHE, set_seed
-from .device_utils import get_torch_device, get_offload_device, is_gpu_device, DEVICE_CPU
+from .device_utils import DEVICE_CPU
 from .dtype_utils import resolve_dtype, DTYPE_AUTO
 
 logger = logging.getLogger(__name__)
@@ -42,18 +42,14 @@ def load_voxcpm_model(
     Raises:
         RuntimeError: If model fails to load
     """
-    # Setup device using unified device utilities
+    # Setup device using ComfyUI's model_management directly
     if device == DEVICE_CPU:
         load_device = torch.device(DEVICE_CPU)
         offload_device = torch.device(DEVICE_CPU)
-    elif is_gpu_device(device):
-        # Use ComfyUI's device management for GPU devices
-        load_device = get_torch_device(device)
-        offload_device = get_offload_device()
     else:
-        # Fallback to ComfyUI's default device selection
-        load_device = get_torch_device()
-        offload_device = get_offload_device()
+        # Delegate to ComfyUI's device management for all GPU devices
+        load_device = model_management.get_torch_device()
+        offload_device = model_management.intermediate_device()
     
     # Resolve dtype using unified dtype utilities
     target_dtype = resolve_dtype(dtype, load_device)

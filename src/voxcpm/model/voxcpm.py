@@ -47,7 +47,10 @@ from ..modules.layers.lora import apply_lora_to_named_linear_modules
 from ..modules.locdit import CfmConfig, UnifiedCFM, VoxCPMLocDiT
 from ..modules.locenc import VoxCPMLocEnc
 from ..modules.minicpm4 import MiniCPM4Config, MiniCPMModel
-from .utils import get_dtype, mask_multichar_chinese_tokens, next_and_close
+from .utils import (
+    mask_multichar_chinese_tokens,
+    next_and_close,
+)
 
 
 class VoxCPMEncoderConfig(BaseModel):
@@ -118,17 +121,14 @@ class VoxCPMModel(nn.Module):
         self.lora_config = lora_config
         self.feat_dim = config.feat_dim
         self.patch_size = config.patch_size
+        # Device and dtype are managed by ComfyUI's ModelPatcher.
+        # Use config values as initial defaults; ComfyUI will override
+        # via patch_model() → to(device) + cast_model_to_dtype().
         self.device = config.device
-        if not torch.cuda.is_available():
-            if torch.backends.mps.is_available():
-                self.device = "mps"
-            else:
-                self.device = "cpu"
-        logger.info(f"Running on device: {self.device}, dtype: {self.config.dtype}")
 
         # Text-Semantic LM
         self.base_lm = MiniCPMModel(config.lm_config)
-        self.base_lm.setup_cache(1, config.max_length, self.device, get_dtype(self.config.dtype))
+        self.base_lm.setup_cache(1, config.max_length, self.device, self._config_dtype_to_torch(self.config.dtype))
 
         self.text_tokenizer = mask_multichar_chinese_tokens(tokenizer)
         self.audio_start_token = 101
@@ -139,7 +139,7 @@ class VoxCPMModel(nn.Module):
         residual_lm_config.num_hidden_layers = config.residual_lm_num_layers
         residual_lm_config.vocab_size = 0
         self.residual_lm = MiniCPMModel(residual_lm_config)
-        self.residual_lm.setup_cache(1, config.max_length, self.device, get_dtype(self.config.dtype))
+        self.residual_lm.setup_cache(1, config.max_length, self.device, self._config_dtype_to_torch(self.config.dtype))
 
         # Local Encoder
         encoder_config = config.lm_config.model_copy(deep=True)
@@ -220,8 +220,10 @@ class VoxCPMModel(nn.Module):
         if disable:
             return self
         try:
-            if self.device != "cuda":
-                raise ValueError("VoxCPMModel can only be optimized on CUDA device")
+            if torch.device(self.device).type not in ("cuda", "hip"):
+                raise ValueError(
+                    f"VoxCPMModel can only be optimized on CUDA device, got: {self.device}"
+                )
             try:
                 import triton  # noqa: F401
             except ImportError:
@@ -337,22 +339,41 @@ class VoxCPMModel(nn.Module):
             "feat_pred": feat_pred,
         }
 
-    def _dtype(self):
-        """Get the configured dtype from config."""
-        return get_dtype(self.config.dtype)
+    @staticmethod
+    def _config_dtype_to_torch(dtype_str: str) -> torch.dtype:
+        """Convert config dtype string to torch.dtype without deprecation warning.
 
-    def _actual_dtype(self):
-        """Get the actual dtype of the model parameters.
-
-        This is useful after dtype casting, as it reflects the actual
-        dtype rather than the config dtype.
+        This is a private replacement for the deprecated get_dtype() function.
+        It is used only during __init__ for setup_cache() calls where we need
+        to convert the config string to a torch.dtype before any casting occurs.
+        After patch_model() runs, _dtype() returns the actual parameter dtype.
         """
-        # Find first non-audio_vae parameter to get actual dtype
+        _DTYPE_MAP = {
+            "bfloat16": torch.bfloat16,
+            "bf16": torch.bfloat16,
+            "float16": torch.float16,
+            "fp16": torch.float16,
+            "float32": torch.float32,
+            "fp32": torch.float32,
+        }
+        result = _DTYPE_MAP.get(dtype_str)
+        if result is None:
+            raise ValueError(f"Unsupported dtype: {dtype_str}")
+        return result
+
+    def _dtype(self):
+        """Get the model's operating dtype.
+
+        After ComfyUI's patch_model() casts the model via cast_model_to_dtype(),
+        this returns the actual parameter dtype. During __init__ (before casting),
+        it falls back to the config dtype.
+        """
+        # Try actual parameter dtype first (post-cast)
         for name, param in self.named_parameters():
             if 'audio_vae' not in name:
                 return param.dtype
-        # Fallback to config dtype if no parameters found
-        return get_dtype(self.config.dtype)
+        # Fallback: config dtype (pre-cast initialization)
+        return self._config_dtype_to_torch(self.config.dtype)
 
     def to(self, *args, **kwargs):
         """Override to() to update self.device attribute when model is moved.
@@ -376,9 +397,8 @@ class VoxCPMModel(nn.Module):
         
         # Reinitialize KV caches on the new device for LM models
         # This is needed because the caches are device-specific
-        # Use _actual_dtype() to match the actual model dtype after casting
         try:
-            actual_dtype = self._actual_dtype()
+            actual_dtype = self._dtype()
             if hasattr(self.base_lm, 'setup_cache'):
                 self.base_lm.setup_cache(1, self.config.max_length, self.device, actual_dtype)
             if hasattr(self.residual_lm, 'setup_cache'):
@@ -490,7 +510,7 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(self.device)
         text_mask = text_mask.unsqueeze(0).to(self.device)
-        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._actual_dtype())
+        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._dtype())
         audio_mask = audio_mask.unsqueeze(0).to(self.device)
 
         target_text_length = len(self.text_tokenizer(target_text))
@@ -755,7 +775,7 @@ class VoxCPMModel(nn.Module):
 
         text_token = text_token.unsqueeze(0).to(self.device)
         text_mask = text_mask.unsqueeze(0).to(self.device)
-        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._actual_dtype())
+        audio_feat = audio_feat.unsqueeze(0).to(self.device).to(self._dtype())
         audio_mask = audio_mask.unsqueeze(0).to(self.device)
 
         # run inference
@@ -989,7 +1009,7 @@ class VoxCPMModel(nn.Module):
             )
         model = cls(config, tokenizer, audio_vae, lora_config)
         if not training:
-            lm_dtype = get_dtype(model.config.dtype)
+            lm_dtype = model._config_dtype_to_torch(model.config.dtype)
             model = model.to(lm_dtype)
         else:  # training mode
             for name, param in model.named_parameters():
@@ -1069,7 +1089,7 @@ class VoxCPMModel(nn.Module):
         if safetensors_file and safetensors_file.exists() and SAFETENSORS_AVAILABLE:
             state_dict = load_file(str(safetensors_file), device=device)
         elif ckpt_file and ckpt_file.exists():
-            ckpt = torch.load(ckpt_file, map_location=device, weights_only=False)
+            ckpt = torch.load(ckpt_file, map_location=device, weights_only=True)
             state_dict = ckpt.get("state_dict", ckpt)
         else:
             raise FileNotFoundError(f"LoRA checkpoint not found. Expected either {safetensors_file} or {ckpt_file}")

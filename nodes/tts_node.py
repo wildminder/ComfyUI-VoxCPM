@@ -26,7 +26,8 @@ from ..modules.generation import (
     build_final_text,
     validate_voxcpm2_features,
 )
-from ..modules.utils import get_available_devices, set_seed
+from ..modules.device_utils import get_available_devices
+from ..modules.utils import set_seed
 from ..modules.dtype_utils import get_dtype_options, DTYPE_AUTO
 from ..modules.custom_types import (
     VoiceCloningConfig,
