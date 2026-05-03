@@ -26,6 +26,7 @@ from ..modules.generation import (
     build_final_text,
     validate_voxcpm2_features,
 )
+from ..modules.downloader import DownloadCancelledError
 from ..modules.device_utils import get_available_devices
 from ..modules.utils import set_seed
 from ..modules.dtype_utils import get_dtype_options, DTYPE_AUTO
@@ -123,6 +124,7 @@ class VoxCPMNode(io.ComfyNode):
         force_offload: bool,
         voice_config: Optional[dict] = None,
         advanced_params: Optional[dict] = None,
+        client_id: Optional[str] = None,
     ) -> io.NodeOutput:
 
         # =====================================================================
@@ -222,8 +224,12 @@ class VoxCPMNode(io.ComfyNode):
         # Set seed for reproducibility
         set_seed(seed)
 
-        # Load model with dtype
-        patcher, model = load_voxcpm_model(model_name, device, dtype)
+        # Load model with dtype (handles download progress tracking)
+        try:
+            patcher, model = load_voxcpm_model(model_name, device, dtype, client_id=client_id)
+        except DownloadCancelledError:
+            logger.info(f"Download cancelled for model '{model_name}'")
+            raise model_management.InterruptProcessingException()
 
         # Apply LoRA if specified
         if lora_name and lora_name != "None":

@@ -1,13 +1,13 @@
 import os
 import torch
 import logging
-from huggingface_hub import snapshot_download
 
 import folder_paths
 
 from ..src.voxcpm.core import VoxCPM
 from ..src.voxcpm.model.voxcpm import LoRAConfig
 from .model_info import AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS
+from .downloader import DownloadManager, DownloadCancelledError, get_download_manager
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,18 @@ class VoxCPMModelHandler(torch.nn.Module):
 
 class VoxCPMLoader:
     @staticmethod
-    def load_model(model_name: str):
+    def load_model(model_name: str, client_id: str = None):
         """
         Loads a VoxCPM model, downloading it if necessary. Caches the loaded model instance.
+
+        Args:
+            model_name: Name of the model to load.
+            client_id: Optional ComfyUI client ID for targeted progress events.
+
+        Raises:
+            DownloadCancelledError: If the user cancels the download.
+            RuntimeError: If the model path cannot be determined.
+            ValueError: If the model name is not found.
         """
         if model_name in LOADED_MODELS_CACHE:
             logger.info(f"Using cached VoxCPM model instance: {model_name}")
@@ -68,10 +77,12 @@ class VoxCPMLoader:
 
             if not (has_bin or has_safe):
                 logger.info(f"Downloading official VoxCPM model '{model_name}' from {model_info['repo_id']}...")
-                snapshot_download(
+                download_manager = get_download_manager()
+                download_manager.download_model(
+                    model_name=model_name,
                     repo_id=model_info["repo_id"],
                     local_dir=voxcpm_path,
-                    local_dir_use_symlinks=False,
+                    client_id=client_id,
                 )
 
         if not voxcpm_path:

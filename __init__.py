@@ -224,8 +224,51 @@ else:
                     logger.error(f"Error handling model info request: {e}")
                     return web.json_response({"error": str(e)}, status=500)
 
+            @PromptServer.instance.routes.post("/voxcpm/cancel_download")
+            async def voxcpm_cancel_download_handler(request):
+                """Cancel an active model download.
+        
+                Expects JSON body: {"model_name": "VoxCPM2"}
+                Returns: {"success": true/false, "message": "..."}
+                """
+                try:
+                    from .modules.downloader import get_download_manager
+                    data = await request.json()
+                    model_name = data.get("model_name", "")
+                    if not model_name:
+                        return web.json_response({"error": "model_name is required"}, status=400)
+        
+                    download_manager = get_download_manager()
+                    cancelled = download_manager.cancel_download(model_name)
+                    if cancelled:
+                        return web.json_response({"success": True, "message": f"Download cancelled for '{model_name}'"})
+                    else:
+                        return web.json_response({"success": False, "message": f"No active download for '{model_name}'"})
+        
+                except json.JSONDecodeError:
+                    return web.json_response({"error": "Invalid JSON"}, status=400)
+                except Exception as e:
+                    logger.error(f"Error handling cancel download request: {e}")
+                    return web.json_response({"error": str(e)}, status=500)
+        
+            @PromptServer.instance.routes.get("/voxcpm/download_status")
+            async def voxcpm_download_status_handler(request):
+                """Get status of all active downloads.
+        
+                Returns: {"downloads": {"VoxCPM2": {...state...}}, ...}
+                """
+                try:
+                    from .modules.downloader import get_download_manager
+                    download_manager = get_download_manager()
+                    statuses = download_manager.get_all_statuses()
+                    return web.json_response({"downloads": statuses})
+        
+                except Exception as e:
+                    logger.error(f"Error handling download status request: {e}")
+                    return web.json_response({"error": str(e)}, status=500)
+        
             logger.debug("VoxCPM API routes registered")
-
+        
         except Exception as e:
             logger.warning(f"Failed to register API routes: {e}")
 

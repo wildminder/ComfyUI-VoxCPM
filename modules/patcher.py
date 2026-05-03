@@ -29,12 +29,18 @@ class VoxCPMPatcher(comfy.model_patcher.ModelPatcher):
     def patch_model(self, device_to=None, *args, **kwargs):
         """
         Called by ComfyUI's model manager to load the model onto the GPU.
+
+        Uses ``self._client_id`` (set by ``load_voxcpm_model()``) to
+        target download progress events to the requesting client.
         """
         target_device = self.load_device if device_to is None else device_to
+        client_id = getattr(self, '_client_id', None)
 
         if self.model.model is None:
             logger.info(f"Loading VoxCPM model '{self.model.model_name}' into RAM...")
-            self.model.model = VoxCPMLoader.load_model(self.model.model_name)
+            self.model.model = VoxCPMLoader.load_model(
+                self.model.model_name, client_id=client_id
+            )
 
         # Move model to target device
         self.model.model.tts_model.to(target_device)

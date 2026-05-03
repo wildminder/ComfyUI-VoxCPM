@@ -13,7 +13,8 @@ var r = {
 	MODEL_LOADED: "voxcpm.model_loaded",
 	GENERATION_PROGRESS: "voxcpm.generation_progress",
 	CONFIG: "voxcpm.config",
-	SETTINGS_UPDATE: "voxcpm.settings_update"
+	SETTINGS_UPDATE: "voxcpm.settings_update",
+	DOWNLOAD_PROGRESS: "voxcpm.download_progress"
 }, a = {
 	TOAST_LIFE: 1e4,
 	LOG_PREFIX: "[VoxCPM]",
@@ -31,7 +32,9 @@ var r = {
 		WARNING: "pi pi-exclamation-triangle",
 		INFO: "pi pi-info-circle",
 		ERROR: "pi pi-times-circle",
-		SUCCESS: "pi pi-check-circle"
+		SUCCESS: "pi pi-check-circle",
+		DOWNLOAD: "pi pi-download",
+		CANCEL: "pi pi-times"
 	},
 	MODEL_SELECTOR: {
 		WIDGET_NAME: "model_selector",
@@ -51,6 +54,16 @@ var r = {
 		ANCHOR_GAP: 4,
 		ANIMATION_DURATION: 150,
 		Z_INDEX: 1e3
+	},
+	DOWNLOAD_PROGRESS: {
+		BLOCK_CLASS: "voxcpm-download-progress",
+		WIDGET_NAME: "download_progress",
+		WIDGET_TYPE: "custom",
+		MIN_HEIGHT: 48,
+		ANIMATION_DURATION: 200,
+		CANCEL_LABEL: "Cancel",
+		CANCEL_ENDPOINT: "/voxcpm/cancel_download",
+		STATUS_ENDPOINT: "/voxcpm/download_status"
 	}
 }, s = {
 	log: (...e) => {
@@ -458,7 +471,7 @@ var _ = {
   }
 }
 `.trim(), y = "voxcpm-model-dropdown-styles", b = !1;
-function x() {
+function ee() {
 	if (b) return;
 	if (document.getElementById(y)) {
 		b = !0;
@@ -468,43 +481,43 @@ function x() {
 	e.id = y, e.textContent = v, document.head.appendChild(e), b = !0;
 }
 
-var S = !1;
-function C() {
-	S || (d(), g(), x(), S = !0);
+var x = !1;
+function S() {
+	x || (d(), g(), ee(), x = !0);
 }
 
-function w(e) {
+function C(e) {
 	try {
 		return sessionStorage.getItem(e);
 	} catch {
 		return null;
 	}
 }
-function T(e, t) {
+function w(e, t) {
 	try {
 		return sessionStorage.setItem(e, t), !0;
 	} catch {
 		return !1;
 	}
 }
-function E(e) {
+function T(e) {
 	try {
 		return sessionStorage.removeItem(e), !0;
 	} catch {
 		return !1;
 	}
 }
+function E(e) {
+	return C(e) !== null;
+}
 function D(e) {
-	return w(e) !== null;
-}
-function O(e) {
-	return T(e, "true");
-}
-function ee(e) {
-	return E(e);
+	return w(e, "true");
 }
 function te(e) {
-	let t = w(e);
+	return T(e);
+}
+function ne(e) {
+	let t = C(e);
 	if (t === null) return null;
 	try {
 		return JSON.parse(t);
@@ -512,19 +525,19 @@ function te(e) {
 		return null;
 	}
 }
-function k(e, t) {
+function O(e, t) {
 	try {
-		return T(e, JSON.stringify(t));
+		return w(e, JSON.stringify(t));
 	} catch {
 		return !1;
 	}
 }
-var A = new class {
+var k = new class {
 	constructor(e) {
 		this.sessionKey = e.sessionKey, this.defaultLife = e.defaultLife;
 	}
 	show(e) {
-		if (D(this.sessionKey)) return s.log("Notification already shown this session, skipping"), {
+		if (E(this.sessionKey)) return s.log("Notification already shown this session, skipping"), {
 			shown: !1,
 			reason: "already_shown"
 		};
@@ -535,9 +548,9 @@ var A = new class {
 				detail: e.detail,
 				life: e.life ?? this.defaultLife,
 				closable: e.closable ?? !0
-			}), O(this.sessionKey), s.log("Toast notification displayed:", e.summary), { shown: !0 };
+			}), D(this.sessionKey), s.log("Toast notification displayed:", e.summary), { shown: !0 };
 		} catch (t) {
-			return s.warn("Toast not available:", t), s.log(`${e.summary}: ${e.detail ?? ""}`), O(this.sessionKey), {
+			return s.warn("Toast not available:", t), s.log(`${e.summary}: ${e.detail ?? ""}`), D(this.sessionKey), {
 				shown: !1,
 				reason: "toast_unavailable"
 			};
@@ -560,24 +573,24 @@ var A = new class {
 		}
 	}
 	reset() {
-		ee(this.sessionKey);
+		te(this.sessionKey);
 	}
 	wasShown() {
-		return D(this.sessionKey);
+		return E(this.sessionKey);
 	}
 }({
 	sessionKey: "voxcpm.normalization_notification_shown",
 	defaultLife: 1e4
-}), j = "voxcpm.settings", M = new class {
+}), A = "voxcpm.settings", j = new class {
 	constructor() {
 		this.settings = null, this.initialized = !1;
 	}
 	async initialize(e) {
-		this.settings = e.settings, this.initialized = !0, k(j, this.settings), s.log("Settings initialized:", this.settings);
+		this.settings = e.settings, this.initialized = !0, O(A, this.settings), s.log("Settings initialized:", this.settings);
 	}
 	getSettings() {
 		if (this.settings) return this.settings;
-		let e = te(j);
+		let e = ne(A);
 		return e ? (this.settings = e, this.settings) : null;
 	}
 	isFirstRun() {
@@ -592,7 +605,7 @@ var A = new class {
 	async updateSettings(e) {
 		try {
 			for (let [n, r] of Object.entries(e)) await t.api.storeSetting(`voxcpm.${n}`, r);
-			return this.settings && (Object.assign(this.settings, e), k(j, this.settings)), s.log("Settings updated:", e), !0;
+			return this.settings && (Object.assign(this.settings, e), O(A, this.settings)), s.log("Settings updated:", e), !0;
 		} catch (e) {
 			return s.warn("Failed to update settings:", e), !1;
 		}
@@ -615,10 +628,10 @@ var A = new class {
 	isInitialized() {
 		return this.initialized;
 	}
-}(), N = null;
-function P() {
+}(), M = null;
+function N() {
 	return new Promise((e) => {
-		I();
+		F();
 		let t = document.createElement("div");
 		t.className = "voxcpm-dialog__overlay", t.innerHTML = "\n    <div class=\"voxcpm-dialog\">\n    <div class=\"voxcpm-dialog__header\">\n    <span class=\"voxcpm-dialog__icon\">🎙️</span>\n    <h2 class=\"voxcpm-dialog__title\">VoxCPM Model Setup</h2>\n    </div>\n    <div class=\"voxcpm-dialog__body\">\n    <p class=\"voxcpm-dialog__description\">\n    Welcome to VoxCPM! How would you like to configure your model path?\n    </p>\n    <div class=\"voxcpm-dialog__options\">\n    <button class=\"voxcpm-dialog__option\" data-option=\"default\">\n    <div class=\"voxcpm-dialog__option-icon\">📁</div>\n    <div class=\"voxcpm-dialog__option-content\">\n    <h3>Use Default Path</h3>\n    <p class=\"voxcpm-dialog__option-path\">models/tts/VoxCPM/</p>\n    <p class=\"voxcpm-dialog__option-description\">\n    Official models will be downloaded automatically.\n    </p>\n    </div>\n    </button>\n    <button class=\"voxcpm-dialog__option\" data-option=\"custom\">\n    <div class=\"voxcpm-dialog__option-icon\">📂</div>\n    <div class=\"voxcpm-dialog__option-content\">\n    <h3>Use Custom Path</h3>\n    <p class=\"voxcpm-dialog__option-description\">\n    Select a custom directory where your VoxCPM models are located.\n    Useful for existing model collections.\n    </p>\n    </div>\n    </button>\n    </div>\n    </div>\n    <div class=\"voxcpm-dialog__footer\">\n    <button class=\"voxcpm-dialog__btn voxcpm-dialog__btn--secondary\" id=\"voxcpm-cancel\">Cancel</button>\n    <button class=\"voxcpm-dialog__btn voxcpm-dialog__btn--primary\" id=\"voxcpm-continue\" disabled>\n    Continue\n    </button>\n    </div>\n    </div>\n    ";
 		let n = null, r = t.querySelectorAll(".voxcpm-dialog__option");
@@ -629,15 +642,15 @@ function P() {
 				i && (i.disabled = !1);
 			});
 		}), t.querySelector("#voxcpm-cancel")?.addEventListener("click", () => {
-			I(), e(null);
+			F(), e(null);
 		}), t.querySelector("#voxcpm-continue")?.addEventListener("click", () => {
-			n && (I(), e(n));
-		}), document.body.appendChild(t), N = t, L();
+			n && (F(), e(n));
+		}), document.body.appendChild(t), M = t, I();
 	});
 }
-function F(e) {
+function P(e) {
 	return new Promise((t) => {
-		I();
+		F();
 		let n = document.createElement("div");
 		n.className = "voxcpm-dialog__overlay", n.innerHTML = `
     <div class="voxcpm-dialog voxcpm-dialog--large">
@@ -694,45 +707,45 @@ function F(e) {
 		}), n.querySelector("#voxcpm-browse")?.addEventListener("click", () => {
 			alert("Please enter the path manually. Native folder picker requires server support.");
 		}), n.querySelector("#voxcpm-cancel")?.addEventListener("click", () => {
-			I(), t(null);
+			F(), t(null);
 		}), d?.addEventListener("click", () => {
-			r && i && (I(), t(i));
-		}), document.body.appendChild(n), N = n, L(), e && f(e);
+			r && i && (F(), t(i));
+		}), document.body.appendChild(n), M = n, I(), e && f(e);
 	});
 }
-function I() {
-	N && (N.remove(), N = null);
+function F() {
+	M && (M.remove(), M = null);
 }
-function L() {
+function I() {
 	let e = "voxcpm-dialog-styles";
 	if (document.getElementById(e)) return;
 	let t = document.createElement("style");
 	t.id = e, t.textContent = "\n\n\n\n.voxcpm-dialog__overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 10000;\n}\n\n\n.voxcpm-dialog {\n  background: var(--voxcpm-bg-surface);\n  border-radius: var(--voxcpm-border-radius-m);\n  max-width: 500px;\n  width: 90%;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);\n}\n\n.voxcpm-dialog--large {\n  max-width: 600px;\n}\n\n\n.voxcpm-dialog__header {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-l);\n  padding: var(--voxcpm-space-2xl);\n  border-bottom: 1px solid var(--voxcpm-border-color);\n}\n\n.voxcpm-dialog__icon {\n  font-size: var(--voxcpm-font-size-xl);\n}\n\n.voxcpm-dialog__title {\n  margin: 0;\n  font-size: var(--voxcpm-font-size-l);\n  color: var(--voxcpm-text-primary);\n}\n\n\n.voxcpm-dialog__body {\n  padding: var(--voxcpm-space-2xl);\n}\n\n.voxcpm-dialog__description {\n  margin: 0 0 20px;\n  color: var(--voxcpm-text-secondary);\n  line-height: 1.5;\n}\n\n\n.voxcpm-dialog__options {\n  display: flex;\n  flex-direction: column;\n  gap: var(--voxcpm-space-l);\n}\n\n\n.voxcpm-dialog__option {\n  display: flex;\n  gap: var(--voxcpm-space-xl);\n  padding: var(--voxcpm-space-xl);\n  background: var(--voxcpm-bg-elevated);\n  border: 2px solid var(--voxcpm-border-color);\n  border-radius: var(--voxcpm-border-radius-m);\n  cursor: pointer;\n  text-align: left;\n  transition: border-color var(--voxcpm-duration-normal) var(--voxcpm-easing),\n              background var(--voxcpm-duration-normal) var(--voxcpm-easing);\n}\n\n.voxcpm-dialog__option:hover {\n  border-color: var(--voxcpm-accent);\n}\n\n.voxcpm-dialog__option--selected {\n  border-color: var(--voxcpm-accent);\n  background: var(--voxcpm-bg-input-hover);\n}\n\n.voxcpm-dialog__option-icon {\n  font-size: 32px;\n  flex-shrink: 0;\n}\n\n.voxcpm-dialog__option-content h3 {\n  margin: 0 0 var(--voxcpm-space-xs);\n  color: var(--voxcpm-text-primary);\n  font-size: var(--voxcpm-font-size-m);\n}\n\n.voxcpm-dialog__option-path {\n  margin: 0 0 var(--voxcpm-space-m);\n  font-family: var(--voxcpm-font-family-mono);\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n.voxcpm-dialog__option-description {\n  margin: 0;\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n\n.voxcpm-dialog__footer {\n  display: flex;\n  justify-content: flex-end;\n  gap: var(--voxcpm-space-l);\n  padding: var(--voxcpm-space-xl) var(--voxcpm-space-2xl);\n  border-top: 1px solid var(--voxcpm-border-color);\n}\n\n\n.voxcpm-dialog__btn {\n  padding: var(--voxcpm-space-m) var(--voxcpm-space-xl);\n  border-radius: var(--voxcpm-border-radius-xs);\n  font-size: var(--voxcpm-font-size-m);\n  cursor: pointer;\n  transition: background var(--voxcpm-duration-normal) var(--voxcpm-easing),\n              border-color var(--voxcpm-duration-normal) var(--voxcpm-easing);\n}\n\n.voxcpm-dialog__btn--secondary {\n  background: transparent;\n  border: 1px solid var(--voxcpm-border-color);\n  color: var(--voxcpm-text-secondary);\n}\n\n.voxcpm-dialog__btn--secondary:hover {\n  background: var(--voxcpm-bg-elevated);\n}\n\n.voxcpm-dialog__btn--primary {\n  background: var(--voxcpm-accent);\n  border: none;\n  color: var(--voxcpm-text-on-primary);\n}\n\n.voxcpm-dialog__btn--primary:hover:not(:disabled) {\n  background: var(--voxcpm-accent-hover);\n}\n\n.voxcpm-dialog__btn--primary:disabled {\n  opacity: 0.5;\n  cursor: not-allowed;\n}\n\n\n.voxcpm-dialog__input-group {\n  display: flex;\n  gap: var(--voxcpm-space-m);\n  margin-bottom: var(--voxcpm-space-xl);\n}\n\n.voxcpm-dialog__input {\n  flex: 1;\n  padding: var(--voxcpm-space-m) var(--voxcpm-space-l);\n  background: var(--voxcpm-bg-elevated);\n  border: 1px solid var(--voxcpm-border-color);\n  border-radius: var(--voxcpm-border-radius-xs);\n  color: var(--voxcpm-text-primary);\n  font-size: var(--voxcpm-font-size-m);\n  font-family: var(--voxcpm-font-family);\n}\n\n.voxcpm-dialog__input:focus {\n  outline: none;\n  border-color: var(--voxcpm-accent);\n}\n\n\n.voxcpm-dialog__preview {\n  background: var(--voxcpm-bg-elevated);\n  border-radius: var(--voxcpm-border-radius-xs);\n  padding: var(--voxcpm-space-l);\n  margin-bottom: var(--voxcpm-space-xl);\n}\n\n.voxcpm-dialog__preview h4 {\n  margin: 0 0 var(--voxcpm-space-m);\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n.voxcpm-dialog__models-list {\n  list-style: none;\n  margin: 0;\n  padding: 0;\n}\n\n.voxcpm-dialog__models-list li {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-m);\n  padding: var(--voxcpm-space-xs) 0;\n}\n\n.voxcpm-dialog__model-icon {\n  font-size: var(--voxcpm-font-size-m);\n}\n\n.voxcpm-dialog__model-name {\n  font-size: var(--voxcpm-font-size-s);\n  color: var(--voxcpm-text-secondary);\n}\n\n\n.voxcpm-dialog__validation {\n  font-size: var(--voxcpm-font-size-xs);\n}\n\n.voxcpm-dialog__validation--success {\n  color: var(--voxcpm-color-success);\n}\n\n.voxcpm-dialog__validation--error {\n  color: var(--voxcpm-color-error);\n}\n\n\n.voxcpm-dialog__option:focus-visible,\n.voxcpm-dialog__btn:focus-visible,\n.voxcpm-dialog__input:focus-visible {\n  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);\n  outline-offset: var(--voxcpm-focus-ring-offset);\n}\n\n\n@media (prefers-reduced-motion: reduce) {\n  .voxcpm-dialog *,\n  .voxcpm-dialog *::before,\n  .voxcpm-dialog *::after {\n    transition-duration: 0ms !important;\n  }\n}\n\n\n\n.voxcpm-path-indicator {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-m);\n  padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);\n  background: var(--voxcpm-bg-elevated);\n  border-radius: var(--voxcpm-border-radius-xs);\n  font-size: var(--voxcpm-font-size-xs);\n}\n\n.voxcpm-path-indicator__text {\n  color: var(--voxcpm-text-muted);\n  font-family: var(--voxcpm-font-family-mono);\n}\n\n.voxcpm-path-indicator__change-btn {\n  background: transparent;\n  border: none;\n  cursor: pointer;\n  font-size: var(--voxcpm-font-size-m);\n  padding: var(--voxcpm-space-2xs);\n  color: var(--voxcpm-text-primary);\n  transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);\n}\n\n.voxcpm-path-indicator__change-btn:hover {\n  opacity: 0.8;\n}\n\n.voxcpm-path-indicator__change-btn:focus-visible {\n  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);\n  outline-offset: var(--voxcpm-focus-ring-offset);\n}\n", document.head.appendChild(t);
 }
 
-var R = {
+var L = {
 	CLOUD: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/><polyline points=\"12 12 12 22\"/><path d=\"m8 18 4 4 4-4\"/></svg>",
 	CHECK: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg>",
 	SHIELD: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/></svg>",
 	FOLDER: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z\"/></svg>",
 	FOLDER_OPEN: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1\"/><path d=\"M6 12h14l-2.5 7H8.5L6 12z\"/></svg>"
-}, z = null;
-async function B(e) {
-	if (z !== null) return z;
+}, R = null;
+async function z(e) {
+	if (R !== null) return R;
 	try {
 		let t = await e("/voxcpm/model_info");
-		if (t.ok) return z = (await t.json()).models || [], z;
+		if (t.ok) return R = (await t.json()).models || [], R;
 	} catch (e) {
 		console.warn("[VoxCPM] Failed to fetch model info:", e);
 	}
 	return [];
 }
-function V() {
-	z = null;
+function re() {
+	R = null;
 }
-var H = class e {
+var B = class e {
 	constructor(e, t, n, r) {
-		this.selectedIndex = -1, this.resolveSelection = null, this.cleanups = [], this.isOpen = !1, this.modelInfo = e, this.anchorRect = t, this.scale = n, this.widgetElement = r || null, this.panel = document.createElement("div"), this.panel.className = _.BLOCK, this.panel.setAttribute("role", "listbox"), this.panel.setAttribute("aria-label", "Select model"), this.header = document.createElement("div"), this.header.className = _.HEADER, this.header.innerHTML = `${R.SHIELD} <span>${o.MODEL_DROPDOWN.HEADER_TEXT}</span>`, this.list = document.createElement("div"), this.list.className = _.LIST, this.panel.appendChild(this.header), this.panel.appendChild(this.list), this.renderItems();
+		this.selectedIndex = -1, this.resolveSelection = null, this.cleanups = [], this.isOpen = !1, this.modelInfo = e, this.anchorRect = t, this.scale = n, this.widgetElement = r || null, this.panel = document.createElement("div"), this.panel.className = _.BLOCK, this.panel.setAttribute("role", "listbox"), this.panel.setAttribute("aria-label", "Select model"), this.header = document.createElement("div"), this.header.className = _.HEADER, this.header.innerHTML = `${L.SHIELD} <span>${o.MODEL_DROPDOWN.HEADER_TEXT}</span>`, this.list = document.createElement("div"), this.list.className = _.LIST, this.panel.appendChild(this.header), this.panel.appendChild(this.list), this.renderItems();
 	}
 	show() {
 		return new Promise((t) => {
@@ -757,7 +770,7 @@ var H = class e {
 		let n = document.createElement("div");
 		n.className = _.ITEM, n.setAttribute("role", "option"), n.setAttribute("data-index", String(t)), n.setAttribute("data-model", e.name);
 		let r = document.createElement("span"), i = e.is_downloaded ? _.ICON_CHECK : _.ICON_CLOUD;
-		r.className = `${_.ICON} ${i}`, r.innerHTML = e.is_downloaded ? R.CHECK : R.CLOUD, n.appendChild(r);
+		r.className = `${_.ICON} ${i}`, r.innerHTML = e.is_downloaded ? L.CHECK : L.CLOUD, n.appendChild(r);
 		let a = document.createElement("span");
 		if (a.className = _.NAME, a.textContent = e.name, n.appendChild(a), e.size_gb > 0) {
 			let t = document.createElement("span");
@@ -839,10 +852,10 @@ var H = class e {
 		}
 	}
 };
-H.currentDropdown = null;
+B.currentDropdown = null;
 
-var U =  new Map();
-function W(e) {
+var V =  new Map();
+function ie(e) {
 	let t = e.widgets;
 	if (!t) {
 		s.warn("No widgets found on node:", e.id);
@@ -853,40 +866,40 @@ function W(e) {
 		s.warn("model_name widget not found on node:", e.id);
 		return;
 	}
-	G(n);
+	ae(n);
 	let r = document.createElement("div");
 	r.className = f.BLOCK;
 	let i = document.createElement("div");
 	i.className = f.DISPLAY, i.title = "Click to select a model", i.tabIndex = 0, i.setAttribute("role", "combobox"), i.setAttribute("aria-expanded", "false"), i.setAttribute("aria-haspopup", "listbox");
 	let a = document.createElement("span");
-	a.className = f.ICON, a.innerHTML = R.FOLDER;
+	a.className = f.ICON, a.innerHTML = L.FOLDER;
 	let c = document.createElement("span");
 	c.className = f.TEXT, c.textContent = n.value || o.MODEL_SELECTOR.PLACEHOLDER;
 	let l = document.createElement("span");
 	l.className = f.ARROW, l.textContent = o.MODEL_SELECTOR.ARROW;
 	let u = document.createElement("button");
-	u.className = f.BROWSE, u.innerHTML = R.FOLDER_OPEN, u.title = "Browse for custom model directory", u.setAttribute("role", "button");
+	u.className = f.BROWSE, u.innerHTML = L.FOLDER_OPEN, u.title = "Browse for custom model directory", u.setAttribute("role", "button");
 	let d = document.createElement("div");
 	d.className = f.PATH;
 	let p = e.properties?.custom_model_path;
-	p && (a.innerHTML = R.FOLDER_OPEN, d.textContent = p, d.classList.add(f.PATH_VISIBLE)), i.append(a, c, l);
+	p && (a.innerHTML = L.FOLDER_OPEN, d.textContent = p, d.classList.add(f.PATH_VISIBLE)), i.append(a, c, l);
 	let m = document.createElement("div");
 	m.className = f.ROW, m.append(i, u), r.append(m, d), r.addEventListener("mouseup", (e) => e.stopPropagation()), r.addEventListener("click", (e) => e.stopPropagation()), i.addEventListener("click", (t) => {
-		if (t.preventDefault(), t.stopPropagation(), K()) {
-			q();
+		if (t.preventDefault(), t.stopPropagation(), H()) {
+			U();
 			return;
 		}
-		J(t, n, c, a, d, e, i, l);
+		W(t, n, c, a, d, e, i, l);
 	}), i.addEventListener("keydown", (t) => {
 		if (t.key === "Enter" || t.key === " ") {
-			if (t.preventDefault(), t.stopPropagation(), K()) {
-				q();
+			if (t.preventDefault(), t.stopPropagation(), H()) {
+				U();
 				return;
 			}
-			J(t, n, c, a, d, e, i, l);
+			W(t, n, c, a, d, e, i, l);
 		}
 	}), u.addEventListener("click", async (t) => {
-		t.preventDefault(), t.stopPropagation(), await Y(e, n, c, a, d);
+		t.preventDefault(), t.stopPropagation(), await G(e, n, c, a, d);
 	});
 	let h = e.addDOMWidget("model_selector", "custom", r, {
 		serialize: !1,
@@ -916,26 +929,26 @@ function W(e) {
 	v && (v.widget = {
 		name: "model_selector",
 		_originalWidget: v.widget?.name
-	}, s.debug("Bound model_name input to model_selector widget for node:", e.id)), U.set(e.id, {
+	}, s.debug("Bound model_name input to model_selector widget for node:", e.id)), V.set(e.id, {
 		modelText: c,
 		folderIcon: a,
 		pathIndicator: d,
 		modelWidget: n
 	}), s.debug("Created model selector widget for node:", e.id);
 }
-function G(e) {
+function ae(e) {
 	e.type = "converted-widget", e.computeSize = () => [0, -4], e.draw = () => {}, e.options || (e.options = {}), e.options.canvasOnly = !0, s.debug("Hidden default combo widget:", e.name);
 }
-function K() {
-	return H.currentDropdown !== null;
+function H() {
+	return B.currentDropdown !== null;
 }
-function q() {
-	H.currentDropdown && H.currentDropdown.close(null);
+function U() {
+	B.currentDropdown && B.currentDropdown.close(null);
 }
-async function J(e, r, i, a, o, c, l, u) {
+async function W(e, r, i, a, o, c, l, u) {
 	let d = r.options?.values || [];
 	if (d.length === 0) {
-		s.warn("No models available for dropdown"), A.show({
+		s.warn("No models available for dropdown"), k.show({
 			severity: "warn",
 			summary: "No Models Available",
 			detail: "No models found. Try browsing for a custom model directory.",
@@ -945,7 +958,7 @@ async function J(e, r, i, a, o, c, l, u) {
 	}
 	let p = [];
 	try {
-		p = await B(n.fetchApi.bind(n));
+		p = await z(n.fetchApi.bind(n));
 	} catch (e) {
 		s.error("Failed to fetch model info:", e);
 	}
@@ -960,11 +973,11 @@ async function J(e, r, i, a, o, c, l, u) {
 	let m = l.getBoundingClientRect(), h = t.canvas.ds?.scale || 1;
 	u.classList.add(f.ARROW_ACTIVE), l.setAttribute("aria-expanded", "true");
 	try {
-		let e = await new H(p, m, h, l).show();
+		let e = await new B(p, m, h, l).show();
 		if (e) {
 			r.value = e, i.textContent = e;
 			let t = p.find((t) => t.name === e);
-			t && (a.innerHTML = t.is_downloaded ? R.CHECK : R.CLOUD), r.callback && r.callback(e), c.setDirtyCanvas && c.setDirtyCanvas(!0), s.debug("Model selected:", e, "for node:", c.id);
+			t && (a.innerHTML = t.is_downloaded ? L.CHECK : L.CLOUD), r.callback && r.callback(e), c.setDirtyCanvas && c.setDirtyCanvas(!0), s.debug("Model selected:", e, "for node:", c.id);
 		}
 	} catch (e) {
 		s.error("Failed to open model dropdown:", e);
@@ -972,9 +985,9 @@ async function J(e, r, i, a, o, c, l, u) {
 		u.classList.remove(f.ARROW_ACTIVE), l.setAttribute("aria-expanded", "false");
 	}
 }
-async function Y(e, t, r, i, a) {
+async function G(e, t, r, i, a) {
 	s.log("Browse button clicked for node:", e.id);
-	let o = await F();
+	let o = await P();
 	if (!o) {
 		s.debug("Browse cancelled by user");
 		return;
@@ -988,7 +1001,7 @@ async function Y(e, t, r, i, a) {
 		});
 		if (c.ok) {
 			let n = await c.json();
-			s.log("Models found at custom path:", n.models), X(t, n.models, e), i.innerHTML = R.FOLDER_OPEN, a.textContent = o, a.classList.add(f.PATH_VISIBLE), n.models.length > 0 ? r.textContent = t.value : r.textContent = "No models found", A.show({
+			s.log("Models found at custom path:", n.models), K(t, n.models, e), i.innerHTML = L.FOLDER_OPEN, a.textContent = o, a.classList.add(f.PATH_VISIBLE), n.models.length > 0 ? r.textContent = t.value : r.textContent = "No models found", k.show({
 				severity: "success",
 				summary: "Custom Model Path Set",
 				detail: `Found ${n.models.length} model(s) in: ${o}`,
@@ -996,7 +1009,7 @@ async function Y(e, t, r, i, a) {
 			});
 		} else {
 			let e = c.statusText || "Unknown error";
-			s.error("Failed to get models:", e), A.show({
+			s.error("Failed to get models:", e), k.show({
 				severity: "error",
 				summary: "Error",
 				detail: `Failed to scan model directory: ${e}`,
@@ -1004,7 +1017,7 @@ async function Y(e, t, r, i, a) {
 			});
 		}
 	} catch (e) {
-		s.error("Error fetching models:", e), A.show({
+		s.error("Error fetching models:", e), k.show({
 			severity: "error",
 			summary: "Error",
 			detail: "Failed to connect to server",
@@ -1012,11 +1025,11 @@ async function Y(e, t, r, i, a) {
 		});
 	}
 }
-function X(e, t, n) {
+function K(e, t, n) {
 	e.options ? e.options.values = t : e.options = { values: t }, t.length > 0 && !t.includes(e.value) && (e.value = t[0], e.callback && e.callback(t[0])), n.setDirtyCanvas && n.setDirtyCanvas(!0), s.debug("Updated model options:", t);
 }
-function Z(e, t) {
-	let n = U.get(e.id);
+function q(e, t) {
+	let n = V.get(e.id);
 	if (!n) {
 		s.debug("No selector refs found for node:", e.id);
 		return;
@@ -1024,31 +1037,441 @@ function Z(e, t) {
 	let r = t || n.modelWidget.value;
 	n.modelText.textContent = r;
 	let i = e.properties?.custom_model_path;
-	i ? (n.folderIcon.innerHTML = R.FOLDER_OPEN, n.pathIndicator.textContent = i, n.pathIndicator.classList.add(f.PATH_VISIBLE)) : (n.folderIcon.innerHTML = R.FOLDER, n.pathIndicator.classList.remove(f.PATH_VISIBLE)), s.debug("Synced model selector display for node:", e.id, "value:", r);
+	i ? (n.folderIcon.innerHTML = L.FOLDER_OPEN, n.pathIndicator.textContent = i, n.pathIndicator.classList.add(f.PATH_VISIBLE)) : (n.folderIcon.innerHTML = L.FOLDER, n.pathIndicator.classList.remove(f.PATH_VISIBLE)), s.debug("Synced model selector display for node:", e.id, "value:", r);
+}
+var J = new class {
+	constructor() {
+		this.downloads =  new Map(), this.listeners =  new Map(), this.globalListeners =  new Set(), this._bindWebSocketEvents();
+	}
+	getState(e) {
+		return this.downloads.get(e);
+	}
+	getAllStates() {
+		return new Map(this.downloads);
+	}
+	isDownloading(e) {
+		return this.downloads.get(e)?.status === "downloading";
+	}
+	async cancelDownload(e) {
+		try {
+			let t = await (await fetch(o.DOWNLOAD_PROGRESS.CANCEL_ENDPOINT, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ model_name: e })
+			})).json();
+			return t.success ? (s.info(`Download cancelled: ${e}`), !0) : (s.warn(`Cancel failed: ${t.message}`), !1);
+		} catch (t) {
+			return s.error(`Failed to cancel download for '${e}':`, t), !1;
+		}
+	}
+	onModelUpdate(e, t) {
+		return this.listeners.has(e) || this.listeners.set(e,  new Set()), this.listeners.get(e).add(t), () => {
+			this.listeners.get(e)?.delete(t);
+		};
+	}
+	onAnyUpdate(e) {
+		return this.globalListeners.add(e), () => {
+			this.globalListeners.delete(e);
+		};
+	}
+	_bindWebSocketEvents() {
+		try {
+			t.api.addEventListener(i.DOWNLOAD_PROGRESS, ((e) => {
+				this._handleProgressEvent(e.detail);
+			})), s.debug("Download progress WebSocket listener registered");
+		} catch (e) {
+			s.warn("Failed to bind download progress WebSocket listener:", e);
+		}
+	}
+	_handleProgressEvent(e) {
+		let t = e.model_name || e.transfer_id;
+		if (!t) {
+			s.warn("Download progress event missing model_name:", e);
+			return;
+		}
+		let n = e.event_type, r = this.downloads.get(t);
+		switch (r || (r = this._createInitialState(t), this.downloads.set(t, r)), n) {
+			case "start":
+				r.status = "downloading", r.isXet = e.is_xet ?? !1;
+				break;
+			case "progress":
+				r.status = "downloading", r.percentage = e.percentage ?? 0, r.currentFile = e.filename ?? "", r.speed = e.speed ?? 0, r.bytesCompleted = e.bytes_completed ?? 0, r.totalBytes = e.total_bytes ?? 0, r.fileIndex = e.file_index ?? 0, r.totalFiles = e.total_files ?? 1, e.transfer_bytes_completed !== void 0 && (r.transferBytesCompleted = e.transfer_bytes_completed, r.transferBytesTotal = e.transfer_bytes_total ?? 0, r.transferSpeed = e.transfer_speed ?? 0, r.dedupSavedBytes = e.dedup_saved_bytes ?? 0, r.isXet = !0);
+				break;
+			case "complete":
+				r.status = "complete", r.percentage = 100;
+				break;
+			case "error":
+				e.error?.includes("cancelled") ? r.status = "cancelled" : r.status = "error", r.errorMessage = e.error ?? "Unknown error";
+				break;
+		}
+		r.lastUpdated = Date.now(), this._notifyListeners(n, t, r), (n === "complete" || n === "error") && setTimeout(() => {
+			this.downloads.delete(t);
+		}, 5e3);
+	}
+	_createInitialState(e) {
+		return {
+			modelName: e,
+			status: "idle",
+			percentage: 0,
+			currentFile: "",
+			speed: 0,
+			bytesCompleted: 0,
+			totalBytes: 0,
+			fileIndex: 0,
+			totalFiles: 1,
+			isXet: !1,
+			transferBytesCompleted: 0,
+			transferBytesTotal: 0,
+			transferSpeed: 0,
+			dedupSavedBytes: 0,
+			errorMessage: null,
+			lastUpdated: Date.now()
+		};
+	}
+	_notifyListeners(e, t, n) {
+		let r = this.listeners.get(t);
+		if (r) for (let e of r) try {
+			e(n);
+		} catch (e) {
+			s.error(`Download listener error for '${t}':`, e);
+		}
+		for (let t of this.globalListeners) try {
+			t(e, n);
+		} catch (e) {
+			s.error("Global download listener error:", e);
+		}
+	}
+}(), Y = o.DOWNLOAD_PROGRESS.BLOCK_CLASS;
+function oe() {
+	let e = `${Y}-styles`;
+	if (document.getElementById(e)) return;
+	let t = document.createElement("style");
+	t.id = e, t.textContent = se, document.head.appendChild(t);
+}
+var se = `
+
+.${Y} {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px 8px;
+	background: var(--voxcpm-bg-surface, rgba(30, 30, 40, 0.9));
+	border: 1px solid var(--voxcpm-border-default, rgba(100, 100, 140, 0.3));
+	border-radius: var(--voxcpm-radius-sm, 4px);
+	font-family: var(--voxcpm-font-mono, 'Consolas', 'Monaco', monospace);
+	font-size: 11px;
+	color: var(--voxcpm-text-primary, #e0e0e0);
+	min-height: ${o.DOWNLOAD_PROGRESS.MIN_HEIGHT}px;
+	transition: opacity var(--voxcpm-duration-fast, 150ms) ease;
 }
 
-function ne(e) {
+.${Y}--hidden {
+	display: none;
+}
+
+.${Y}--complete {
+	border-color: var(--voxcpm-color-success, #4caf50);
+	opacity: 0.7;
+}
+
+.${Y}--error {
+	border-color: var(--voxcpm-color-error, #f44336);
+}
+
+.${Y}--cancelled {
+	border-color: var(--voxcpm-color-warning, #ff9800);
+	opacity: 0.7;
+}
+
+.${Y}__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.${Y}__title {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--voxcpm-text-secondary, #a0a0b0);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.${Y}__title-icon {
+	font-size: 12px;
+	color: var(--voxcpm-color-accent, #7c8cf8);
+}
+
+.${Y}__cancel-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px 8px;
+	border: 1px solid var(--voxcpm-color-error, #f44336);
+	border-radius: var(--voxcpm-radius-sm, 3px);
+	background: transparent;
+	color: var(--voxcpm-color-error, #f44336);
+	font-family: inherit;
+	font-size: 10px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all var(--voxcpm-duration-fast, 150ms) ease;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.${Y}__cancel-btn:hover {
+	background: var(--voxcpm-color-error, #f44336);
+	color: #fff;
+}
+
+.${Y}__cancel-btn:active {
+	transform: scale(0.95);
+}
+
+.${Y}__cancel-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.${Y}__bar-container {
+	position: relative;
+	height: 6px;
+	background: var(--voxcpm-bg-inset, rgba(0, 0, 0, 0.3));
+	border-radius: var(--voxcpm-radius-sm, 3px);
+	overflow: hidden;
+}
+
+.${Y}__bar-fill {
+	height: 100%;
+	background: linear-gradient(
+		90deg,
+		var(--voxcpm-color-accent, #7c8cf8),
+		var(--voxcpm-color-accent-light, #a0b0ff)
+	);
+	border-radius: var(--voxcpm-radius-sm, 3px);
+	transition: width ${o.DOWNLOAD_PROGRESS.ANIMATION_DURATION}ms ease-out;
+	min-width: 0;
+}
+
+.${Y}--complete .${Y}__bar-fill {
+	background: linear-gradient(
+		90deg,
+		var(--voxcpm-color-success, #4caf50),
+		var(--voxcpm-color-success-light, #81c784)
+	);
+}
+
+.${Y}--error .${Y}__bar-fill {
+	background: var(--voxcpm-color-error, #f44336);
+}
+
+.${Y}--cancelled .${Y}__bar-fill {
+	background: var(--voxcpm-color-warning, #ff9800);
+}
+
+.${Y}__stats {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 10px;
+	color: var(--voxcpm-text-tertiary, #707080);
+}
+
+.${Y}__percentage {
+	font-weight: 700;
+	color: var(--voxcpm-text-primary, #e0e0e0);
+	min-width: 36px;
+}
+
+.${Y}__speed {
+	color: var(--voxcpm-text-tertiary, #707080);
+}
+
+.${Y}__file-info {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+	text-align: right;
+}
+
+.${Y}__xet-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 0 4px;
+	border-radius: 2px;
+	background: var(--voxcpm-color-accent, #7c8cf8);
+	color: #fff;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	margin-left: 4px;
+}
+
+.${Y}__status {
+	font-size: 10px;
+	color: var(--voxcpm-text-tertiary, #707080);
+	text-align: center;
+	padding: 2px 0;
+}
+
+.${Y}--error .${Y}__status {
+	color: var(--voxcpm-color-error, #f44336);
+}
+
+.${Y}--cancelled .${Y}__status {
+	color: var(--voxcpm-color-warning, #ff9800);
+}
+
+.${Y}--complete .${Y}__status {
+	color: var(--voxcpm-color-success, #4caf50);
+}
+`, X = o.DOWNLOAD_PROGRESS.BLOCK_CLASS, ce = o.DOWNLOAD_PROGRESS.WIDGET_NAME;
+function le(e) {
+	if (e === 0) return "0 B";
+	let t = [
+		"B",
+		"KB",
+		"MB",
+		"GB"
+	], n = Math.floor(Math.log(e) / Math.log(1024));
+	return `${(e / 1024 ** n).toFixed(+(n > 0))} ${t[n]}`;
+}
+function ue(e) {
+	return e === 0 ? "--" : `${le(e)}/s`;
+}
+var de = class {
+	constructor() {
+		this.modelName = "", this.unsubscribe = null, this.hideTimeout = null, oe(), this.element = document.createElement("div"), this.element.className = `${X} ${X}--hidden`, this.element.innerHTML = this._buildHTML(), this.container = this.element, this.barFill = this.element.querySelector(`.${X}__bar-fill`), this.percentageEl = this.element.querySelector(`.${X}__percentage`), this.speedEl = this.element.querySelector(`.${X}__speed`), this.fileInfoEl = this.element.querySelector(`.${X}__file-info`), this.cancelBtn = this.element.querySelector(`.${X}__cancel-btn`), this.statusEl = this.element.querySelector(`.${X}__status`), this.xetBadge = this.element.querySelector(`.${X}__xet-badge`), this.cancelBtn.addEventListener("click", (e) => {
+			e.stopPropagation(), this._onCancel();
+		}), this.element.addEventListener("mousedown", (e) => e.stopPropagation()), this.element.addEventListener("wheel", (e) => e.stopPropagation());
+	}
+	setModelName(e) {
+		if (this.unsubscribe && (this.unsubscribe(), this.unsubscribe = null), this.modelName = e, e) {
+			this.unsubscribe = J.onModelUpdate(e, (e) => {
+				this._updateFromState(e);
+			});
+			let t = J.getState(e);
+			t && t.status === "downloading" && this._updateFromState(t);
+		}
+	}
+	destroy() {
+		this.unsubscribe && (this.unsubscribe(), this.unsubscribe = null), this.hideTimeout && (clearTimeout(this.hideTimeout), this.hideTimeout = null);
+	}
+	_buildHTML() {
+		return `
+			<div class="${X}__header">
+				<div class="${X}__title">
+					<span class="${X}__title-icon ${o.ICONS.DOWNLOAD}"></span>
+					<span>Downloading</span>
+					<span class="${X}__xet-badge" style="display:none">XET</span>
+				</div>
+				<button class="${X}__cancel-btn" title="Cancel download">
+					<span class="${o.ICONS.CANCEL}" style="font-size:10px;margin-right:3px"></span>
+					${o.DOWNLOAD_PROGRESS.CANCEL_LABEL}
+				</button>
+			</div>
+			<div class="${X}__bar-container">
+				<div class="${X}__bar-fill" style="width: 0%"></div>
+			</div>
+			<div class="${X}__stats">
+				<span class="${X}__percentage">0%</span>
+				<span class="${X}__speed">--</span>
+				<span class="${X}__file-info"></span>
+			</div>
+			<div class="${X}__status" style="display:none"></div>
+		`;
+	}
+	_updateFromState(e) {
+		switch (this.hideTimeout && (clearTimeout(this.hideTimeout), this.hideTimeout = null), e.status) {
+			case "downloading":
+				this._showDownloading(e);
+				break;
+			case "complete":
+				this._showComplete(e);
+				break;
+			case "error":
+				this._showError(e);
+				break;
+			case "cancelled":
+				this._showCancelled(e);
+				break;
+			default:
+				this._hide();
+				break;
+		}
+	}
+	_showDownloading(e) {
+		this.container.className = X, this.barFill.style.width = `${Math.min(e.percentage, 100)}%`, this.percentageEl.textContent = `${Math.round(e.percentage)}%`, this.speedEl.textContent = ue(e.speed);
+		let t = e.totalFiles > 1 ? `file ${e.fileIndex + 1}/${e.totalFiles} • ${e.currentFile}` : e.currentFile;
+		this.fileInfoEl.textContent = t, this.xetBadge.style.display = e.isXet ? "inline-flex" : "none", this.cancelBtn.disabled = !1, this.statusEl.style.display = "none";
+	}
+	_showComplete(e) {
+		this.container.className = `${X} ${X}--complete`, this.barFill.style.width = "100%", this.percentageEl.textContent = "100%", this.speedEl.textContent = "", this.fileInfoEl.textContent = "", this.cancelBtn.disabled = !0, this.statusEl.style.display = "block", this.statusEl.textContent = "Download complete ✓", this._scheduleHide(3e3);
+	}
+	_showError(e) {
+		this.container.className = `${X} ${X}--error`, this.cancelBtn.disabled = !0, this.statusEl.style.display = "block", this.statusEl.textContent = e.errorMessage || "Download failed", this._scheduleHide(5e3);
+	}
+	_showCancelled(e) {
+		this.container.className = `${X} ${X}--cancelled`, this.cancelBtn.disabled = !0, this.statusEl.style.display = "block", this.statusEl.textContent = "Download cancelled", this._scheduleHide(3e3);
+	}
+	_hide() {
+		this.container.className = `${X} ${X}--hidden`;
+	}
+	_scheduleHide(e) {
+		this.hideTimeout = setTimeout(() => {
+			this._hide(), this.hideTimeout = null;
+		}, e);
+	}
+	async _onCancel() {
+		this.modelName && (this.cancelBtn.disabled = !0, this.statusEl.style.display = "block", this.statusEl.textContent = "Cancelling...", await J.cancelDownload(this.modelName) || (this.cancelBtn.disabled = !1, this.statusEl.textContent = "Cancel failed"));
+	}
+};
+function fe(e) {
+	let t = new de(), n = e.addDOMWidget(ce, o.DOWNLOAD_PROGRESS.WIDGET_TYPE, t.element, {
+		getValue: () => "",
+		setValue: () => {},
+		minHeight: o.DOWNLOAD_PROGRESS.MIN_HEIGHT
+	});
+	return n.serialize = !1, e._voxcpmDownloadProgress || (e._voxcpmDownloadProgress = t), {
+		widget: n,
+		progressWidget: t
+	};
+}
+function Z(e, t) {
+	let n = e._voxcpmDownloadProgress;
+	n && n.setModelName(t);
+}
+
+function pe(e) {
 	try {
 		let t = sessionStorage.getItem(e);
 		if (t !== null) return t;
 	} catch {}
 	return null;
 }
-function re(e, t) {
+function me(e, t) {
 	try {
 		sessionStorage.setItem(e, t);
 	} catch (t) {
 		s.warn(`Failed to set session flag ${e}:`, t);
 	}
 }
-function ie() {
+function he() {
 	try {
 		let e = localStorage.getItem(r.NORMALIZATION_AVAILABLE);
 		if (e !== null) return e === "true";
 	} catch {}
 	return null;
 }
-function ae(e) {
+function ge(e) {
 	try {
 		localStorage.setItem(r.NORMALIZATION_AVAILABLE, String(e)), s.debug("Config stored to localStorage:", e);
 	} catch (e) {
@@ -1063,7 +1486,7 @@ var Q = {
 	init() {
 		if (this.initialized) return;
 		this.initialized = !0;
-		let e = ie();
+		let e = he();
 		e !== null && (this.normalizationAvailable = e, s.debug("Loaded config from localStorage:", e));
 	},
 	updateNormalizationWidget(e) {
@@ -1096,7 +1519,7 @@ var $ = {
 		tooltip: "Path to custom VoxCPM models directory"
 	}],
 	async init() {
-		C(), s.log("Frontend extension initialized");
+		S(), s.log("Frontend extension initialized");
 	},
 	async setup() {
 		s.debug("Frontend extension loaded"), e.api.addEventListener(i.STATUS, ((e) => {
@@ -1104,25 +1527,41 @@ var $ = {
 		})), e.api.addEventListener(i.CONFIG, ((e) => {
 			this.handleConfigEvent(e.detail);
 		})), e.api.addEventListener("reconnected", () => {
-			s.debug("WebSocket reconnected, waiting for config..."), Q.configReceived = !1, V(), Q.lastConfigValue = null;
+			s.debug("WebSocket reconnected, waiting for config..."), Q.configReceived = !1, re(), Q.lastConfigValue = null;
 		}), e.api.addEventListener("status", () => {
 			Q.configReceived || s.debug("Status received, waiting for config...");
 		}), s.log("Event listeners registered");
 	},
 	nodeCreated(e) {
-		e.comfyClass === a.NODE_CLASS && (s.debug("VoxCPM node created:", e.id), Q.updateNormalizationWidget(e), W(e));
+		if (e.comfyClass !== a.NODE_CLASS) return;
+		s.debug("VoxCPM node created:", e.id), Q.updateNormalizationWidget(e), ie(e), fe(e);
+		let t = e.widgets;
+		if (t) {
+			let n = t.find((e) => e.name === "model_name");
+			if (n) {
+				let t = n.callback;
+				n.callback = (r) => {
+					Z(e, String(r || "")), t && t.call(n, r);
+				}, n.value && Z(e, String(n.value));
+			}
+		}
 	},
 	loadedGraphNode(e) {
 		e.comfyClass === a.NODE_CLASS && (s.debug("VoxCPM node loaded from workflow:", e.id), Q.updateNormalizationWidget(e), setTimeout(() => {
-			Z(e);
-		}, 50));
+			q(e);
+			let t = e.widgets;
+			if (t) {
+				let n = t.find((e) => e.name === "model_name");
+				n?.value && Z(e, String(n.value));
+			}
+		}, 60));
 	},
 	handleStatusEvent(e) {
 		if (!e || !e.severity || !e.summary) {
 			s.warn("Invalid status event: missing severity or summary", e);
 			return;
 		}
-		A.show({
+		k.show({
 			severity: e.severity,
 			summary: e.summary,
 			detail: e.detail,
@@ -1139,28 +1578,28 @@ var $ = {
 				s.debug("Config already processed, skipping");
 				return;
 			}
-			Q.normalizationAvailable = e.normalization_available, Q.configReceived = !0, Q.lastConfigValue = e.normalization_available, ae(e.normalization_available), s.debug("Text normalization available:", Q.normalizationAvailable), setTimeout(() => {
+			Q.normalizationAvailable = e.normalization_available, Q.configReceived = !0, Q.lastConfigValue = e.normalization_available, ge(e.normalization_available), s.debug("Text normalization available:", Q.normalizationAvailable), setTimeout(() => {
 				Q.updateAllNodes();
 			}, 100);
 		}
 		if (e.settings) {
-			s.log("Initializing settings manager with:", e.settings), await M.initialize(e);
-			let t = M.isFirstRun();
+			s.log("Initializing settings manager with:", e.settings), await j.initialize(e);
+			let t = j.isFirstRun();
 			s.log("Is first run:", t), t && (s.log("Calling showFirstRunDialog()"), this.showFirstRunDialog());
 		} else s.warn("No settings in config event");
 	},
 	async showFirstRunDialog() {
 		let e = r.FIRST_RUN_SHOWN;
-		if (ne(e)) {
+		if (pe(e)) {
 			s.log("First run dialog already shown this session");
 			return;
 		}
-		re(e, "true"), s.log("First run detected - showing welcome dialog");
-		let t = await P();
-		if (t === "default") await M.setDefaultPath(), await M.markFirstRunComplete(), s.log("User selected default path");
+		me(e, "true"), s.log("First run detected - showing welcome dialog");
+		let t = await N();
+		if (t === "default") await j.setDefaultPath(), await j.markFirstRunComplete(), s.log("User selected default path");
 		else if (t === "custom") {
-			let e = await F();
-			e && (await M.setCustomPath(e), await M.markFirstRunComplete(), s.log("User selected custom path:", e));
+			let e = await P();
+			e && (await j.setCustomPath(e), await j.markFirstRunComplete(), s.log("User selected custom path:", e));
 		} else s.log("User cancelled first run dialog");
 	}
 };

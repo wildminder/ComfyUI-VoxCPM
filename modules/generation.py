@@ -25,7 +25,8 @@ def load_voxcpm_model(
     model_name: str,
     device: str = "cuda",
     dtype: str = DTYPE_AUTO,
-    force_reload: bool = False
+    force_reload: bool = False,
+    client_id: Optional[str] = None,
 ) -> Tuple[VoxCPMPatcher, Any]:
     """
     Load or retrieve cached VoxCPM model.
@@ -35,12 +36,14 @@ def load_voxcpm_model(
         device: Device to load on ("cuda", "cpu", "mps", etc.)
         dtype: Data type for model ("auto", "bf16", "fp16", "fp32")
         force_reload: Force reload even if cached
+        client_id: Optional ComfyUI client ID for download progress events
 
     Returns:
         Tuple of (patcher, model)
 
     Raises:
         RuntimeError: If model fails to load
+        DownloadCancelledError: If the user cancels the model download
     """
     # Setup device using ComfyUI's model_management directly
     if device == DEVICE_CPU:
@@ -50,7 +53,7 @@ def load_voxcpm_model(
         # Delegate to ComfyUI's device management for all GPU devices
         load_device = model_management.get_torch_device()
         offload_device = model_management.intermediate_device()
-    
+
     # Resolve dtype using unified dtype utilities
     target_dtype = resolve_dtype(dtype, load_device)
 
@@ -70,6 +73,9 @@ def load_voxcpm_model(
         logger.debug(f"Created new patcher for {model_name} with dtype={dtype}")
 
     patcher = VOXCPM_PATCHER_CACHE[cache_key]
+    # Store client_id on the patcher so patch_model() can pass it
+    # to VoxCPMLoader.load_model() for download progress targeting
+    patcher._client_id = client_id
     model_management.load_model_gpu(patcher)
     model = patcher.model.model
 
