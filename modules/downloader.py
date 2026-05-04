@@ -31,39 +31,77 @@ logger = logging.getLogger(__name__)
 
 
 def _suppress_hf_http_logs() -> None:
-    """Suppress verbose HTTP request logs from huggingface_hub during downloads.
+    """Suppress verbose HTTP request logs during model downloads.
 
-    The ``huggingface_hub`` library logs every HTTP request at INFO level
-    (e.g. ``HTTP Request: GET https://huggingface.co/...``), which produces
-    overwhelming noise during multi-file snapshot downloads. This function
-    raises the log level for the relevant loggers to WARNING, so only
-    actual problems are shown — not routine request/response lines.
+    During snapshot downloads, multiple libraries produce noisy log output:
+
+    - **httpx**: Logs every HTTP request at INFO level via
+      ``logging.getLogger("httpx")`` (e.g. ``HTTP Request: GET https://...``).
+      This is the primary source of "HTTP Request:" messages.
+    - **huggingface_hub**: Uses its own custom logging system
+      (``huggingface_hub.logging``) with a dedicated ``StreamHandler``.
+      Must be suppressed via the library's own API.
+    - **urllib3** / **filelock**: May also produce noise during downloads.
+
+    ComfyUI typically configures the root logger at INFO or DEBUG level,
+    which causes the ``httpx`` logger's INFO messages to propagate up and
+    appear in the console. We suppress by setting the ``httpx`` logger level
+    to WARNING (the standard Python logging approach), and also suppress
+    ``huggingface_hub`` via its own API.
     """
-    for _logger_name in (
-        "huggingface_hub",
-        "huggingface_hub.file_download",
-        "huggingface_hub.snapshot_download",
-        "urllib3.connectionpool",
-        "filelock",
-    ):
+    # Suppress httpx logger — the actual source of "HTTP Request:" messages.
+    # httpx._client.py uses: logger = logging.getLogger("httpx")
+    # and calls: logger.info('HTTP Request: %s %s "%s %d %s"', ...)
+    _httpx_logger = logging.getLogger("httpx")
+    _httpx_logger.setLevel(logging.WARNING)
+
+    # Suppress huggingface_hub's custom logging system
+    try:
+        from huggingface_hub import logging as hf_logging
+
+        hf_logging.set_verbosity_error()
+        hf_logging.disable_propagation()
+        _hf_logger = hf_logging.get_logger()
+        for _handler in _hf_logger.handlers:
+            _handler.setLevel(logging.ERROR)
+    except ImportError:
+        pass
+
+    # Also suppress urllib3 and filelock standard loggers
+    for _logger_name in ("urllib3.connectionpool", "filelock"):
         _lh = logging.getLogger(_logger_name)
         if _lh.level == logging.NOTSET or _lh.level < logging.WARNING:
             _lh.setLevel(logging.WARNING)
 
 
 def _restore_hf_http_logs() -> None:
-    """Restore huggingface_hub loggers to their original levels.
+    """Restore loggers to their original levels after download completes.
 
     Pairs with :func:`_suppress_hf_http_logs` to avoid permanently
     silencing logs if the user later triggers a non-download HF operation.
+
+    Restores the ``httpx`` logger to NOTSET (default), the
+    ``huggingface_hub`` internal logging to WARNING level (the library
+    default) and re-enables propagation. Also resets ``urllib3`` and
+    ``filelock`` loggers.
     """
-    for _logger_name in (
-        "huggingface_hub",
-        "huggingface_hub.file_download",
-        "huggingface_hub.snapshot_download",
-        "urllib3.connectionpool",
-        "filelock",
-    ):
+    # Restore httpx logger to default level
+    logging.getLogger("httpx").setLevel(logging.NOTSET)
+
+    # Restore huggingface_hub's custom logging
+    try:
+        from huggingface_hub import logging as hf_logging
+
+        hf_logging.set_verbosity_warning()
+        hf_logging.enable_propagation()
+        _hf_logger = hf_logging.get_logger()
+        for _handler in _hf_logger.handlers:
+            _handler.setLevel(logging.NOTSET)
+    except ImportError:
+        pass
+
+    # Reset standard loggers
+    for _logger_name in ("urllib3.connectionpool", "filelock"):
         logging.getLogger(_logger_name).setLevel(logging.NOTSET)
 
 
