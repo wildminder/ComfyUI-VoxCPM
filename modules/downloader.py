@@ -21,12 +21,64 @@ import logging
 import os
 import queue
 import shutil
+import sys
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _suppress_hf_http_logs() -> None:
+    """Suppress verbose HTTP request logs from huggingface_hub during downloads.
+
+    The ``huggingface_hub`` library logs every HTTP request at INFO level
+    (e.g. ``HTTP Request: GET https://huggingface.co/...``), which produces
+    overwhelming noise during multi-file snapshot downloads. This function
+    raises the log level for the relevant loggers to WARNING, so only
+    actual problems are shown — not routine request/response lines.
+    """
+    for _logger_name in (
+        "huggingface_hub",
+        "huggingface_hub.file_download",
+        "huggingface_hub.snapshot_download",
+        "urllib3.connectionpool",
+        "filelock",
+    ):
+        _lh = logging.getLogger(_logger_name)
+        if _lh.level == logging.NOTSET or _lh.level < logging.WARNING:
+            _lh.setLevel(logging.WARNING)
+
+
+def _restore_hf_http_logs() -> None:
+    """Restore huggingface_hub loggers to their original levels.
+
+    Pairs with :func:`_suppress_hf_http_logs` to avoid permanently
+    silencing logs if the user later triggers a non-download HF operation.
+    """
+    for _logger_name in (
+        "huggingface_hub",
+        "huggingface_hub.file_download",
+        "huggingface_hub.snapshot_download",
+        "urllib3.connectionpool",
+        "filelock",
+    ):
+        logging.getLogger(_logger_name).setLevel(logging.NOTSET)
+
+
+def _format_bytes(num_bytes: float) -> str:
+    """Format bytes into a human-readable string (e.g. '1.23 GB')."""
+    for unit in ("B", "KB", "MB", "GB"):
+        if abs(num_bytes) < 1024.0:
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f} TB"
+
+
+def _format_speed(bytes_per_sec: float) -> str:
+    """Format transfer speed into a human-readable string (e.g. '12.3 MB/s')."""
+    return f"{_format_bytes(bytes_per_sec)}/s"
 
 # Polling timeout for event queue (seconds).
 # Short timeout keeps the UI responsive while avoiding busy-waiting.
@@ -237,6 +289,10 @@ class DownloadManager:
             },
         )
 
+        # Suppress verbose HTTP request logs from huggingface_hub
+        # (e.g. "HTTP Request: GET https://huggingface.co/...")
+        _suppress_hf_http_logs()
+
         result_path = None
         error_occurred = None
 
@@ -271,6 +327,7 @@ class DownloadManager:
                         client_id=client_id,
                         extra_data={"error": "Download cancelled by user"},
                     )
+                    self._print_console_progress(model_name, cancelled=True)
                     raise DownloadCancelledError(model_name)
 
                 # Get a single event from the queue (short timeout)
@@ -282,6 +339,10 @@ class DownloadManager:
                 # Update state and forward to frontend
                 self._update_state_from_event(model_name, event)
                 self._emit_progress_event(model_name, event, client_id)
+
+                # Print console progress bar on PROGRESS events
+                if event.event_type == EventType.PROGRESS:
+                    self._print_console_progress(model_name)
 
                 if event.event_type in (EventType.COMPLETE, EventType.ERROR):
                     if event.event_type == EventType.ERROR:
@@ -310,6 +371,7 @@ class DownloadManager:
                     client_id=client_id,
                     extra_data={"error": "Download cancelled by user"},
                 )
+                self._print_console_progress(model_name, cancelled=True)
                 raise DownloadCancelledError(model_name)
 
             if error_occurred:
@@ -325,6 +387,7 @@ class DownloadManager:
                     client_id=client_id,
                     extra_data={"error": str(error_occurred)},
                 )
+                self._print_console_progress(model_name, error=True)
                 raise DownloadError(model_name, str(error_occurred))
 
             # Success
@@ -336,12 +399,16 @@ class DownloadManager:
                 client_id=client_id,
                 extra_data={"local_dir": local_dir},
             )
+            self._print_console_progress(model_name, complete=True)
 
             return result_path or local_dir
 
         except DownloadCancelledError:
             self._cleanup(model_name, local_dir)
             raise
+        finally:
+            # Restore huggingface_hub loggers to their original levels
+            _restore_hf_http_logs()
 
     def cancel_download(self, model_name: str) -> bool:
         """Request cancellation of an active download.
@@ -584,6 +651,78 @@ class DownloadManager:
             if event.error:
                 state.error_message = event.error
                 state.status = DownloadStatus.ERROR
+
+    # ── Internal: Console Progress ────────────────────────────────
+
+    def _print_console_progress(
+        self,
+        model_name: str,
+        complete: bool = False,
+        error: bool = False,
+        cancelled: bool = False,
+    ) -> None:
+        """Print a single-line progress bar to the console using ``\\r``.
+
+        Overwrites the current terminal line to show real-time download
+        progress without flooding the log with HTTP request messages.
+
+        Output format::
+
+            [VoxCPM] Downloading VoxCPM2 ━━━━━━━━━━━━━━━━━━━━ 45.2% 12.3 MB/s file 3/8
+            [VoxCPM] ✓ VoxCPM2 download complete (1.23 GB)
+            [VoxCPM] ✗ VoxCPM2 download failed: <error message>
+            [VoxCPM] ✗ VoxCPM2 download cancelled
+
+        Args:
+            model_name: Name of the model being downloaded.
+            complete: If True, print the final "complete" line with newline.
+            error: If True, print the "error" line with newline.
+            cancelled: If True, print the "cancelled" line with newline.
+        """
+        with self._lock:
+            state = self._active_downloads.get(model_name)
+            if state is None:
+                return
+
+        if cancelled:
+            print(f"\r[VoxCPM] ✗ {model_name} download cancelled", flush=True)
+            return
+
+        if error:
+            msg = state.error_message or "unknown error"
+            print(f"\r[VoxCPM] ✗ {model_name} download failed: {msg}", flush=True)
+            return
+
+        if complete:
+            total = _format_bytes(state.total_bytes) if state.total_bytes else "unknown size"
+            print(
+                f"\r[VoxCPM] ✓ {model_name} download complete ({total})",
+                flush=True,
+            )
+            return
+
+        # Build progress bar: 20-char bar filled with ━
+        pct = state.progress_percentage
+        filled = int(pct / 100 * 20)
+        bar = "━" * filled + "─" * (20 - filled)
+
+        # Speed
+        speed_str = _format_speed(state.speed) if state.speed > 0 else "—"
+
+        # File info
+        file_info = ""
+        if state.total_files > 1:
+            file_info = f" file {state.file_index + 1}/{state.total_files}"
+
+        # Xet badge
+        xet_badge = " [xet]" if state.is_xet else ""
+
+        line = (
+            f"\r[VoxCPM] Downloading {model_name}{xet_badge} "
+            f"{bar} {pct:5.1f}% {speed_str}{file_info}"
+        )
+        # Pad to clear any previous longer output
+        print(f"{line:<80}", end="", flush=True)
 
     # ── Internal: Cleanup ─────────────────────────────────────────
 
