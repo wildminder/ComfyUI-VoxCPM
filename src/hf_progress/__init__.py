@@ -48,8 +48,11 @@ from .types import (
     EventType,
     ProgressEvent,
     ProgressPhase,
+    TransferCancelledError,
     TransferDirection,
+    TransferProgressError,
     TransferResult,
+    TokenError,
     generate_transfer_id,
 )
 
@@ -57,6 +60,7 @@ from .types import (
 from .callbacks import (
     DownloadProgressTqdm,
     XetDownloadProgressCallback,
+    XetProgressCallback,
     XetUploadProgressCallback,
     tqdm_upload_patcher,
 )
@@ -64,28 +68,38 @@ from .callbacks import (
 # Token management
 from .token import XetCredentials, XetTokenManager, is_xet_available
 
+# Subprocess isolation
+from .subprocess_runner import XetSubprocessRunner
+from .subprocess_messages import SubprocessMessage
+
 # High-level tracker
 from .tracker import HfProgressTracker
 
 __version__ = "0.1.0"
 
 __all__ = [
-    # Core types
-    "EventType",
-    "ProgressEvent",
-    "ProgressPhase",
-    "TransferDirection",
-    "TransferResult",
-    "generate_transfer_id",
-    # Callback classes
-    "DownloadProgressTqdm",
-    "XetDownloadProgressCallback",
-    "XetUploadProgressCallback",
-    "tqdm_upload_patcher",
-    # Token management
-    "XetCredentials",
-    "XetTokenManager",
-    "is_xet_available",
-    # High-level tracker
-    "HfProgressTracker",
+# Core types
+"EventType",
+"ProgressEvent",
+"ProgressPhase",
+"TransferCancelledError",
+"TransferDirection",
+"TransferProgressError",
+"TransferResult",
+"generate_transfer_id",
+# Callback classes
+"DownloadProgressTqdm",
+"XetDownloadProgressCallback",
+"XetProgressCallback",
+"XetUploadProgressCallback",
+"tqdm_upload_patcher",
+# Token management
+"XetCredentials",
+"XetTokenManager",
+"is_xet_available",
+# Subprocess isolation
+"XetSubprocessRunner",
+"SubprocessMessage",
+# High-level tracker
+"HfProgressTracker",
 ]

@@ -21,7 +21,10 @@ if ROOT_DIR not in sys.path:
 # ====================================================================
 # We let comfy and folder_paths load normally from COMFYUI_ROOT.
 # We only mock 'server' and 'aiohttp' to prevent network activity.
-sys.modules["server"] = MagicMock()
+_mock_server = MagicMock()
+_mock_prompt_server_instance = MagicMock()
+_mock_server.PromptServer.instance = _mock_prompt_server_instance
+sys.modules["server"] = _mock_server
 sys.modules["aiohttp"] = MagicMock()
 sys.modules["aiohttp.web"] = MagicMock()
 
@@ -42,6 +45,19 @@ if "ComfyUI_VoxCPM" not in sys.modules:
 # ====================================================================
 # 4. GLOBAL FIXTURES
 # ====================================================================
+@pytest.fixture
+def mock_prompt_server():
+    """Provide a shared PromptServer mock with reset send_sync.
+
+    All downloader test files should use this fixture to get the
+    PromptServer.instance mock. It ensures cross-file isolation
+    by re-assigning the instance on the shared server mock.
+    """
+    _mock_server.PromptServer.instance = _mock_prompt_server_instance
+    _mock_prompt_server_instance.send_sync.reset_mock()
+    return _mock_prompt_server_instance
+
+
 @pytest.fixture(autouse=True)
 def temp_settings_dir(tmp_path):
     settings_dir = tmp_path / "settings"

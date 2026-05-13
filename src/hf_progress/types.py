@@ -10,7 +10,7 @@ import enum
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 class ProgressPhase(str, enum.Enum):
@@ -38,6 +38,33 @@ class EventType(str, enum.Enum):
     PROGRESS = "progress"
     COMPLETE = "complete"
     ERROR = "error"
+    CANCELLED = "cancelled"
+
+
+@dataclass
+class TransferError:
+    """Structured error information for failed transfers."""
+    message: str
+    error_type: str = "Exception"
+    retryable: bool = False
+
+    def __str__(self) -> str:
+        return self.message
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "message": self.message,
+            "error_type": self.error_type,
+            "retryable": self.retryable,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> TransferError:
+        return cls(
+            message=data.get("message", "Unknown error"),
+            error_type=data.get("error_type", "Exception"),
+            retryable=data.get("retryable", False),
+        )
 
 
 @dataclass
@@ -60,12 +87,12 @@ class ProgressEvent:
         file_index: Index of this file in a multi-file transfer (0-based).
         total_files: Total number of files in the transfer.
         transfer_bytes_completed: Bytes actually transferred over network
-            (Xet only — may differ from bytes_completed due to dedup).
+            (Xet only -- may differ from bytes_completed due to dedup).
         transfer_bytes_total: Total bytes scheduled for network transfer
             (Xet only).
         transfer_speed: Network transfer speed in bytes/second (Xet only).
         dedup_saved_bytes: Bytes saved by deduplication (Xet upload only).
-        error: Error message (only set when event_type is "error").
+        error: Structured error object (only set when event_type is "error").
         timestamp: Unix timestamp when the event was created.
         extra: Additional metadata (strategy-specific fields).
     """
@@ -85,9 +112,98 @@ class ProgressEvent:
     transfer_bytes_total: int = 0
     transfer_speed: float = 0.0
     dedup_saved_bytes: int = 0
-    error: Optional[str] = None
+    error: Optional[TransferError] = None
     timestamp: float = field(default_factory=time.time)
     extra: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def start(
+        cls,
+        transfer_id: str,
+        direction: TransferDirection,
+        filename: str,
+        phase: ProgressPhase,
+        total_bytes: int = 0,
+        **kwargs,
+    ) -> ProgressEvent:
+        """Create a START event with sensible defaults."""
+        return cls(
+            event_type=EventType.START,
+            transfer_id=transfer_id,
+            direction=direction,
+            filename=filename,
+            phase=phase,
+            total_bytes=total_bytes,
+            **kwargs,
+        )
+
+    @classmethod
+    def complete(
+        cls,
+        transfer_id: str,
+        direction: TransferDirection,
+        filename: str,
+        phase: ProgressPhase = ProgressPhase.COMPLETE,
+        bytes_completed: int = 0,
+        total_bytes: int = 0,
+        **kwargs,
+    ) -> ProgressEvent:
+        """Create a COMPLETE event with percentage auto-set to 100."""
+        return cls(
+            event_type=EventType.COMPLETE,
+            transfer_id=transfer_id,
+            direction=direction,
+            filename=filename,
+            phase=phase,
+            bytes_completed=bytes_completed,
+            total_bytes=total_bytes,
+            percentage=100.0,
+            **kwargs,
+        )
+
+    @classmethod
+    def error_event(
+        cls,
+        transfer_id: str,
+        direction: TransferDirection,
+        filename: str,
+        error: TransferError,
+        phase: ProgressPhase = ProgressPhase.ERROR,
+        **kwargs,
+    ) -> ProgressEvent:
+        """Create an ERROR event."""
+        return cls(
+            event_type=EventType.ERROR,
+            transfer_id=transfer_id,
+            direction=direction,
+            filename=filename,
+            phase=phase,
+            error=error,
+            **kwargs,
+        )
+
+    @classmethod
+    def cancelled_event(
+        cls,
+        transfer_id: str,
+        direction: TransferDirection,
+        filename: str,
+        bytes_completed: int = 0,
+        total_bytes: int = 0,
+        **kwargs,
+    ) -> ProgressEvent:
+        """Create a CANCELLED event."""
+        return cls(
+            event_type=EventType.CANCELLED,
+            transfer_id=transfer_id,
+            direction=direction,
+            filename=filename,
+            phase=ProgressPhase.ERROR,
+            bytes_completed=bytes_completed,
+            total_bytes=total_bytes,
+            error=TransferError(message="Transfer cancelled by user", error_type="TransferCancelledError"),
+            **kwargs,
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to a plain dict suitable for JSON encoding."""
@@ -113,7 +229,7 @@ class ProgressEvent:
         if self.dedup_saved_bytes:
             d["dedup_saved_bytes"] = self.dedup_saved_bytes
         if self.error is not None:
-            d["error"] = self.error
+            d["error"] = self.error.to_dict()
         if self.extra:
             d["extra"] = self.extra
         return d
@@ -121,12 +237,25 @@ class ProgressEvent:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> ProgressEvent:
         """Deserialize from a plain dict."""
+        # Infer default phase from direction if phase is missing
+        direction = TransferDirection(data["direction"])
+        default_phase = ProgressPhase.UPLOADING if direction == TransferDirection.UPLOAD else ProgressPhase.DOWNLOADING
+        
+        error_obj = None
+        if "error" in data:
+            err_data = data["error"]
+            if isinstance(err_data, str):
+                # Backward compatibility for old JSON payloads
+                error_obj = TransferError(message=err_data)
+            else:
+                error_obj = TransferError.from_dict(err_data)
+
         return cls(
             event_type=EventType(data["event_type"]),
             transfer_id=data["transfer_id"],
-            direction=TransferDirection(data["direction"]),
+            direction=direction,
             filename=data["filename"],
-            phase=ProgressPhase(data.get("phase", "uploading")),
+            phase=ProgressPhase(data.get("phase", default_phase.value)),
             bytes_completed=data.get("bytes_completed", 0),
             total_bytes=data.get("total_bytes", 0),
             percentage=data.get("percentage", 0.0),
@@ -137,7 +266,7 @@ class ProgressEvent:
             transfer_bytes_total=data.get("transfer_bytes_total", 0),
             transfer_speed=data.get("transfer_speed", 0.0),
             dedup_saved_bytes=data.get("dedup_saved_bytes", 0),
-            error=data.get("error"),
+            error=error_obj,
             timestamp=data.get("timestamp", time.time()),
             extra=data.get("extra", {}),
         )
@@ -171,3 +300,19 @@ class TransferResult:
 def generate_transfer_id() -> str:
     """Generate a unique transfer ID."""
     return str(uuid.uuid4())
+
+
+class TransferCancelledError(Exception):
+    """Raised when a transfer is cancelled by the user.
+
+    Callers can catch this specific exception to distinguish
+    user-initiated cancellation from other runtime errors.
+    """
+
+
+class TransferProgressError(Exception):
+    """Raised when a transfer operation encounters a recoverable error."""
+
+
+class TokenError(Exception):
+    """Raised when token resolution or authentication fails."""

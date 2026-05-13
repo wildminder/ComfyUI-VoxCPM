@@ -16,10 +16,9 @@ The token lifecycle:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Tuple
-
-from .types import TransferDirection
+from typing import Callable, Optional, Tuple
 
 
 @dataclass
@@ -53,7 +52,7 @@ class XetTokenManager:
         from hf_progress.token import XetTokenManager
 
         manager = XetTokenManager(token="hf_...")
-        creds = manager.get_upload_credentials("username/repo")
+        creds = manager.fetch_upload_credentials("username/repo")
         # creds.endpoint, creds.token_info, creds.token_refresher
 
     Args:
@@ -75,7 +74,7 @@ class XetTokenManager:
             self._api = HfApi(token=self._token, endpoint=self._endpoint)
             self._headers = self._api._build_hf_headers()
 
-    def get_upload_credentials(
+    def fetch_upload_credentials(
         self,
         repo_id: str,
         repo_type: str = "model",
@@ -116,12 +115,12 @@ class XetTokenManager:
                 connection_info.access_token,
                 connection_info.expiration_unix_epoch,
             ),
-            token_refresher=self.get_upload_token_refresher(
+            token_refresher=self.fetch_upload_token_refresher(
                 repo_id, repo_type, revision
             ),
         )
 
-    def get_upload_token_refresher(
+    def fetch_upload_token_refresher(
         self,
         repo_id: str,
         repo_type: str = "model",
@@ -160,7 +159,7 @@ class XetTokenManager:
 
         return token_refresher
 
-    def get_download_credentials(self, xet_file_data) -> XetCredentials:
+    def fetch_download_credentials(self, xet_file_data) -> XetCredentials:
         """Get credentials for downloading a file.
 
         Uses file-level ``XetFileData`` to obtain a per-file token
@@ -189,10 +188,10 @@ class XetTokenManager:
                 connection_info.access_token,
                 connection_info.expiration_unix_epoch,
             ),
-            token_refresher=self.get_download_token_refresher(xet_file_data),
+            token_refresher=self.fetch_download_token_refresher(xet_file_data),
         )
 
-    def get_download_token_refresher(
+    def fetch_download_token_refresher(
         self, xet_file_data
     ) -> Callable[[], Tuple[str, int]]:
         """Create a token refresher callable for downloads.
@@ -219,9 +218,15 @@ class XetTokenManager:
 def is_xet_available() -> bool:
     """Check if hf_xet package is installed and importable.
 
+    Respects the HF_HUB_DISABLE_XET environment variable.
+
     Returns:
-        True if ``hf_xet`` can be imported, False otherwise.
+        True if ``hf_xet`` can be imported and is not disabled, False otherwise.
     """
+    disable_xet = os.environ.get("HF_HUB_DISABLE_XET", "0").lower()
+    if disable_xet in ("1", "true", "yes"):
+        return False
+
     try:
         import hf_xet  # noqa: F401
 

@@ -3,14 +3,31 @@
 Provides ready-to-use FastAPI endpoints that stream progress events
 from ``HfProgressTracker`` to frontend clients via Server-Sent Events.
 
+.. warning::
+
+   These endpoints have **no built-in authentication**. Any client that
+   can reach the server can start uploads/downloads, observe progress,
+   and clear transfer state. You **must** add authentication middleware
+   or pass an ``auth_dependency`` to ``create_progress_router`` in
+   production deployments.
+
 Usage::
 
-    from fastapi import FastAPI
+    from fastapi import FastAPI, Depends
     from hf_progress import HfProgressTracker
     from hf_progress.integrations.sse import create_progress_router
 
     app = FastAPI()
     tracker = HfProgressTracker(token="hf_...")
+
+    # With authentication (recommended for production)
+    async def verify_token(token: str = Depends(oauth2_scheme)):
+        ...
+
+    router = create_progress_router(tracker, auth_dependency=verify_token)
+    app.include_router(router)
+
+    # Without authentication (development only)
     router = create_progress_router(tracker)
     app.include_router(router)
 
@@ -32,21 +49,31 @@ import time
 import uuid
 from typing import Dict, Optional
 
-from ..types import EventType, ProgressEvent, TransferDirection
+from ..types import EventType
 
 
-def create_progress_router(tracker, prefix: str = "/hf-progress"):
-    """Create a FastAPI APIRouter with progress tracking endpoints."""
+def create_progress_router(tracker, prefix: str = "/hf-progress", auth_dependency=None):
+    """Create a FastAPI APIRouter with progress tracking endpoints.
+
+    Args:
+        tracker: An ``HfProgressTracker`` instance.
+        prefix: URL prefix for all routes (default ``"/hf-progress"``).
+        auth_dependency: Optional FastAPI ``Depends`` callable for
+            authentication. When provided, it is applied to every
+            endpoint. **Strongly recommended for production.**
+    """
     try:
-        from fastapi import APIRouter, BackgroundTasks
-        from fastapi.responses import StreamingResponse
-    except ImportError:
+        from fastapi import APIRouter, BackgroundTasks, Depends
+    except ImportError as err:
         raise ImportError(
             "FastAPI is required for SSE integration. "
             "Install with: pip install 'hf-progress[sse]'"
-        )
+        ) from err
 
     router = APIRouter(prefix=prefix, tags=["progress"])
+
+    # Apply authentication to all endpoints if an auth dependency is provided
+    _common_deps = [Depends(auth_dependency)] if auth_dependency else []
     
     # Store transfer status. Keys are transfer_ids.
     _active_transfers: Dict[str, dict] = {}
@@ -65,7 +92,7 @@ def create_progress_router(tracker, prefix: str = "/hf-progress"):
         for tid in expired:
             _active_transfers.pop(tid, None)
 
-    @router.post("/upload")
+    @router.post("/upload", dependencies=_common_deps)
     async def start_upload(
         repo_id: str,
         file_path: str,
@@ -95,9 +122,12 @@ def create_progress_router(tracker, prefix: str = "/hf-progress"):
                     transfer_id=transfer_id,
                 )
                 _active_transfers[transfer_id]["status"] = "completed"
-            except Exception as e:
+            except (OSError, ConnectionError, ValueError) as e:
                 _active_transfers[transfer_id]["status"] = "error"
                 _active_transfers[transfer_id]["error"] = str(e)
+            except Exception as e:
+                _active_transfers[transfer_id]["status"] = "error"
+                _active_transfers[transfer_id]["error"] = f"Unexpected error: {e}"
             finally:
                 _active_transfers[transfer_id]["completed_at"] = time.time()
 
@@ -106,7 +136,7 @@ def create_progress_router(tracker, prefix: str = "/hf-progress"):
 
         return {"transfer_id": transfer_id}
 
-    @router.post("/download")
+    @router.post("/download", dependencies=_common_deps)
     async def start_download(
         repo_id: str,
         filename: str,
@@ -134,9 +164,12 @@ def create_progress_router(tracker, prefix: str = "/hf-progress"):
                     transfer_id=transfer_id,
                 )
                 _active_transfers[transfer_id]["status"] = "completed"
-            except Exception as e:
+            except (OSError, ConnectionError, ValueError) as e:
                 _active_transfers[transfer_id]["status"] = "error"
                 _active_transfers[transfer_id]["error"] = str(e)
+            except Exception as e:
+                _active_transfers[transfer_id]["status"] = "error"
+                _active_transfers[transfer_id]["error"] = f"Unexpected error: {e}"
             finally:
                 _active_transfers[transfer_id]["completed_at"] = time.time()
 
@@ -145,7 +178,7 @@ def create_progress_router(tracker, prefix: str = "/hf-progress"):
 
         return {"transfer_id": transfer_id}
 
-    @router.get("/events/{transfer_id}")
+    @router.get("/events/{transfer_id}", dependencies=_common_deps)
     async def stream_progress(transfer_id: str):
         """Stream progress events for a transfer via SSE."""
         from sse_starlette.sse import EventSourceResponse
@@ -160,13 +193,14 @@ def create_progress_router(tracker, prefix: str = "/hf-progress"):
                         if event.event_type in (
                             EventType.COMPLETE,
                             EventType.ERROR,
+                            EventType.CANCELLED,
                         ):
                             return
                 await asyncio.sleep(0.1)
 
         return EventSourceResponse(event_stream())
 
-    @router.get("/status")
+    @router.get("/status", dependencies=_common_deps)
     async def get_status(background_tasks: BackgroundTasks):
         """List all active and recent transfers."""
         background_tasks.add_task(cleanup_expired_transfers)
@@ -175,7 +209,7 @@ def create_progress_router(tracker, prefix: str = "/hf-progress"):
             "queue_size": tracker.event_queue.qsize(),
         }
 
-    @router.delete("/transfer/{transfer_id}")
+    @router.delete("/transfer/{transfer_id}", dependencies=_common_deps)
     async def clear_transfer(transfer_id: str):
         """Explicitly clear a transfer from memory."""
         if transfer_id in _active_transfers:
@@ -200,6 +234,7 @@ def create_raw_sse_stream(tracker, transfer_id: str):
                     if event.event_type in (
                         EventType.COMPLETE,
                         EventType.ERROR,
+                        EventType.CANCELLED,
                     ):
                         return
             await asyncio.sleep(0.1)
