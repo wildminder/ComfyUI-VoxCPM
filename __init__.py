@@ -267,8 +267,47 @@ else:
                     logger.error(f"Error handling download status request: {e}")
                     return web.json_response({"error": str(e)}, status=500)
         
+            # === Lazy-Load Heavy Extension Endpoint ===
+            # The heavy JS (voxcpmHeavy.js + shared.js) is stored OUTSIDE the
+            # WEB_DIRECTORY (js/) so ComfyUI's GET /extensions endpoint doesn't
+            # discover it.  The lightweight stub (js/extension.js) dynamically
+            # imports the heavy code via this endpoint only when a VoxCPM node
+            # is actually used in the workflow.
+            _HEAVY_JS_DIR = os.path.join(current_dir, "js_lazy")
+
+            @PromptServer.instance.routes.get("/voxcpm/heavy_extension/{filename}")
+            async def voxcpm_heavy_extension_handler(request):
+                """Serve lazy-loaded JS files from outside WEB_DIRECTORY.
+
+                Only voxcpmHeavy.js and shared.js are allowed — prevents arbitrary
+                file reads.  Returns application/javascript with correct charset.
+                """
+                filename = request.match_info.get("filename", "")
+                if filename not in ("voxcpmHeavy.js", "shared.js"):
+                    return web.json_response(
+                        {"error": f"File not allowed: {filename}"}, status=403
+                    )
+
+                file_path = os.path.join(_HEAVY_JS_DIR, filename)
+                if not os.path.isfile(file_path):
+                    return web.json_response(
+                        {"error": f"File not found: {filename}"}, status=404
+                    )
+
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    return web.Response(
+                        text=content,
+                        content_type="application/javascript",
+                        charset="utf-8",
+                    )
+                except Exception as e:
+                    logger.error(f"Error serving heavy extension file {filename}: {e}")
+                    return web.json_response({"error": str(e)}, status=500)
+
             logger.debug("VoxCPM API routes registered")
-        
+
         except Exception as e:
             logger.warning(f"Failed to register API routes: {e}")
 

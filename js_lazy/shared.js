@@ -1,4 +1,4 @@
-//#region core/constants.ts
+
 var e = {
 	NOTIFICATION_SHOWN: "voxcpm.normalization_notification_shown",
 	USER_PREFERENCES: "voxcpm.user_preferences",
@@ -67,5 +67,5 @@ var e = {
 		STATUS_ENDPOINT: "/voxcpm/download_status"
 	}
 };
-//#endregion
+
 export { r as a, i, t as n, e as r, n as t };
