@@ -145,6 +145,11 @@ class VoxCPMSettings:
         except ImportError:
             return os.path.join("models", "tts", "VoxCPM")
 
+    def is_effective_path_valid(self) -> bool:
+        """Check if the effective model path contains at least one valid model."""
+        effective_path = self.get_effective_model_path()
+        return self._validate_model_path(effective_path)
+
     def to_dict(self) -> Dict[str, Any]:
         """Export settings for frontend."""
         return {
@@ -152,6 +157,7 @@ class VoxCPMSettings:
             "use_custom_path": self.use_custom_path,
             "custom_model_path": self.custom_model_path,
             "effective_path": self.get_effective_model_path(),
+            "effective_path_valid": self.is_effective_path_valid(),
         }
 
 

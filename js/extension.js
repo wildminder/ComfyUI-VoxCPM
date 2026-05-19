@@ -1,28 +1,31 @@
-import { a as e } from "/voxcpm/heavy_extension/shared.js";
-import { app as t } from "../../scripts/app.js";
+import { app as e } from "../../scripts/app.js";
 
-var n = !1, r = null, i = "/voxcpm/heavy_extension/voxcpmHeavy.js";
+var t = new Set([
+	"VoxCPM_TTS",
+	"VoxCPM_VoiceCloning",
+	"VoxCPM_AdvancedParams"
+]), n = !1, r = null, i = "/voxcpm/heavy_extension/voxcpmHeavy.js";
 async function a() {
 	return n ? [] : r || (r = (async () => {
-		let e = new Set(t.extensions?.map((e) => e.name) ?? []);
+		let t = new Set(e.extensions?.map((e) => e.name) ?? []);
 		return await import(
 			
 			i
-), n = !0, t.extensions?.filter((t) => !e.has(t.name)) ?? [];
+), n = !0, e.extensions?.filter((e) => !t.has(e.name)) ?? [];
 	})(), r);
 }
-function o(t) {
-	return t?.nodes ? t.nodes.some((t) => t.type && e.has(t.type)) : !1;
+function o(e) {
+	return e?.nodes ? e.nodes.some((e) => e.type && t.has(e.type)) : !1;
 }
-async function s(e) {
+async function s(t) {
 	let n = await a();
-	for (let r of n) await r.nodeCreated?.(e, t);
+	for (let r of n) await r.nodeCreated?.(t, e);
 }
-async function c(e) {
+async function c(t) {
 	let n = await a();
-	for (let r of n) await r.loadedGraphNode?.(e, t);
+	for (let r of n) await r.loadedGraphNode?.(t, e);
 }
-t.registerExtension({
+e.registerExtension({
 	name: "voxcpm.lazyLoader",
 	settings: [{
 		id: "voxcpm.use_custom_path",
@@ -42,13 +45,13 @@ t.registerExtension({
 	async beforeConfigureGraph(e) {
 		o(e) && await a();
 	},
-	async nodeCreated(t) {
-		let n = t.constructor?.comfyClass || t.type;
-		e.has(n) && await s(t);
+	async nodeCreated(e) {
+		let n = e.constructor?.comfyClass || e.type;
+		t.has(n) && await s(e);
 	},
-	async loadedGraphNode(t) {
-		let n = t.constructor?.comfyClass || t.type;
-		e.has(n) && await c(t);
+	async loadedGraphNode(e) {
+		let n = e.constructor?.comfyClass || e.type;
+		t.has(n) && await c(e);
 	}
 });
 

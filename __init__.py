@@ -251,6 +251,61 @@ else:
                     logger.error(f"Error handling cancel download request: {e}")
                     return web.json_response({"error": str(e)}, status=500)
         
+            @PromptServer.instance.routes.get("/voxcpm/validate_model_path")
+            async def voxcpm_validate_model_path_handler(request):
+                """Validate whether a specific model exists at the configured path.
+
+                Query params:
+                    model_name: Name of the model to check (e.g., "VoxCPM2")
+
+                Returns:
+                    {
+                        "valid": bool,          # True if model exists and is complete
+                        "model_exists": bool,   # True if model directory exists
+                        "model_path": str,      # Full path where model would be/is
+                        "effective_path": str,  # The effective model root path
+                        "error": str | None     # Error message if invalid
+                    }
+                """
+                model_name = request.query.get("model_name", "")
+                if not model_name:
+                    return web.json_response({"error": "model_name is required"}, status=400)
+
+                settings = get_settings()
+                effective_path = settings.get_effective_model_path()
+                model_dir = os.path.join(effective_path, model_name)
+
+                model_exists = (
+                    os.path.isdir(model_dir)
+                    and os.path.exists(os.path.join(model_dir, "config.json"))
+                )
+
+                # Check for weights files
+                has_weights = False
+                if model_exists:
+                    for weight_file in ["model.safetensors", "pytorch_model.bin"]:
+                        if os.path.exists(os.path.join(model_dir, weight_file)):
+                            has_weights = True
+                            break
+                    # Also check sharded safetensors
+                    if not has_weights:
+                        try:
+                            for f in os.listdir(model_dir):
+                                if f.startswith("model-") and f.endswith(".safetensors"):
+                                    has_weights = True
+                                    break
+                        except OSError:
+                            pass
+
+                is_valid = model_exists and has_weights
+                return web.json_response({
+                    "valid": is_valid,
+                    "model_exists": model_exists,
+                    "model_path": model_dir,
+                    "effective_path": effective_path,
+                    "error": None if is_valid else f"Model '{model_name}' not found at {effective_path}",
+                })
+
             @PromptServer.instance.routes.get("/voxcpm/download_status")
             async def voxcpm_download_status_handler(request):
                 """Get status of all active downloads.
@@ -279,11 +334,16 @@ else:
             async def voxcpm_heavy_extension_handler(request):
                 """Serve lazy-loaded JS files from outside WEB_DIRECTORY.
 
-                Only voxcpmHeavy.js and shared.js are allowed — prevents arbitrary
-                file reads.  Returns application/javascript with correct charset.
+                Only voxcpmHeavy.js is allowed — prevents arbitrary file reads.
+                Returns application/javascript with correct charset.
+
+                NOTE: shared.js was removed in a previous architecture. The stub
+                (extension.js) now inlines VOXCPM_NODE_TYPES to avoid a cross-directory
+                chunk dependency that caused 404 errors. All shared constants are
+                inlined into voxcpmHeavy.js at build time.
                 """
                 filename = request.match_info.get("filename", "")
-                if filename not in ("voxcpmHeavy.js", "shared.js"):
+                if filename not in ("voxcpmHeavy.js",):
                     return web.json_response(
                         {"error": f"File not allowed: {filename}"}, status=403
                     )
