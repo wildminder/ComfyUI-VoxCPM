@@ -251,60 +251,182 @@ else:
                     logger.error(f"Error handling cancel download request: {e}")
                     return web.json_response({"error": str(e)}, status=500)
         
-            @PromptServer.instance.routes.get("/voxcpm/validate_model_path")
-            async def voxcpm_validate_model_path_handler(request):
-                """Validate whether a specific model exists at the configured path.
-
-                Query params:
-                    model_name: Name of the model to check (e.g., "VoxCPM2")
+            @PromptServer.instance.routes.get("/voxcpm/tts_search_paths")
+            async def voxcpm_tts_search_paths_handler(request):
+                """Return all registered tts model search paths with model listings.
 
                 Returns:
-                    {
-                        "valid": bool,          # True if model exists and is complete
-                        "model_exists": bool,   # True if model directory exists
-                        "model_path": str,      # Full path where model would be/is
-                        "effective_path": str,  # The effective model root path
-                        "error": str | None     # Error message if invalid
-                    }
+                {
+                    "paths": [
+                        {
+                            "path": "/path/to/tts",
+                            "is_default": true,
+                            "voxcpm_subdir": "/path/to/tts/VoxCPM",
+                            "models": ["VoxCPM2", "VoxCPM1.5"]
+                        },
+                        ...
+                    ]
+                }
                 """
-                model_name = request.query.get("model_name", "")
-                if not model_name:
-                    return web.json_response({"error": "model_name is required"}, status=400)
+                try:
+                    tts_paths = folder_paths.get_folder_paths("tts")
+                    default_tts = os.path.join(folder_paths.models_dir, "tts")
+                    paths_info = []
 
-                settings = get_settings()
-                effective_path = settings.get_effective_model_path()
-                model_dir = os.path.join(effective_path, model_name)
+                    for tts_path in tts_paths:
+                        voxcpm_subdir = os.path.join(tts_path, VOXCPM_SUBDIR_NAME)
+                        models = []
+                        if os.path.isdir(voxcpm_subdir):
+                            for item in os.listdir(voxcpm_subdir):
+                                item_path = os.path.join(voxcpm_subdir, item)
+                                if os.path.isdir(item_path):
+                                    config_exists = os.path.exists(os.path.join(item_path, "config.json"))
+                                    weights_exist = (
+                                        os.path.exists(os.path.join(item_path, "model.safetensors")) or
+                                        os.path.exists(os.path.join(item_path, "pytorch_model.bin"))
+                                    )
+                                    if config_exists and weights_exist:
+                                        models.append(item)
 
-                model_exists = (
-                    os.path.isdir(model_dir)
-                    and os.path.exists(os.path.join(model_dir, "config.json"))
-                )
+                        paths_info.append({
+                            "path": tts_path,
+                            "is_default": (tts_path == default_tts),
+                            "voxcpm_subdir": voxcpm_subdir if os.path.isdir(voxcpm_subdir) else None,
+                            "models": models,
+                        })
 
-                # Check for weights files
-                has_weights = False
-                if model_exists:
-                    for weight_file in ["model.safetensors", "pytorch_model.bin"]:
-                        if os.path.exists(os.path.join(model_dir, weight_file)):
-                            has_weights = True
+                    return web.json_response({"paths": paths_info})
+
+                except Exception as e:
+                    logger.error(f"Error handling tts_search_paths request: {e}")
+                    return web.json_response({"error": str(e)}, status=500)
+
+            @PromptServer.instance.routes.get("/voxcpm/validate_directory")
+            async def voxcpm_validate_directory_handler(request):
+                """Validate whether a directory is within a registered tts search path.
+
+                Query params:
+                    path: Directory path to validate
+
+                Returns:
+                {
+                    "valid": bool,
+                    "is_registered": bool,  # True if path is within a registered tts directory
+                    "registered_parent": str | null,  # The registered tts path that contains this path
+                    "exists": bool,  # True if the directory exists on disk
+                    "models": [],  # VoxCPM models found in this directory
+                    "error": str | null
+                }
+                """
+                dir_path = request.query.get("path", "")
+                if not dir_path:
+                    return web.json_response({"error": "path is required"}, status=400)
+
+                try:
+                    # Normalize the path for comparison
+                    dir_path = os.path.normpath(dir_path)
+                    tts_paths = folder_paths.get_folder_paths("tts")
+
+                    # Check if the path is within any registered tts directory
+                    is_registered = False
+                    registered_parent = None
+                    for tts_path in tts_paths:
+                        norm_tts = os.path.normpath(tts_path)
+                        if dir_path == norm_tts or dir_path.startswith(norm_tts + os.sep):
+                            is_registered = True
+                            registered_parent = tts_path
                             break
-                    # Also check sharded safetensors
-                    if not has_weights:
-                        try:
-                            for f in os.listdir(model_dir):
-                                if f.startswith("model-") and f.endswith(".safetensors"):
-                                    has_weights = True
-                                    break
-                        except OSError:
-                            pass
 
-                is_valid = model_exists and has_weights
-                return web.json_response({
-                    "valid": is_valid,
-                    "model_exists": model_exists,
-                    "model_path": model_dir,
-                    "effective_path": effective_path,
-                    "error": None if is_valid else f"Model '{model_name}' not found at {effective_path}",
-                })
+                    # Check if directory exists
+                    exists = os.path.isdir(dir_path)
+
+                    # Scan for VoxCPM models
+                    models = []
+                    if exists:
+                        # Check if this is a VoxCPM subdir itself
+                        voxcpm_subdir = os.path.join(dir_path, VOXCPM_SUBDIR_NAME)
+                        scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else dir_path
+
+                        for item in os.listdir(scan_dir):
+                            item_path = os.path.join(scan_dir, item)
+                            if os.path.isdir(item_path):
+                                config_exists = os.path.exists(os.path.join(item_path, "config.json"))
+                                weights_exist = (
+                                    os.path.exists(os.path.join(item_path, "model.safetensors")) or
+                                    os.path.exists(os.path.join(item_path, "pytorch_model.bin"))
+                                )
+                                if config_exists and weights_exist:
+                                    models.append(item)
+
+                    is_valid = is_registered and exists
+                    return web.json_response({
+                        "valid": is_valid,
+                        "is_registered": is_registered,
+                        "registered_parent": registered_parent,
+                        "exists": exists,
+                        "models": models,
+                        "error": None if is_valid else (
+                            "Not within a registered tts model directory" if not is_registered
+                            else "Directory does not exist" if not exists
+                            else None
+                        ),
+                    })
+
+                except Exception as e:
+                    logger.error(f"Error handling validate_directory request: {e}")
+                    return web.json_response({"error": str(e)}, status=500)
+
+            @PromptServer.instance.routes.post("/voxcpm/register_model_path")
+            async def voxcpm_register_model_path_handler(request):
+                """Register a new directory as a tts model search path.
+
+                This calls folder_paths.add_model_folder_path("tts", path) so
+                ComfyUI's model discovery will find models in the new directory.
+
+                Expects JSON body: {"path": "/absolute/path/to/directory"}
+                Returns: {"success": bool, "path": str, "error": str | null}
+                """
+                try:
+                    data = await request.json()
+                    path = data.get("path", "")
+
+                    if not path:
+                        return web.json_response({"error": "path is required"}, status=400)
+
+                    if not os.path.isabs(path):
+                        return web.json_response({"error": "Path must be absolute"}, status=400)
+
+                    if not os.path.isdir(path):
+                        return web.json_response({"error": f"Directory does not exist: {path}"}, status=400)
+
+                    # Check if already registered
+                    tts_paths = folder_paths.get_folder_paths("tts")
+                    norm_path = os.path.normpath(path)
+                    for existing in tts_paths:
+                        if os.path.normpath(existing) == norm_path:
+                            return web.json_response({
+                                "success": True,
+                                "path": path,
+                                "error": None,
+                                "already_registered": True,
+                            })
+
+                    # Register the new path
+                    folder_paths.add_model_folder_path("tts", path)
+                    logger.info(f"Registered new tts model path: {path}")
+
+                    return web.json_response({
+                        "success": True,
+                        "path": path,
+                        "error": None,
+                        "already_registered": False,
+                    })
+
+                except json.JSONDecodeError:
+                    return web.json_response({"error": "Invalid JSON"}, status=400)
+                except Exception as e:
+                    logger.error(f"Error handling register_model_path request: {e}")
+                    return web.json_response({"error": str(e)}, status=500)
 
             @PromptServer.instance.routes.get("/voxcpm/download_status")
             async def voxcpm_download_status_handler(request):

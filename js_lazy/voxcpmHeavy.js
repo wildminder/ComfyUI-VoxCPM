@@ -6,7 +6,6 @@ var r = {
 	NOTIFICATION_SHOWN: "voxcpm.normalization_notification_shown",
 	USER_PREFERENCES: "voxcpm.user_preferences",
 	SETTINGS: "voxcpm.settings",
-	FIRST_RUN_SHOWN: "voxcpm.first_run_shown",
 	NORMALIZATION_AVAILABLE: "voxcpm.normalization_available"
 }, i = {
 	STATUS: "voxcpm.status",
@@ -25,14 +24,6 @@ var r = {
 	"VoxCPM_VoiceCloning",
 	"VoxCPM_AdvancedParams"
 ]), s = {
-	VoxCPM2: 8,
-	"VoxCPM1.5": 1.6,
-	"VoxCPM-0.5B": 1
-};
-function c(e) {
-	return s[e] ?? 2;
-}
-var l = {
 	SEVERITY: {
 		SUCCESS: "success",
 		INFO: "info",
@@ -77,7 +68,7 @@ var l = {
 		CANCEL_ENDPOINT: "/voxcpm/cancel_download",
 		STATUS_ENDPOINT: "/voxcpm/download_status"
 	}
-}, u = {
+}, c = {
 	log: (...e) => {
 		console.log(a.LOG_PREFIX, ...e);
 	},
@@ -102,18 +93,18 @@ var l = {
 	table: (e) => {
 		console.log(a.LOG_PREFIX), console.table(e);
 	}
-}, d = "\n\n:root {\n  \n  --voxcpm-space-2xs: 2px;\n  --voxcpm-space-xs: 4px;\n  --voxcpm-space-s: 6px;\n  --voxcpm-space-m: 8px;\n  --voxcpm-space-l: 12px;\n  --voxcpm-space-xl: 16px;\n  --voxcpm-space-2xl: 24px;\n\n  \n  --voxcpm-font-size-2xs: 10px;\n  --voxcpm-font-size-xs: 12px;\n  --voxcpm-font-size-s: 13px;\n  --voxcpm-font-size-m: 14px;\n  --voxcpm-font-size-l: 18px;\n  --voxcpm-font-size-xl: 24px;\n  --voxcpm-font-family: var(--comfy-font-family, Arial, sans-serif);\n  --voxcpm-font-family-mono: monospace;\n\n  \n  --voxcpm-bg-input: var(--comfy-input-bg, rgba(255, 255, 255, 0.05));\n  --voxcpm-bg-input-hover: var(--comfy-input-bg-hover, rgba(255, 255, 255, 0.08));\n  --voxcpm-bg-input-active: var(--comfy-input-bg-active, rgba(255, 255, 255, 0.1));\n  --voxcpm-bg-surface: var(--bg-color, #1e1e1e);\n  --voxcpm-bg-elevated: var(--input-bg, #2a2a2a);\n\n  \n  --voxcpm-border-color: var(--border-color, rgba(255, 255, 255, 0.15));\n  --voxcpm-border-color-hover: var(--comfy-input-border-hover, rgba(255, 255, 255, 0.3));\n  --voxcpm-border-radius-xs: 4px;\n  --voxcpm-border-radius-s: 6px;\n  --voxcpm-border-radius-m: 8px;\n\n  \n  --voxcpm-text-primary: var(--fg-color, #ddd);\n  --voxcpm-text-secondary: var(--fg-color, rgba(255, 255, 255, 0.7));\n  --voxcpm-text-muted: var(--fg-color, rgba(255, 255, 255, 0.4));\n  --voxcpm-text-on-primary: #fff;\n\n  \n  --voxcpm-accent: var(--primary-color, #4a9eff);\n  --voxcpm-accent-hover: var(--primary-color-hover, #3a8eef);\n\n  \n  --voxcpm-color-success: var(--success-color, #4caf50);\n  --voxcpm-color-error: var(--error-color, #f44336);\n\n  \n  --voxcpm-duration-fast: 150ms;\n  --voxcpm-duration-normal: 200ms;\n  --voxcpm-easing: ease;\n\n  \n  --voxcpm-widget-height: 44px;\n  --voxcpm-input-height: 26px;\n  --voxcpm-browse-width: 30px;\n\n  \n  --voxcpm-focus-ring-color: var(--voxcpm-accent);\n  --voxcpm-focus-ring-width: 2px;\n  --voxcpm-focus-ring-offset: 1px;\n\n  \n  --voxcpm-cyber-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;\n  --voxcpm-cyber-accent: #00ff9d;\n  --voxcpm-cyber-accent-dim: rgba(0, 255, 157, 0.15);\n  --voxcpm-cyber-border: rgba(0, 255, 157, 0.3);\n  --voxcpm-cyber-glow: 0 0 8px rgba(0, 255, 157, 0.4);\n  --voxcpm-cyber-text: #e0e0e0;\n  --voxcpm-cyber-text-dim: rgba(224, 224, 224, 0.5);\n  --voxcpm-cyber-bg: rgba(10, 15, 20, 0.95);\n  --voxcpm-cyber-bg-hover: rgba(0, 255, 157, 0.08);\n  --voxcpm-cyber-bg-active: rgba(0, 255, 157, 0.12);\n  --voxcpm-cyber-tag-bg: rgba(0, 255, 157, 0.15);\n  --voxcpm-cyber-tag-border: rgba(0, 255, 157, 0.4);\n  --voxcpm-cyber-tag-text: #00ff9d;\n  --voxcpm-cyber-scanline: rgba(0, 255, 157, 0.03);\n}", f = "voxcpm-design-tokens", p = !1;
-function m() {
-	if (p) return;
-	if (document.getElementById(f)) {
-		p = !0;
+}, l = "\n\n:root {\n  \n  --voxcpm-space-2xs: 2px;\n  --voxcpm-space-xs: 4px;\n  --voxcpm-space-s: 6px;\n  --voxcpm-space-m: 8px;\n  --voxcpm-space-l: 12px;\n  --voxcpm-space-xl: 16px;\n  --voxcpm-space-2xl: 24px;\n\n  \n  --voxcpm-font-size-2xs: 10px;\n  --voxcpm-font-size-xs: 12px;\n  --voxcpm-font-size-s: 13px;\n  --voxcpm-font-size-m: 14px;\n  --voxcpm-font-size-l: 18px;\n  --voxcpm-font-size-xl: 24px;\n  --voxcpm-font-family: var(--comfy-font-family, Arial, sans-serif);\n  --voxcpm-font-family-mono: monospace;\n\n  \n  --voxcpm-bg-input: var(--comfy-input-bg, rgba(255, 255, 255, 0.05));\n  --voxcpm-bg-input-hover: var(--comfy-input-bg-hover, rgba(255, 255, 255, 0.08));\n  --voxcpm-bg-input-active: var(--comfy-input-bg-active, rgba(255, 255, 255, 0.1));\n  --voxcpm-bg-surface: var(--bg-color, #1e1e1e);\n  --voxcpm-bg-elevated: var(--input-bg, #2a2a2a);\n\n  \n  --voxcpm-border-color: var(--border-color, rgba(255, 255, 255, 0.15));\n  --voxcpm-border-color-hover: var(--comfy-input-border-hover, rgba(255, 255, 255, 0.3));\n  --voxcpm-border-radius-xs: 4px;\n  --voxcpm-border-radius-s: 6px;\n  --voxcpm-border-radius-m: 8px;\n\n  \n  --voxcpm-text-primary: var(--fg-color, #ddd);\n  --voxcpm-text-secondary: var(--fg-color, rgba(255, 255, 255, 0.7));\n  --voxcpm-text-muted: var(--fg-color, rgba(255, 255, 255, 0.4));\n  --voxcpm-text-on-primary: #fff;\n\n  \n  --voxcpm-accent: var(--primary-color, #4a9eff);\n  --voxcpm-accent-hover: var(--primary-color-hover, #3a8eef);\n\n  \n  --voxcpm-color-success: var(--success-color, #4caf50);\n  --voxcpm-color-error: var(--error-color, #f44336);\n\n  \n  --voxcpm-duration-fast: 150ms;\n  --voxcpm-duration-normal: 200ms;\n  --voxcpm-easing: ease;\n\n  \n  --voxcpm-widget-height: 44px;\n  --voxcpm-input-height: 26px;\n  --voxcpm-browse-width: 30px;\n\n  \n  --voxcpm-focus-ring-color: var(--voxcpm-accent);\n  --voxcpm-focus-ring-width: 2px;\n  --voxcpm-focus-ring-offset: 1px;\n\n  \n  --voxcpm-cyber-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;\n  --voxcpm-cyber-accent: #00ff9d;\n  --voxcpm-cyber-accent-dim: rgba(0, 255, 157, 0.15);\n  --voxcpm-cyber-border: rgba(0, 255, 157, 0.3);\n  --voxcpm-cyber-glow: 0 0 8px rgba(0, 255, 157, 0.4);\n  --voxcpm-cyber-text: #e0e0e0;\n  --voxcpm-cyber-text-dim: rgba(224, 224, 224, 0.5);\n  --voxcpm-cyber-bg: rgba(10, 15, 20, 0.95);\n  --voxcpm-cyber-bg-hover: rgba(0, 255, 157, 0.08);\n  --voxcpm-cyber-bg-active: rgba(0, 255, 157, 0.12);\n  --voxcpm-cyber-tag-bg: rgba(0, 255, 157, 0.15);\n  --voxcpm-cyber-tag-border: rgba(0, 255, 157, 0.4);\n  --voxcpm-cyber-tag-text: #00ff9d;\n  --voxcpm-cyber-scanline: rgba(0, 255, 157, 0.03);\n}", u = "voxcpm-design-tokens", d = !1;
+function f() {
+	if (d) return;
+	if (document.getElementById(u)) {
+		d = !0;
 		return;
 	}
 	let e = document.createElement("style");
-	e.id = f, e.textContent = d, document.head.appendChild(e), p = !0;
+	e.id = u, e.textContent = l, document.head.appendChild(e), d = !0;
 }
 
-var h = {
+var p = {
 	BLOCK: "voxcpm-model-selector",
 	ROW: "voxcpm-model-selector__row",
 	DISPLAY: "voxcpm-model-selector__display",
@@ -124,9 +115,9 @@ var h = {
 	BROWSE: "voxcpm-model-selector__browse",
 	PATH: "voxcpm-model-selector__path",
 	PATH_VISIBLE: "voxcpm-model-selector__path--visible"
-}, g = `
+}, m = `
 
-.${h.BLOCK} {
+.${p.BLOCK} {
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -141,7 +132,7 @@ var h = {
   --comfy-widget-height: var(--voxcpm-widget-height);
 }
 
-.${h.ROW} {
+.${p.ROW} {
   display: flex;
   align-items: center;
   gap: var(--voxcpm-space-xs);
@@ -149,7 +140,7 @@ var h = {
   box-sizing: border-box;
 }
 
-.${h.DISPLAY} {
+.${p.DISPLAY} {
   display: flex;
   align-items: center;
   gap: var(--voxcpm-space-s);
@@ -170,16 +161,16 @@ var h = {
   overflow: hidden;
 }
 
-.${h.DISPLAY}:hover {
+.${p.DISPLAY}:hover {
   border-color: var(--voxcpm-cyber-accent);
   box-shadow: var(--voxcpm-cyber-glow);
 }
 
-.${h.DISPLAY}:active {
+.${p.DISPLAY}:active {
   background: var(--voxcpm-cyber-bg-active);
 }
 
-.${h.ICON} {
+.${p.ICON} {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -189,12 +180,12 @@ var h = {
   color: var(--voxcpm-cyber-accent);
 }
 
-.${h.ICON} svg {
+.${p.ICON} svg {
   width: 16px;
   height: 16px;
 }
 
-.${h.TEXT} {
+.${p.TEXT} {
   flex: 1;
   color: var(--voxcpm-cyber-text);
   font-size: var(--voxcpm-font-size-xs);
@@ -204,7 +195,7 @@ var h = {
   line-height: 1.3;
 }
 
-.${h.ARROW} {
+.${p.ARROW} {
   font-size: 9px;
   color: var(--voxcpm-cyber-accent);
   margin-left: auto;
@@ -214,13 +205,13 @@ var h = {
   transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);
 }
 
-.${h.DISPLAY}:hover .${h.ARROW},
+.${p.DISPLAY}:hover .${p.ARROW},
 
-.${h.ARROW_ACTIVE} {
+.${p.ARROW_ACTIVE} {
   opacity: 1;
 }
 
-.${h.BROWSE} {
+.${p.BROWSE} {
   
   all: initial;
   display: flex;
@@ -244,16 +235,16 @@ var h = {
   box-sizing: border-box;
 }
 
-.${h.BROWSE}:hover {
+.${p.BROWSE}:hover {
   border-color: var(--voxcpm-cyber-accent);
   box-shadow: var(--voxcpm-cyber-glow);
 }
 
-.${h.BROWSE}:active {
+.${p.BROWSE}:active {
   background: var(--voxcpm-cyber-bg-active);
 }
 
-.${h.PATH} {
+.${p.PATH} {
   font-size: var(--voxcpm-font-size-2xs);
   color: var(--voxcpm-cyber-text-dim);
   padding: var(--voxcpm-space-2xs) 0 0 0;
@@ -266,35 +257,35 @@ var h = {
   font-family: var(--voxcpm-cyber-font);
 }
 
-.${h.PATH_VISIBLE} {
+.${p.PATH_VISIBLE} {
   display: block;
 }
 
-.${h.DISPLAY}:focus-visible,
-.${h.BROWSE}:focus-visible {
+.${p.DISPLAY}:focus-visible,
+.${p.BROWSE}:focus-visible {
   outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-cyber-accent);
   outline-offset: var(--voxcpm-focus-ring-offset);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .${h.BLOCK} *,
-  .${h.BLOCK} *::before,
-  .${h.BLOCK} *::after {
+  .${p.BLOCK} *,
+  .${p.BLOCK} *::before,
+  .${p.BLOCK} *::after {
     transition-duration: 0ms !important;
   }
 }
-`.trim(), _ = "voxcpm-model-selector-styles", v = !1;
-function ee() {
-	if (v) return;
-	if (document.getElementById(_)) {
-		v = !0;
+`.trim(), h = "voxcpm-model-selector-styles", g = !1;
+function _() {
+	if (g) return;
+	if (document.getElementById(h)) {
+		g = !0;
 		return;
 	}
 	let e = document.createElement("style");
-	e.id = _, e.textContent = g, document.head.appendChild(e), v = !0;
+	e.id = h, e.textContent = m, document.head.appendChild(e), g = !0;
 }
 
-var y = {
+var v = {
 	BLOCK: "voxcpm-model-dropdown",
 	HEADER: "voxcpm-model-dropdown__header",
 	LIST: "voxcpm-model-dropdown__list",
@@ -306,9 +297,9 @@ var y = {
 	NAME: "voxcpm-model-dropdown__name",
 	TAG: "voxcpm-model-dropdown__tag",
 	META: "voxcpm-model-dropdown__meta"
-}, te = `
+}, ee = `
 
-.${y.BLOCK} {
+.${v.BLOCK} {
   position: fixed;
   z-index: 1000;
   min-width: 280px;
@@ -326,7 +317,7 @@ var y = {
   outline: none;
 }
 
-.${y.BLOCK}::after {
+.${v.BLOCK}::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -341,7 +332,7 @@ var y = {
   z-index: 1;
 }
 
-.${y.HEADER} {
+.${v.HEADER} {
   padding: 8px 12px;
   border-bottom: 1px solid var(--voxcpm-cyber-border);
   font-size: 10px;
@@ -356,13 +347,13 @@ var y = {
   user-select: none;
 }
 
-.${y.HEADER} svg {
+.${v.HEADER} svg {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
 }
 
-.${y.LIST} {
+.${v.LIST} {
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 280px;
@@ -370,24 +361,24 @@ var y = {
   z-index: 2;
 }
 
-.${y.LIST}::-webkit-scrollbar {
+.${v.LIST}::-webkit-scrollbar {
   width: 4px;
 }
 
-.${y.LIST}::-webkit-scrollbar-track {
+.${v.LIST}::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.${y.LIST}::-webkit-scrollbar-thumb {
+.${v.LIST}::-webkit-scrollbar-thumb {
   background: var(--voxcpm-cyber-border);
   border-radius: 0;
 }
 
-.${y.LIST}::-webkit-scrollbar-thumb:hover {
+.${v.LIST}::-webkit-scrollbar-thumb:hover {
   background: var(--voxcpm-cyber-accent);
 }
 
-.${y.ITEM} {
+.${v.ITEM} {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -400,17 +391,17 @@ var y = {
   user-select: none;
 }
 
-.${y.ITEM}:hover,
-.${y.ITEM_SELECTED} {
+.${v.ITEM}:hover,
+.${v.ITEM_SELECTED} {
   background: var(--voxcpm-cyber-bg-hover);
   border-left-color: var(--voxcpm-cyber-accent);
 }
 
-.${y.ITEM}:active {
+.${v.ITEM}:active {
   background: var(--voxcpm-cyber-bg-active);
 }
 
-.${y.ICON} {
+.${v.ICON} {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -419,20 +410,20 @@ var y = {
   flex-shrink: 0;
 }
 
-.${y.ICON} svg {
+.${v.ICON} svg {
   width: 16px;
   height: 16px;
 }
 
-.${y.ICON_CLOUD} {
+.${v.ICON_CLOUD} {
   color: var(--voxcpm-accent);
 }
 
-.${y.ICON_CHECK} {
+.${v.ICON_CHECK} {
   color: var(--voxcpm-color-success);
 }
 
-.${y.NAME} {
+.${v.NAME} {
   flex: 0 1 auto;
   color: var(--voxcpm-cyber-text);
   font-size: var(--voxcpm-font-size-xs);
@@ -443,7 +434,7 @@ var y = {
   min-width: 0;
 }
 
-.${y.META} {
+.${v.META} {
   font-size: 10px;
   color: var(--voxcpm-cyber-text-dim);
   font-family: var(--voxcpm-cyber-font);
@@ -451,7 +442,7 @@ var y = {
   margin-left: 6px;
 }
 
-.${y.TAG} {
+.${v.TAG} {
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -478,58 +469,58 @@ var y = {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .${y.BLOCK} {
+  .${v.BLOCK} {
     animation: none;
   }
 }
-`.trim(), b = "voxcpm-model-dropdown-styles", x = !1;
-function ne() {
-	if (x) return;
-	if (document.getElementById(b)) {
-		x = !0;
+`.trim(), y = "voxcpm-model-dropdown-styles", b = !1;
+function te() {
+	if (b) return;
+	if (document.getElementById(y)) {
+		b = !0;
 		return;
 	}
 	let e = document.createElement("style");
-	e.id = b, e.textContent = te, document.head.appendChild(e), x = !0;
+	e.id = y, e.textContent = ee, document.head.appendChild(e), b = !0;
 }
 
-var S = !1;
-function re() {
-	S || (m(), ee(), ne(), S = !0);
+var x = !1;
+function ne() {
+	x || (f(), _(), te(), x = !0);
 }
 
-function C(e) {
+function S(e) {
 	try {
 		return sessionStorage.getItem(e);
 	} catch {
 		return null;
 	}
 }
-function w(e, t) {
+function C(e, t) {
 	try {
 		return sessionStorage.setItem(e, t), !0;
 	} catch {
 		return !1;
 	}
 }
-function ie(e) {
+function re(e) {
 	try {
 		return sessionStorage.removeItem(e), !0;
 	} catch {
 		return !1;
 	}
 }
-function T(e) {
-	return C(e) !== null;
+function w(e) {
+	return S(e) !== null;
 }
-function E(e) {
-	return w(e, "true");
+function T(e) {
+	return C(e, "true");
+}
+function ie(e) {
+	return re(e);
 }
 function ae(e) {
-	return ie(e);
-}
-function D(e) {
-	let t = C(e);
+	let t = S(e);
 	if (t === null) return null;
 	try {
 		return JSON.parse(t);
@@ -537,19 +528,19 @@ function D(e) {
 		return null;
 	}
 }
-function O(e, t) {
+function E(e, t) {
 	try {
-		return w(e, JSON.stringify(t));
+		return C(e, JSON.stringify(t));
 	} catch {
 		return !1;
 	}
 }
-var k = new class {
+var D = new class {
 	constructor(e) {
 		this.sessionKey = e.sessionKey, this.defaultLife = e.defaultLife;
 	}
 	show(e) {
-		if (T(this.sessionKey)) return u.log("Notification already shown this session, skipping"), {
+		if (w(this.sessionKey)) return c.log("Notification already shown this session, skipping"), {
 			shown: !1,
 			reason: "already_shown"
 		};
@@ -560,9 +551,9 @@ var k = new class {
 				detail: e.detail,
 				life: e.life ?? this.defaultLife,
 				closable: e.closable ?? !0
-			}), E(this.sessionKey), u.log("Toast notification displayed:", e.summary), { shown: !0 };
+			}), T(this.sessionKey), c.log("Toast notification displayed:", e.summary), { shown: !0 };
 		} catch (t) {
-			return u.warn("Toast not available:", t), u.log(`${e.summary}: ${e.detail ?? ""}`), E(this.sessionKey), {
+			return c.warn("Toast not available:", t), c.log(`${e.summary}: ${e.detail ?? ""}`), T(this.sessionKey), {
 				shown: !1,
 				reason: "toast_unavailable"
 			};
@@ -576,37 +567,34 @@ var k = new class {
 				detail: e.detail,
 				life: e.life ?? this.defaultLife,
 				closable: e.closable ?? !0
-			}), u.log("Toast notification displayed:", e.summary), { shown: !0 };
+			}), c.log("Toast notification displayed:", e.summary), { shown: !0 };
 		} catch (t) {
-			return u.warn("Toast not available:", t), u.log(`${e.summary}: ${e.detail ?? ""}`), {
+			return c.warn("Toast not available:", t), c.log(`${e.summary}: ${e.detail ?? ""}`), {
 				shown: !1,
 				reason: "toast_unavailable"
 			};
 		}
 	}
 	reset() {
-		ae(this.sessionKey);
+		ie(this.sessionKey);
 	}
 	wasShown() {
-		return T(this.sessionKey);
+		return w(this.sessionKey);
 	}
 }({
 	sessionKey: "voxcpm.normalization_notification_shown",
 	defaultLife: 1e4
-}), A = "voxcpm.settings", j = new class {
+}), O = "voxcpm.settings", k = new class {
 	constructor() {
 		this.settings = null, this.initialized = !1;
 	}
 	async initialize(e) {
-		this.settings = e.settings, this.initialized = !0, O(A, this.settings), u.log("Settings initialized:", this.settings);
+		this.settings = e.settings, this.initialized = !0, E(O, this.settings), c.log("Settings initialized:", this.settings);
 	}
 	getSettings() {
 		if (this.settings) return this.settings;
-		let e = D(A);
+		let e = ae(O);
 		return e ? (this.settings = e, this.settings) : null;
-	}
-	isFirstRun() {
-		return this.getSettings()?.first_run ?? !0;
 	}
 	isUsingCustomPath() {
 		return this.getSettings()?.use_custom_path ?? !1;
@@ -617,210 +605,187 @@ var k = new class {
 	async updateSettings(e) {
 		try {
 			for (let [n, r] of Object.entries(e)) await t.api.storeSetting(`voxcpm.${n}`, r);
-			return this.settings && (Object.assign(this.settings, e), O(A, this.settings)), u.log("Settings updated:", e), !0;
+			return this.settings && (Object.assign(this.settings, e), E(O, this.settings)), c.log("Settings updated:", e), !0;
 		} catch (e) {
-			return u.warn("Failed to update settings:", e), !1;
+			return c.warn("Failed to update settings:", e), !1;
 		}
-	}
-	async markFirstRunComplete() {
-		return this.updateSettings({ first_run: !1 });
-	}
-	async setCustomPath(e) {
-		return this.updateSettings({
-			use_custom_path: !0,
-			custom_model_path: e
-		});
-	}
-	async setDefaultPath() {
-		return this.updateSettings({
-			use_custom_path: !1,
-			custom_model_path: null
-		});
 	}
 	isInitialized() {
 		return this.initialized;
 	}
-	async validateModelPath(e) {
-		return await (await t.api.fetchApi(`/voxcpm/validate_model_path?model_name=${encodeURIComponent(e)}`)).json();
-	}
-}(), M = "voxcpm-download-path-dialog-styles", N = !1;
-function oe() {
-	if (N) return;
-	if (document.getElementById(M)) {
-		N = !0;
-		return;
-	}
+}(), A = !1;
+function j() {
+	if (A) return;
+	A = !0;
 	let e = document.createElement("style");
-	e.id = M, e.textContent = "\n\n\n\n.voxcpm-dpd__overlay {\n	position: fixed;\n	top: 0;\n	left: 0;\n	right: 0;\n	bottom: 0;\n	background: rgba(0, 0, 0, 0.75);\n	display: flex;\n	align-items: center;\n	justify-content: center;\n	z-index: 10000;\n	backdrop-filter: blur(4px);\n}\n\n\n.voxcpm-dpd {\n	background: var(--voxcpm-cyber-bg, rgba(10, 15, 20, 0.95));\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	border-radius: 8px;\n	max-width: 520px;\n	width: 90%;\n	box-shadow: var(--voxcpm-cyber-glow, 0 0 8px rgba(0, 255, 157, 0.4)),\n				0 8px 32px rgba(0, 0, 0, 0.6);\n	font-family: var(--voxcpm-cyber-font, 'JetBrains Mono', monospace);\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n	overflow: hidden;\n}\n\n\n.voxcpm-dpd__header {\n	display: flex;\n	align-items: center;\n	gap: 12px;\n	padding: 16px 20px;\n	border-bottom: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	background: var(--voxcpm-cyber-scanline, rgba(0, 255, 157, 0.03));\n}\n\n.voxcpm-dpd__header-icon {\n	font-size: 18px;\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n}\n\n.voxcpm-dpd__header-title {\n	font-size: 14px;\n	font-weight: 700;\n	letter-spacing: 0.15em;\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n	text-transform: uppercase;\n}\n\n\n.voxcpm-dpd__body {\n	padding: 20px;\n}\n\n\n.voxcpm-dpd__model-info {\n	font-size: 13px;\n	line-height: 1.6;\n	margin-bottom: 20px;\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n}\n\n.voxcpm-dpd__model-name {\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n	font-weight: 600;\n}\n\n.voxcpm-dpd__model-size {\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n}\n\n\n.voxcpm-dpd__options {\n	display: flex;\n	flex-direction: column;\n	gap: 10px;\n}\n\n\n.voxcpm-dpd__option {\n	display: flex;\n	gap: 14px;\n	padding: 14px 16px;\n	background: transparent;\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	border-radius: 6px;\n	cursor: pointer;\n	text-align: left;\n	transition: border-color 150ms ease,\n				background 150ms ease,\n				box-shadow 150ms ease;\n	width: 100%;\n	font-family: inherit;\n	color: inherit;\n}\n\n.voxcpm-dpd__option:hover {\n	border-color: var(--voxcpm-cyber-accent, #00ff9d);\n	background: var(--voxcpm-cyber-bg-hover, rgba(0, 255, 157, 0.08));\n}\n\n.voxcpm-dpd__option--selected {\n	border-color: var(--voxcpm-cyber-accent, #00ff9d);\n	background: var(--voxcpm-cyber-bg-active, rgba(0, 255, 157, 0.12));\n	box-shadow: inset 0 0 12px var(--voxcpm-cyber-accent-dim, rgba(0, 255, 157, 0.15));\n}\n\n\n.voxcpm-dpd__option-icon {\n	font-size: 24px;\n	flex-shrink: 0;\n	line-height: 1;\n}\n\n\n.voxcpm-dpd__option-content {\n	flex: 1;\n	min-width: 0;\n}\n\n.voxcpm-dpd__option-title {\n	font-size: 12px;\n	font-weight: 700;\n	letter-spacing: 0.12em;\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n	margin-bottom: 4px;\n	text-transform: uppercase;\n}\n\n.voxcpm-dpd__option-path {\n	font-size: 11px;\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n	margin-bottom: 4px;\n	word-break: break-all;\n	font-family: var(--voxcpm-cyber-font, 'JetBrains Mono', monospace);\n}\n\n.voxcpm-dpd__option-desc {\n	font-size: 11px;\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n	line-height: 1.4;\n}\n\n\n.voxcpm-dpd__footer {\n	display: flex;\n	justify-content: flex-end;\n	gap: 10px;\n	padding: 14px 20px;\n	border-top: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n}\n\n\n.voxcpm-dpd__btn {\n	padding: 8px 20px;\n	border-radius: 4px;\n	font-size: 12px;\n	font-weight: 600;\n	letter-spacing: 0.08em;\n	cursor: pointer;\n	transition: background 150ms ease,\n				border-color 150ms ease,\n				box-shadow 150ms ease;\n	font-family: var(--voxcpm-cyber-font, 'JetBrains Mono', monospace);\n	text-transform: uppercase;\n}\n\n.voxcpm-dpd__btn--secondary {\n	background: transparent;\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n}\n\n.voxcpm-dpd__btn--secondary:hover {\n	border-color: var(--voxcpm-cyber-accent, #00ff9d);\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n}\n\n.voxcpm-dpd__btn--primary {\n	background: var(--voxcpm-cyber-accent, #00ff9d);\n	border: none;\n	color: #0a0f14;\n}\n\n.voxcpm-dpd__btn--primary:hover:not(:disabled) {\n	box-shadow: 0 0 12px var(--voxcpm-cyber-accent-dim, rgba(0, 255, 157, 0.15));\n}\n\n.voxcpm-dpd__btn--primary:disabled {\n	opacity: 0.4;\n	cursor: not-allowed;\n}\n\n\n.voxcpm-dpd__option:focus-visible,\n.voxcpm-dpd__btn:focus-visible {\n	outline: 2px solid var(--voxcpm-cyber-accent, #00ff9d);\n	outline-offset: 2px;\n}\n\n\n@media (prefers-reduced-motion: reduce) {\n	.voxcpm-dpd *,\n	.voxcpm-dpd *::before,\n	.voxcpm-dpd *::after {\n		transition-duration: 0ms !important;\n	}\n}\n", document.head.appendChild(e), N = !0;
+	e.id = "voxcpm-mdd-styles", e.textContent = M, document.head.appendChild(e);
 }
-
-var P = null;
-function se(e, t, n) {
-	return new Promise((r) => {
-		F(), oe();
-		let i = document.createElement("div");
-		i.className = "voxcpm-dpd__overlay";
-		let a = document.createElement("div");
-		a.className = "voxcpm-dpd";
-		let o = document.createElement("div");
-		o.className = "voxcpm-dpd__header", o.innerHTML = "\n			<span class=\"voxcpm-dpd__header-icon\">⬇</span>\n			<span class=\"voxcpm-dpd__header-title\">MODEL REQUIRED</span>\n		";
-		let s = document.createElement("div");
-		s.className = "voxcpm-dpd__body";
-		let c = document.createElement("div");
-		c.className = "voxcpm-dpd__model-info", c.innerHTML = `
-			Model <span class="voxcpm-dpd__model-name">"${e}"</span>
-			<span class="voxcpm-dpd__model-size">(${t.toFixed(1)} GB)</span>
-			needs to be downloaded.
-		`;
-		let l = document.createElement("div");
-		l.className = "voxcpm-dpd__options";
-		let d = null, f = document.createElement("button");
-		f.className = "voxcpm-dpd__option", f.setAttribute("data-option", "download_default"), f.innerHTML = `
-			<div class="voxcpm-dpd__option-icon">📁</div>
-			<div class="voxcpm-dpd__option-content">
-				<div class="voxcpm-dpd__option-title">DEFAULT PATH</div>
-				<div class="voxcpm-dpd__option-path">${n}</div>
-				<div class="voxcpm-dpd__option-desc">Download to ComfyUI's default model directory</div>
+var M = "\n\n\n\n.voxcpm-mdd__overlay {\n	position: fixed;\n	top: 0;\n	left: 0;\n	right: 0;\n	bottom: 0;\n	background: rgba(0, 0, 0, 0.75);\n	display: flex;\n	align-items: center;\n	justify-content: center;\n	z-index: 10000;\n	animation: voxcpm-mdd-fade-in 150ms ease-out;\n}\n\n@keyframes voxcpm-mdd-fade-in {\n	from { opacity: 0; }\n	to { opacity: 1; }\n}\n\n\n.voxcpm-mdd {\n	background: var(--voxcpm-cyber-bg, rgba(10, 15, 20, 0.95));\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	border-radius: 8px;\n	max-width: 640px;\n	width: 90%;\n	max-height: 85vh;\n	display: flex;\n	flex-direction: column;\n	box-shadow: var(--voxcpm-cyber-glow, 0 0 8px rgba(0, 255, 157, 0.4)),\n		0 8px 32px rgba(0, 0, 0, 0.6);\n	font-family: var(--voxcpm-cyber-font, 'JetBrains Mono', monospace);\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n	overflow: hidden;\n}\n\n\n.voxcpm-mdd__header {\n	display: flex;\n	align-items: center;\n	gap: 12px;\n	padding: 16px 20px;\n	border-bottom: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	background: var(--voxcpm-cyber-scanline, rgba(0, 255, 157, 0.03));\n}\n\n.voxcpm-mdd__icon {\n	font-size: 18px;\n}\n\n.voxcpm-mdd__title {\n	margin: 0;\n	font-size: 16px;\n	letter-spacing: 0.15em;\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n	text-transform: uppercase;\n}\n\n\n.voxcpm-mdd__body {\n	padding: 20px;\n	overflow-y: auto;\n	flex: 1;\n}\n\n\n.voxcpm-mdd__section {\n	margin-bottom: 16px;\n}\n\n.voxcpm-mdd__section:last-child {\n	margin-bottom: 0;\n}\n\n.voxcpm-mdd__section-title {\n	margin: 0 0 10px;\n	font-size: 10px;\n	letter-spacing: 0.2em;\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n	text-transform: uppercase;\n}\n\n\n.voxcpm-mdd__divider {\n	height: 1px;\n	background: var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	margin: 16px 0;\n}\n\n\n.voxcpm-mdd__paths-list {\n	display: flex;\n	flex-direction: column;\n	gap: 8px;\n	max-height: 200px;\n	overflow-y: auto;\n}\n\n.voxcpm-mdd__empty {\n	padding: 12px;\n	text-align: center;\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n	font-size: 12px;\n}\n\n\n.voxcpm-mdd__path-item {\n	display: block;\n	width: 100%;\n	padding: 10px 14px;\n	background: transparent;\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	border-radius: 6px;\n	cursor: pointer;\n	text-align: left;\n	transition: border-color 150ms ease, background 150ms ease;\n	font-family: inherit;\n	color: inherit;\n}\n\n.voxcpm-mdd__path-item:hover {\n	border-color: var(--voxcpm-cyber-accent, #00ff9d);\n	background: var(--voxcpm-cyber-bg-hover, rgba(0, 255, 157, 0.08));\n}\n\n.voxcpm-mdd__path-item--selected {\n	border-color: var(--voxcpm-cyber-accent, #00ff9d);\n	background: var(--voxcpm-cyber-bg-active, rgba(0, 255, 157, 0.12));\n	box-shadow: inset 0 0 12px var(--voxcpm-cyber-accent-dim, rgba(0, 255, 157, 0.15));\n}\n\n\n.voxcpm-mdd__path-info {\n	display: flex;\n	align-items: center;\n	gap: 8px;\n	margin-bottom: 6px;\n}\n\n.voxcpm-mdd__path-text {\n	font-size: 12px;\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n	word-break: break-all;\n}\n\n.voxcpm-mdd__path-badge {\n	font-size: 9px;\n	letter-spacing: 0.1em;\n	padding: 1px 6px;\n	border: 1px solid var(--voxcpm-cyber-accent, #00ff9d);\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n	border-radius: 2px;\n	text-transform: uppercase;\n	flex-shrink: 0;\n}\n\n\n.voxcpm-mdd__path-models {\n	display: flex;\n	flex-wrap: wrap;\n	gap: 4px;\n}\n\n.voxcpm-mdd__path-models--empty {\n	font-size: 11px;\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n}\n\n\n.voxcpm-mdd__model-tag {\n	font-size: 10px;\n	padding: 2px 8px;\n	border: 1px solid var(--voxcpm-cyber-tag-border, rgba(0, 255, 157, 0.4));\n	background: var(--voxcpm-cyber-tag-bg, rgba(0, 255, 157, 0.15));\n	color: var(--voxcpm-cyber-tag-text, #00ff9d);\n	border-radius: 0;\n	font-family: var(--voxcpm-cyber-font, 'JetBrains Mono', monospace);\n	line-height: 1.4;\n}\n\n\n.voxcpm-mdd__input-group {\n	display: flex;\n	gap: 8px;\n	margin-bottom: 8px;\n}\n\n.voxcpm-mdd__input {\n	flex: 1;\n	padding: 8px 12px;\n	background: var(--voxcpm-cyber-bg, rgba(10, 15, 20, 0.95));\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	border-radius: 4px;\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n	font-family: var(--voxcpm-cyber-font, 'JetBrains Mono', monospace);\n	font-size: 12px;\n}\n\n.voxcpm-mdd__input:focus {\n	outline: none;\n	border-color: var(--voxcpm-cyber-accent, #00ff9d);\n	box-shadow: 0 0 6px var(--voxcpm-cyber-accent-dim, rgba(0, 255, 157, 0.15));\n}\n\n.voxcpm-mdd__input::placeholder {\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n}\n\n\n.voxcpm-mdd__validation {\n	font-size: 11px;\n	min-height: 16px;\n	margin-bottom: 8px;\n}\n\n.voxcpm-mdd__validation--success {\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n}\n\n.voxcpm-mdd__validation--warning {\n	color: #ffaa00;\n}\n\n.voxcpm-mdd__validation--error {\n	color: #ff4444;\n}\n\n.voxcpm-mdd__validation--loading {\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n}\n\n\n.voxcpm-mdd__models-preview {\n	background: var(--voxcpm-cyber-bg-hover, rgba(0, 255, 157, 0.08));\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	border-radius: 4px;\n	padding: 10px 14px;\n	margin-bottom: 8px;\n}\n\n.voxcpm-mdd__preview-title {\n	margin: 0 0 8px;\n	font-size: 10px;\n	letter-spacing: 0.15em;\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n	text-transform: uppercase;\n}\n\n.voxcpm-mdd__models-list {\n	display: flex;\n	flex-wrap: wrap;\n	gap: 4px;\n}\n\n\n.voxcpm-mdd__footer {\n	display: flex;\n	justify-content: flex-end;\n	gap: 10px;\n	padding: 14px 20px;\n	border-top: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n}\n\n\n.voxcpm-mdd__btn {\n	padding: 8px 16px;\n	border-radius: 4px;\n	font-size: 12px;\n	cursor: pointer;\n	transition: background 150ms ease, border-color 150ms ease,\n		box-shadow 150ms ease;\n	font-family: var(--voxcpm-cyber-font, 'JetBrains Mono', monospace);\n	text-transform: uppercase;\n	letter-spacing: 0.08em;\n}\n\n.voxcpm-mdd__btn--secondary {\n	background: transparent;\n	border: 1px solid var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	color: var(--voxcpm-cyber-text-dim, rgba(224, 224, 224, 0.5));\n}\n\n.voxcpm-mdd__btn--secondary:hover {\n	border-color: var(--voxcpm-cyber-accent, #00ff9d);\n	color: var(--voxcpm-cyber-text, #e0e0e0);\n}\n\n.voxcpm-mdd__btn--primary {\n	background: var(--voxcpm-cyber-accent, #00ff9d);\n	border: none;\n	color: #0a0f14;\n	font-weight: 600;\n}\n\n.voxcpm-mdd__btn--primary:hover:not(:disabled) {\n	box-shadow: 0 0 12px var(--voxcpm-cyber-accent-dim, rgba(0, 255, 157, 0.15));\n}\n\n.voxcpm-mdd__btn--primary:disabled {\n	opacity: 0.4;\n	cursor: not-allowed;\n}\n\n.voxcpm-mdd__btn--register {\n	background: transparent;\n	border: 1px solid var(--voxcpm-cyber-accent, #00ff9d);\n	color: var(--voxcpm-cyber-accent, #00ff9d);\n	flex-shrink: 0;\n}\n\n.voxcpm-mdd__btn--register:hover:not(:disabled) {\n	background: var(--voxcpm-cyber-bg-hover, rgba(0, 255, 157, 0.08));\n}\n\n.voxcpm-mdd__btn--register:disabled {\n	opacity: 0.4;\n	cursor: not-allowed;\n}\n\n.voxcpm-mdd__btn:focus-visible {\n	outline: 2px solid var(--voxcpm-cyber-accent, #00ff9d);\n	outline-offset: 2px;\n}\n\n\n.voxcpm-mdd__paths-list::-webkit-scrollbar,\n.voxcpm-mdd__body::-webkit-scrollbar {\n	width: 6px;\n}\n\n.voxcpm-mdd__paths-list::-webkit-scrollbar-track,\n.voxcpm-mdd__body::-webkit-scrollbar-track {\n	background: transparent;\n}\n\n.voxcpm-mdd__paths-list::-webkit-scrollbar-thumb,\n.voxcpm-mdd__body::-webkit-scrollbar-thumb {\n	background: var(--voxcpm-cyber-border, rgba(0, 255, 157, 0.3));\n	border-radius: 0;\n}\n\n.voxcpm-mdd__paths-list::-webkit-scrollbar-thumb:hover,\n.voxcpm-mdd__body::-webkit-scrollbar-thumb:hover {\n	background: var(--voxcpm-cyber-accent, #00ff9d);\n}\n", N = null;
+async function oe() {
+	try {
+		let e = await t.api.fetchApi("/voxcpm/tts_search_paths");
+		return e.ok ? (await e.json()).paths || [] : (c.warn("Failed to fetch tts search paths:", e.statusText), []);
+	} catch (e) {
+		return c.warn("Error fetching tts search paths:", e), [];
+	}
+}
+async function se(e) {
+	try {
+		let n = await t.api.fetchApi(`/voxcpm/validate_directory?path=${encodeURIComponent(e)}`);
+		return n.ok ? await n.json() : null;
+	} catch (e) {
+		return c.warn("Error validating directory:", e), null;
+	}
+}
+async function ce(e) {
+	try {
+		let n = await t.api.fetchApi("/voxcpm/register_model_path", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ path: e })
+		});
+		return n.ok ? await n.json() : null;
+	} catch (e) {
+		return c.warn("Error registering model path:", e), null;
+	}
+}
+function le(e) {
+	return new Promise(async (t) => {
+		P(), j();
+		let n = await oe(), r = document.createElement("div");
+		r.className = "voxcpm-mdd__overlay", N = r, r.innerHTML = `
+			<div class="voxcpm-mdd">
+				<div class="voxcpm-mdd__header">
+					<span class="voxcpm-mdd__icon">📂</span>
+					<h2 class="voxcpm-mdd__title">SELECT MODEL DIRECTORY</h2>
+				</div>
+				<div class="voxcpm-mdd__body">
+					<div class="voxcpm-mdd__section">
+						<h3 class="voxcpm-mdd__section-title">REGISTERED PATHS</h3>
+						<div class="voxcpm-mdd__paths-list" id="voxcpm-mdd-paths">
+							${n.length === 0 ? "<div class=\"voxcpm-mdd__empty\">No registered tts paths found</div>" : n.map((e) => `
+									<button class="voxcpm-mdd__path-item" data-path="${I(e.path)}">
+										<div class="voxcpm-mdd__path-info">
+											<span class="voxcpm-mdd__path-text">${F(e.path)}</span>
+											${e.is_default ? "<span class=\"voxcpm-mdd__path-badge\">DEFAULT</span>" : ""}
+										</div>
+										${e.models.length > 0 ? `<div class="voxcpm-mdd__path-models">${e.models.map((e) => `<span class="voxcpm-mdd__model-tag">${F(e)}</span>`).join("")}</div>` : "<div class=\"voxcpm-mdd__path-models voxcpm-mdd__path-models--empty\">No models found</div>"}
+									</button>
+								`).join("")}
+						</div>
+					</div>
+					<div class="voxcpm-mdd__divider"></div>
+					<div class="voxcpm-mdd__section">
+						<h3 class="voxcpm-mdd__section-title">CUSTOM PATH</h3>
+						<div class="voxcpm-mdd__input-group">
+							<input
+								type="text"
+								class="voxcpm-mdd__input"
+								placeholder="Enter absolute path to model directory"
+								value="${I(e || "")}"
+								id="voxcpm-mdd-path-input"
+							/>
+							<button class="voxcpm-mdd__btn voxcpm-mdd__btn--register" id="voxcpm-mdd-register" disabled>
+								REGISTER
+							</button>
+						</div>
+						<div class="voxcpm-mdd__validation" id="voxcpm-mdd-validation"></div>
+						<div class="voxcpm-mdd__models-preview" id="voxcpm-mdd-models-preview" style="display: none;">
+							<h4 class="voxcpm-mdd__preview-title">FOUND MODELS (<span id="voxcpm-mdd-model-count">0</span>)</h4>
+							<div class="voxcpm-mdd__models-list" id="voxcpm-mdd-models-list"></div>
+						</div>
+					</div>
+				</div>
+				<div class="voxcpm-mdd__footer">
+					<button class="voxcpm-mdd__btn voxcpm-mdd__btn--secondary" id="voxcpm-mdd-cancel">CANCEL</button>
+					<button class="voxcpm-mdd__btn voxcpm-mdd__btn--primary" id="voxcpm-mdd-confirm" disabled>
+						SELECT PATH
+					</button>
+				</div>
 			</div>
 		`;
-		let p = document.createElement("button");
-		p.className = "voxcpm-dpd__option", p.setAttribute("data-option", "download_custom"), p.innerHTML = "\n			<div class=\"voxcpm-dpd__option-icon\">📂</div>\n			<div class=\"voxcpm-dpd__option-content\">\n				<div class=\"voxcpm-dpd__option-title\">CUSTOM PATH</div>\n				<div class=\"voxcpm-dpd__option-desc\">Choose an existing model directory or download to a different location</div>\n			</div>\n		";
-		let m = [f, p];
-		m.forEach((e) => {
+		let i = null, a = !1, o = !1, s = null, c = r.querySelector("#voxcpm-mdd-path-input"), l = r.querySelector("#voxcpm-mdd-register"), u = r.querySelector("#voxcpm-mdd-validation"), d = r.querySelector("#voxcpm-mdd-models-preview"), f = r.querySelector("#voxcpm-mdd-model-count"), p = r.querySelector("#voxcpm-mdd-models-list"), m = r.querySelector("#voxcpm-mdd-confirm"), h = r.querySelector("#voxcpm-mdd-cancel"), g = r.querySelectorAll(".voxcpm-mdd__path-item");
+		g.forEach((e) => {
 			e.addEventListener("click", () => {
-				m.forEach((e) => e.classList.remove("voxcpm-dpd__option--selected")), e.classList.add("voxcpm-dpd__option--selected"), d = e.getAttribute("data-option"), _.disabled = !1;
+				g.forEach((e) => e.classList.remove("voxcpm-mdd__path-item--selected")), e.classList.add("voxcpm-mdd__path-item--selected"), i = e.dataset.path || null, a = !0, o = !1, c && i && (c.value = i), m && (m.disabled = !1), l && (l.disabled = !0);
+				let t = n.find((e) => e.path === i);
+				t && t.models.length > 0 ? (d.style.display = "block", f.textContent = t.models.length.toString(), p.innerHTML = t.models.map((e) => `<span class="voxcpm-mdd__model-tag">${F(e)}</span>`).join("")) : d.style.display = "none", u.innerHTML = "";
 			});
-		}), l.appendChild(f), l.appendChild(p), s.appendChild(c), s.appendChild(l);
-		let h = document.createElement("div");
-		h.className = "voxcpm-dpd__footer";
-		let g = document.createElement("button");
-		g.className = "voxcpm-dpd__btn voxcpm-dpd__btn--secondary", g.textContent = "Cancel";
-		let _ = document.createElement("button");
-		_.className = "voxcpm-dpd__btn voxcpm-dpd__btn--primary", _.textContent = "Continue", _.disabled = !0, g.addEventListener("click", () => {
-			F(), r({ action: "cancel" });
-		}), _.addEventListener("click", async () => {
-			if (d) {
-				if (d === "download_default") F(), r({ action: "download_default" });
-				else if (d === "download_custom") {
-					let e = await L();
-					e && (F(), r({
-						action: "download_custom",
-						customPath: e
-					}));
-				}
-			}
-		}), i.addEventListener("click", (e) => {
-			e.target === i && (F(), r({ action: "cancel" }));
+		}), c?.addEventListener("input", () => {
+			let e = c.value.trim();
+			g.forEach((e) => e.classList.remove("voxcpm-mdd__path-item--selected")), s && clearTimeout(s), s = setTimeout(async () => {
+				await _(e);
+			}, 300);
 		});
-		let v = (e) => {
-			e.key === "Escape" && (document.removeEventListener("keydown", v), F(), r({ action: "cancel" }));
-		};
-		document.addEventListener("keydown", v), h.appendChild(g), h.appendChild(_), a.appendChild(o), a.appendChild(s), a.appendChild(h), i.appendChild(a), document.body.appendChild(i), P = i, u.log("Download path dialog shown for model:", e);
-	});
-}
-function F() {
-	P && (P.remove(), P = null);
-}
-
-var I = null;
-function L(e) {
-	return new Promise((t) => {
-		R();
-		let n = document.createElement("div");
-		n.className = "voxcpm-dialog__overlay", n.innerHTML = `
-    <div class="voxcpm-dialog voxcpm-dialog--large">
-    <div class="voxcpm-dialog__header">
-    <h2 class="voxcpm-dialog__title">Select Model Directory</h2>
-    </div>
-    <div class="voxcpm-dialog__body">
-    <div class="voxcpm-dialog__input-group">
-    <input
-    type="text"
-    class="voxcpm-dialog__input"
-    placeholder="Enter model directory path"
-    value="${e || ""}"
-    id="voxcpm-path-input"
-    />
-    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--secondary" id="voxcpm-browse">
-    Browse...
-    </button>
-    </div>
-    <div class="voxcpm-dialog__preview" id="voxcpm-models-preview" style="display: none;">
-    <h4>Found Models (<span id="voxcpm-model-count">0</span>)</h4>
-    <ul class="voxcpm-dialog__models-list" id="voxcpm-models-list"></ul>
-    </div>
-    <div class="voxcpm-dialog__validation" id="voxcpm-validation-message"></div>
-    </div>
-    <div class="voxcpm-dialog__footer">
-    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--secondary" id="voxcpm-cancel">Cancel</button>
-    <button class="voxcpm-dialog__btn voxcpm-dialog__btn--primary" id="voxcpm-confirm" disabled>
-    Use This Path
-    </button>
-    </div>
-    </div>
-    `;
-		let r = !1, i = e || "", a = n.querySelector("#voxcpm-path-input"), o = n.querySelector("#voxcpm-models-preview"), s = n.querySelector("#voxcpm-models-list"), c = n.querySelector("#voxcpm-model-count"), l = n.querySelector("#voxcpm-validation-message"), d = n.querySelector("#voxcpm-confirm");
-		async function f(e) {
+		async function _(e) {
 			if (!e) {
-				o.style.display = "none", l.textContent = "", d.disabled = !0, r = !1;
+				u.innerHTML = "", d.style.display = "none", m.disabled = !0, l.disabled = !0, a = !1, i = null;
 				return;
 			}
-			try {
-				let { app: t } = await import("/scripts/app.js"), n = await (await t.api.fetchApi(`/voxcpm/validate_path?path=${encodeURIComponent(e)}`)).json();
-				r = n.valid, n.valid && n.models?.length > 0 ? (o.style.display = "block", c.textContent = n.models.length.toString(), s.innerHTML = n.models.map((e) => `
-          <li>
-          <span class="voxcpm-dialog__model-icon">📁</span>
-          <span class="voxcpm-dialog__model-name">${e.name}</span>
-          </li>
-          `).join(""), l.innerHTML = `<span class="voxcpm-dialog__validation--success">Found ${n.models.length} VoxCPM-compatible models</span>`, d.disabled = !1) : (o.style.display = "none", l.innerHTML = `<span class="voxcpm-dialog__validation--error">${n.error || "Invalid path or no models found"}</span>`, d.disabled = !0);
-			} catch (e) {
-				u.warn("Path validation failed:", e), o.style.display = "none", l.innerHTML = "<span class=\"voxcpm-dialog__validation--error\">Failed to validate path</span>", d.disabled = !0, r = !1;
+			u.innerHTML = "<span class=\"voxcpm-mdd__validation--loading\">Validating...</span>";
+			let t = await se(e);
+			if (!t) {
+				u.innerHTML = "<span class=\"voxcpm-mdd__validation--error\">Validation request failed</span>", m.disabled = !0, l.disabled = !0, a = !1, i = null;
+				return;
 			}
+			t.valid ? (a = !0, i = e, o = !1, m.disabled = !1, l.disabled = !0, t.models.length > 0 ? (d.style.display = "block", f.textContent = t.models.length.toString(), p.innerHTML = t.models.map((e) => `<span class="voxcpm-mdd__model-tag">${F(e)}</span>`).join(""), u.innerHTML = `<span class="voxcpm-mdd__validation--success">✓ Valid — ${t.models.length} model(s) found</span>`) : (d.style.display = "none", u.innerHTML = "<span class=\"voxcpm-mdd__validation--success\">✓ Valid directory (no VoxCPM models found yet)</span>")) : t.exists && !t.is_registered ? (a = !1, i = null, m.disabled = !0, l.disabled = !1, d.style.display = "none", u.innerHTML = "<span class=\"voxcpm-mdd__validation--warning\">⚠ Directory not in registered tts paths — click REGISTER to add it</span>") : (a = !1, i = null, m.disabled = !0, l.disabled = !0, d.style.display = "none", u.innerHTML = `<span class="voxcpm-mdd__validation--error">✗ ${t.error || "Invalid path"}</span>`);
 		}
-		a?.addEventListener("input", () => {
-			i = a.value, f(i);
-		}), n.querySelector("#voxcpm-browse")?.addEventListener("click", () => {
-			alert("Please enter the path manually. Native folder picker requires server support.");
-		}), n.querySelector("#voxcpm-cancel")?.addEventListener("click", () => {
-			R(), t(null);
-		}), d?.addEventListener("click", () => {
-			r && i && (R(), t(i));
-		}), document.body.appendChild(n), I = n, ce(), e && f(e);
+		l?.addEventListener("click", async () => {
+			let e = c.value.trim();
+			if (!e) return;
+			l.disabled = !0, l.textContent = "REGISTERING...";
+			let t = await ce(e);
+			t?.success ? (o = !t.already_registered, i = e, a = !0, m.disabled = !1, l.textContent = "REGISTERED ✓", u.innerHTML = "<span class=\"voxcpm-mdd__validation--success\">✓ Path registered successfully</span>", await _(e)) : (l.disabled = !1, l.textContent = "REGISTER", u.innerHTML = `<span class="voxcpm-mdd__validation--error">✗ ${t?.error || "Registration failed"}</span>`);
+		}), h?.addEventListener("click", () => {
+			P(), t(null);
+		}), m?.addEventListener("click", () => {
+			a && i && (P(), t({
+				path: i,
+				newlyRegistered: o
+			}));
+		});
+		let v = (e) => {
+			e.key === "Escape" && (P(), t(null), document.removeEventListener("keydown", v));
+		};
+		document.addEventListener("keydown", v), r.addEventListener("click", (e) => {
+			e.target === r && (P(), t(null), document.removeEventListener("keydown", v));
+		}), document.body.appendChild(r), e && await _(e);
 	});
 }
-function R() {
-	I && (I.remove(), I = null);
+function P() {
+	N && (N.remove(), N = null);
 }
-function ce() {
-	let e = "voxcpm-dialog-styles";
-	if (document.getElementById(e)) return;
-	let t = document.createElement("style");
-	t.id = e, t.textContent = "\n\n\n\n.voxcpm-dialog__overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background: rgba(0, 0, 0, 0.7);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  z-index: 10000;\n}\n\n\n.voxcpm-dialog {\n  background: var(--voxcpm-bg-surface);\n  border-radius: var(--voxcpm-border-radius-m);\n  max-width: 500px;\n  width: 90%;\n  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);\n}\n\n.voxcpm-dialog--large {\n  max-width: 600px;\n}\n\n\n.voxcpm-dialog__header {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-l);\n  padding: var(--voxcpm-space-2xl);\n  border-bottom: 1px solid var(--voxcpm-border-color);\n}\n\n.voxcpm-dialog__icon {\n  font-size: var(--voxcpm-font-size-xl);\n}\n\n.voxcpm-dialog__title {\n  margin: 0;\n  font-size: var(--voxcpm-font-size-l);\n  color: var(--voxcpm-text-primary);\n}\n\n\n.voxcpm-dialog__body {\n  padding: var(--voxcpm-space-2xl);\n}\n\n.voxcpm-dialog__description {\n  margin: 0 0 20px;\n  color: var(--voxcpm-text-secondary);\n  line-height: 1.5;\n}\n\n\n.voxcpm-dialog__options {\n  display: flex;\n  flex-direction: column;\n  gap: var(--voxcpm-space-l);\n}\n\n\n.voxcpm-dialog__option {\n  display: flex;\n  gap: var(--voxcpm-space-xl);\n  padding: var(--voxcpm-space-xl);\n  background: var(--voxcpm-bg-elevated);\n  border: 2px solid var(--voxcpm-border-color);\n  border-radius: var(--voxcpm-border-radius-m);\n  cursor: pointer;\n  text-align: left;\n  transition: border-color var(--voxcpm-duration-normal) var(--voxcpm-easing),\n              background var(--voxcpm-duration-normal) var(--voxcpm-easing);\n}\n\n.voxcpm-dialog__option:hover {\n  border-color: var(--voxcpm-accent);\n}\n\n.voxcpm-dialog__option--selected {\n  border-color: var(--voxcpm-accent);\n  background: var(--voxcpm-bg-input-hover);\n}\n\n.voxcpm-dialog__option-icon {\n  font-size: 32px;\n  flex-shrink: 0;\n}\n\n.voxcpm-dialog__option-content h3 {\n  margin: 0 0 var(--voxcpm-space-xs);\n  color: var(--voxcpm-text-primary);\n  font-size: var(--voxcpm-font-size-m);\n}\n\n.voxcpm-dialog__option-path {\n  margin: 0 0 var(--voxcpm-space-m);\n  font-family: var(--voxcpm-font-family-mono);\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n.voxcpm-dialog__option-description {\n  margin: 0;\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n\n.voxcpm-dialog__footer {\n  display: flex;\n  justify-content: flex-end;\n  gap: var(--voxcpm-space-l);\n  padding: var(--voxcpm-space-xl) var(--voxcpm-space-2xl);\n  border-top: 1px solid var(--voxcpm-border-color);\n}\n\n\n.voxcpm-dialog__btn {\n  padding: var(--voxcpm-space-m) var(--voxcpm-space-xl);\n  border-radius: var(--voxcpm-border-radius-xs);\n  font-size: var(--voxcpm-font-size-m);\n  cursor: pointer;\n  transition: background var(--voxcpm-duration-normal) var(--voxcpm-easing),\n              border-color var(--voxcpm-duration-normal) var(--voxcpm-easing);\n}\n\n.voxcpm-dialog__btn--secondary {\n  background: transparent;\n  border: 1px solid var(--voxcpm-border-color);\n  color: var(--voxcpm-text-secondary);\n}\n\n.voxcpm-dialog__btn--secondary:hover {\n  background: var(--voxcpm-bg-elevated);\n}\n\n.voxcpm-dialog__btn--primary {\n  background: var(--voxcpm-accent);\n  border: none;\n  color: var(--voxcpm-text-on-primary);\n}\n\n.voxcpm-dialog__btn--primary:hover:not(:disabled) {\n  background: var(--voxcpm-accent-hover);\n}\n\n.voxcpm-dialog__btn--primary:disabled {\n  opacity: 0.5;\n  cursor: not-allowed;\n}\n\n\n.voxcpm-dialog__input-group {\n  display: flex;\n  gap: var(--voxcpm-space-m);\n  margin-bottom: var(--voxcpm-space-xl);\n}\n\n.voxcpm-dialog__input {\n  flex: 1;\n  padding: var(--voxcpm-space-m) var(--voxcpm-space-l);\n  background: var(--voxcpm-bg-elevated);\n  border: 1px solid var(--voxcpm-border-color);\n  border-radius: var(--voxcpm-border-radius-xs);\n  color: var(--voxcpm-text-primary);\n  font-size: var(--voxcpm-font-size-m);\n  font-family: var(--voxcpm-font-family);\n}\n\n.voxcpm-dialog__input:focus {\n  outline: none;\n  border-color: var(--voxcpm-accent);\n}\n\n\n.voxcpm-dialog__preview {\n  background: var(--voxcpm-bg-elevated);\n  border-radius: var(--voxcpm-border-radius-xs);\n  padding: var(--voxcpm-space-l);\n  margin-bottom: var(--voxcpm-space-xl);\n}\n\n.voxcpm-dialog__preview h4 {\n  margin: 0 0 var(--voxcpm-space-m);\n  font-size: var(--voxcpm-font-size-xs);\n  color: var(--voxcpm-text-muted);\n}\n\n.voxcpm-dialog__models-list {\n  list-style: none;\n  margin: 0;\n  padding: 0;\n}\n\n.voxcpm-dialog__models-list li {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-m);\n  padding: var(--voxcpm-space-xs) 0;\n}\n\n.voxcpm-dialog__model-icon {\n  font-size: var(--voxcpm-font-size-m);\n}\n\n.voxcpm-dialog__model-name {\n  font-size: var(--voxcpm-font-size-s);\n  color: var(--voxcpm-text-secondary);\n}\n\n\n.voxcpm-dialog__validation {\n  font-size: var(--voxcpm-font-size-xs);\n}\n\n.voxcpm-dialog__validation--success {\n  color: var(--voxcpm-color-success);\n}\n\n.voxcpm-dialog__validation--error {\n  color: var(--voxcpm-color-error);\n}\n\n\n.voxcpm-dialog__option:focus-visible,\n.voxcpm-dialog__btn:focus-visible,\n.voxcpm-dialog__input:focus-visible {\n  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);\n  outline-offset: var(--voxcpm-focus-ring-offset);\n}\n\n\n@media (prefers-reduced-motion: reduce) {\n  .voxcpm-dialog *,\n  .voxcpm-dialog *::before,\n  .voxcpm-dialog *::after {\n    transition-duration: 0ms !important;\n  }\n}\n\n\n\n.voxcpm-path-indicator {\n  display: flex;\n  align-items: center;\n  gap: var(--voxcpm-space-m);\n  padding: var(--voxcpm-space-xs) var(--voxcpm-space-m);\n  background: var(--voxcpm-bg-elevated);\n  border-radius: var(--voxcpm-border-radius-xs);\n  font-size: var(--voxcpm-font-size-xs);\n}\n\n.voxcpm-path-indicator__text {\n  color: var(--voxcpm-text-muted);\n  font-family: var(--voxcpm-font-family-mono);\n}\n\n.voxcpm-path-indicator__change-btn {\n  background: transparent;\n  border: none;\n  cursor: pointer;\n  font-size: var(--voxcpm-font-size-m);\n  padding: var(--voxcpm-space-2xs);\n  color: var(--voxcpm-text-primary);\n  transition: opacity var(--voxcpm-duration-fast) var(--voxcpm-easing);\n}\n\n.voxcpm-path-indicator__change-btn:hover {\n  opacity: 0.8;\n}\n\n.voxcpm-path-indicator__change-btn:focus-visible {\n  outline: var(--voxcpm-focus-ring-width) solid var(--voxcpm-focus-ring-color);\n  outline-offset: var(--voxcpm-focus-ring-offset);\n}\n", document.head.appendChild(t);
+function F(e) {
+	let t = document.createElement("div");
+	return t.textContent = e, t.innerHTML;
+}
+function I(e) {
+	return e.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-var z = {
+var L = {
 	CLOUD: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/><polyline points=\"12 12 12 22\"/><path d=\"m8 18 4 4 4-4\"/></svg>",
 	CHECK: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg>",
 	SHIELD: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/></svg>",
 	FOLDER: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z\"/></svg>",
 	FOLDER_OPEN: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1\"/><path d=\"M6 12h14l-2.5 7H8.5L6 12z\"/></svg>"
-}, B = null;
-async function le(e) {
-	if (B !== null) return B;
+}, R = null;
+async function z(e) {
+	if (R !== null) return R;
 	try {
 		let t = await e("/voxcpm/model_info");
-		if (t.ok) return B = (await t.json()).models || [], B;
+		if (t.ok) return R = (await t.json()).models || [], R;
 	} catch (e) {
 		console.warn("[VoxCPM] Failed to fetch model info:", e);
 	}
 	return [];
 }
-function ue() {
-	B = null;
+function B() {
+	R = null;
 }
 var V = class e {
 	constructor(e, t, n, r) {
-		this.selectedIndex = -1, this.resolveSelection = null, this.cleanups = [], this.isOpen = !1, this.modelInfo = e, this.anchorRect = t, this.scale = n, this.widgetElement = r || null, this.panel = document.createElement("div"), this.panel.className = y.BLOCK, this.panel.setAttribute("role", "listbox"), this.panel.setAttribute("aria-label", "Select model"), this.header = document.createElement("div"), this.header.className = y.HEADER, this.header.innerHTML = `${z.SHIELD} <span>${l.MODEL_DROPDOWN.HEADER_TEXT}</span>`, this.list = document.createElement("div"), this.list.className = y.LIST, this.panel.appendChild(this.header), this.panel.appendChild(this.list), this.renderItems();
+		this.selectedIndex = -1, this.resolveSelection = null, this.cleanups = [], this.isOpen = !1, this.modelInfo = e, this.anchorRect = t, this.scale = n, this.widgetElement = r || null, this.panel = document.createElement("div"), this.panel.className = v.BLOCK, this.panel.setAttribute("role", "listbox"), this.panel.setAttribute("aria-label", "Select model"), this.header = document.createElement("div"), this.header.className = v.HEADER, this.header.innerHTML = `${L.SHIELD} <span>${s.MODEL_DROPDOWN.HEADER_TEXT}</span>`, this.list = document.createElement("div"), this.list.className = v.LIST, this.panel.appendChild(this.header), this.panel.appendChild(this.list), this.renderItems();
 	}
 	show() {
 		return new Promise((t) => {
@@ -843,17 +808,17 @@ var V = class e {
 	}
 	createElementItem(e, t) {
 		let n = document.createElement("div");
-		n.className = y.ITEM, n.setAttribute("role", "option"), n.setAttribute("data-index", String(t)), n.setAttribute("data-model", e.name);
-		let r = document.createElement("span"), i = e.is_downloaded ? y.ICON_CHECK : y.ICON_CLOUD;
-		r.className = `${y.ICON} ${i}`, r.innerHTML = e.is_downloaded ? z.CHECK : z.CLOUD, n.appendChild(r);
+		n.className = v.ITEM, n.setAttribute("role", "option"), n.setAttribute("data-index", String(t)), n.setAttribute("data-model", e.name);
+		let r = document.createElement("span"), i = e.is_downloaded ? v.ICON_CHECK : v.ICON_CLOUD;
+		r.className = `${v.ICON} ${i}`, r.innerHTML = e.is_downloaded ? L.CHECK : L.CLOUD, n.appendChild(r);
 		let a = document.createElement("span");
-		if (a.className = y.NAME, a.textContent = e.name, n.appendChild(a), e.size_gb > 0) {
+		if (a.className = v.NAME, a.textContent = e.name, n.appendChild(a), e.size_gb > 0) {
 			let t = document.createElement("span");
-			t.className = y.META, t.textContent = `${e.size_gb} GB`, n.appendChild(t);
+			t.className = v.META, t.textContent = `${e.size_gb} GB`, n.appendChild(t);
 		}
 		if (e.type === "official") {
 			let e = document.createElement("span");
-			e.className = y.TAG, e.textContent = "DEFAULT", n.appendChild(e);
+			e.className = v.TAG, e.textContent = "DEFAULT", n.appendChild(e);
 		}
 		return n.addEventListener("click", (t) => {
 			t.stopPropagation(), this.close(e.name);
@@ -862,10 +827,10 @@ var V = class e {
 		}), n;
 	}
 	positionPanel() {
-		let e = this.scale, t = l.MODEL_DROPDOWN.ANCHOR_GAP, n = window.innerHeight, r = window.innerWidth, i = l.MODEL_DROPDOWN.ITEM_HEIGHT, a = l.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS, o = (32 + Math.min(this.modelInfo.length, a) * i) * e, s = 300 * e, c, u = n - this.anchorRect.bottom, d = this.anchorRect.top;
-		c = u >= o + t ? this.anchorRect.bottom + t : d >= o + t ? this.anchorRect.top - o - t : this.anchorRect.bottom + t;
+		let e = this.scale, t = s.MODEL_DROPDOWN.ANCHOR_GAP, n = window.innerHeight, r = window.innerWidth, i = s.MODEL_DROPDOWN.ITEM_HEIGHT, a = s.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS, o = (32 + Math.min(this.modelInfo.length, a) * i) * e, c = 300 * e, l, u = n - this.anchorRect.bottom, d = this.anchorRect.top;
+		l = u >= o + t ? this.anchorRect.bottom + t : d >= o + t ? this.anchorRect.top - o - t : this.anchorRect.bottom + t;
 		let f = this.anchorRect.left;
-		f + s > r && (f = r - s - 8), f = Math.max(8, f), this.panel.style.position = "fixed", this.panel.style.top = `${c}px`, this.panel.style.left = `${f}px`, this.panel.style.zIndex = String(l.MODEL_DROPDOWN.Z_INDEX), this.panel.style.transformOrigin = "top left", this.panel.style.transform = `scale(${e})`, this.panel.style.setProperty("--voxcpm-dropdown-scale", String(e));
+		f + c > r && (f = r - c - 8), f = Math.max(8, f), this.panel.style.position = "fixed", this.panel.style.top = `${l}px`, this.panel.style.left = `${f}px`, this.panel.style.zIndex = String(s.MODEL_DROPDOWN.Z_INDEX), this.panel.style.transformOrigin = "top left", this.panel.style.transform = `scale(${e})`, this.panel.style.setProperty("--voxcpm-dropdown-scale", String(e));
 	}
 	setupClickOutside() {
 		let e = (e) => {
@@ -918,65 +883,65 @@ var V = class e {
 		});
 	}
 	setSelectedIndex(e) {
-		let t = this.list.querySelectorAll(`.${y.ITEM}`);
+		let t = this.list.querySelectorAll(`.${v.ITEM}`);
 		if (t.forEach((e) => {
-			e.classList.remove(y.ITEM_SELECTED);
+			e.classList.remove(v.ITEM_SELECTED);
 		}), this.selectedIndex = e, e >= 0 && e < t.length) {
 			let n = t[e];
-			n.classList.add(y.ITEM_SELECTED), n.scrollIntoView({ block: "nearest" });
+			n.classList.add(v.ITEM_SELECTED), n.scrollIntoView({ block: "nearest" });
 		}
 	}
 };
 V.currentDropdown = null;
 
 var H =  new Map();
-function de(e) {
+function U(e) {
 	let t = e.widgets;
 	if (!t) {
-		u.warn("No widgets found on node:", e.id);
+		c.warn("No widgets found on node:", e.id);
 		return;
 	}
 	let n = t.find((e) => e.name === "model_name");
 	if (!n) {
-		u.warn("model_name widget not found on node:", e.id);
+		c.warn("model_name widget not found on node:", e.id);
 		return;
 	}
-	fe(n);
+	ue(n);
 	let r = document.createElement("div");
-	r.className = h.BLOCK;
+	r.className = p.BLOCK;
 	let i = document.createElement("div");
-	i.className = h.DISPLAY, i.title = "Click to select a model", i.tabIndex = 0, i.setAttribute("role", "combobox"), i.setAttribute("aria-expanded", "false"), i.setAttribute("aria-haspopup", "listbox");
+	i.className = p.DISPLAY, i.title = "Click to select a model", i.tabIndex = 0, i.setAttribute("role", "combobox"), i.setAttribute("aria-expanded", "false"), i.setAttribute("aria-haspopup", "listbox");
 	let a = document.createElement("span");
-	a.className = h.ICON, a.innerHTML = z.FOLDER;
+	a.className = p.ICON, a.innerHTML = L.FOLDER;
 	let o = document.createElement("span");
-	o.className = h.TEXT, o.textContent = n.value || l.MODEL_SELECTOR.PLACEHOLDER;
-	let s = document.createElement("span");
-	s.className = h.ARROW, s.textContent = l.MODEL_SELECTOR.ARROW;
-	let c = document.createElement("button");
-	c.className = h.BROWSE, c.innerHTML = z.FOLDER_OPEN, c.title = "Browse for custom model directory", c.setAttribute("role", "button");
+	o.className = p.TEXT, o.textContent = n.value || s.MODEL_SELECTOR.PLACEHOLDER;
+	let l = document.createElement("span");
+	l.className = p.ARROW, l.textContent = s.MODEL_SELECTOR.ARROW;
+	let u = document.createElement("button");
+	u.className = p.BROWSE, u.innerHTML = L.FOLDER_OPEN, u.title = "Browse for custom model directory", u.setAttribute("role", "button");
 	let d = document.createElement("div");
-	d.className = h.PATH;
+	d.className = p.PATH;
 	let f = e.properties?.custom_model_path;
-	f && (a.innerHTML = z.FOLDER_OPEN, d.textContent = f, d.classList.add(h.PATH_VISIBLE)), i.append(a, o, s);
-	let p = document.createElement("div");
-	p.className = h.ROW, p.append(i, c), r.append(p, d), r.addEventListener("mouseup", (e) => e.stopPropagation()), r.addEventListener("click", (e) => e.stopPropagation()), i.addEventListener("click", (t) => {
-		if (t.preventDefault(), t.stopPropagation(), U()) {
-			W();
+	f && (a.innerHTML = L.FOLDER_OPEN, d.textContent = f, d.classList.add(p.PATH_VISIBLE)), i.append(a, o, l);
+	let m = document.createElement("div");
+	m.className = p.ROW, m.append(i, u), r.append(m, d), r.addEventListener("mouseup", (e) => e.stopPropagation()), r.addEventListener("click", (e) => e.stopPropagation()), i.addEventListener("click", (t) => {
+		if (t.preventDefault(), t.stopPropagation(), W()) {
+			G();
 			return;
 		}
-		G(t, n, o, a, d, e, i, s);
+		K(t, n, o, a, d, e, i, l);
 	}), i.addEventListener("keydown", (t) => {
 		if (t.key === "Enter" || t.key === " ") {
-			if (t.preventDefault(), t.stopPropagation(), U()) {
-				W();
+			if (t.preventDefault(), t.stopPropagation(), W()) {
+				G();
 				return;
 			}
-			G(t, n, o, a, d, e, i, s);
+			K(t, n, o, a, d, e, i, l);
 		}
-	}), c.addEventListener("click", async (t) => {
-		t.preventDefault(), t.stopPropagation(), await pe(e, n, o, a, d);
+	}), u.addEventListener("click", async (t) => {
+		t.preventDefault(), t.stopPropagation(), await de(e, n, o, a, d);
 	});
-	let m = e.addDOMWidget("model_selector", "custom", r, {
+	let h = e.addDOMWidget("model_selector", "custom", r, {
 		serialize: !1,
 		hideOnZoom: !1,
 		selectOn: ["click"],
@@ -985,45 +950,45 @@ function de(e) {
 			n.value = e, o.textContent = e;
 		}
 	}), g = new MutationObserver(() => {
-		let t = p.parentElement;
+		let t = m.parentElement;
 		if (t) {
 			let n = t.parentElement;
-			n && n !== document.body ? (n.classList.add(h.BLOCK), n.setAttribute("node-id", String(e.id)), u.debug("Added", h.BLOCK, "class + node-id to WidgetDOM parent div for node:", e.id)) : u.debug("No WidgetDOM grandparent found (LiteGraph mode) for node:", e.id), g.disconnect();
+			n && n !== document.body ? (n.classList.add(p.BLOCK), n.setAttribute("node-id", String(e.id)), c.debug("Added", p.BLOCK, "class + node-id to WidgetDOM parent div for node:", e.id)) : c.debug("No WidgetDOM grandparent found (LiteGraph mode) for node:", e.id), g.disconnect();
 		}
 	});
 	g.observe(document.body, {
 		childList: !0,
 		subtree: !0
-	}), m.tooltip = "Select the VoxCPM model to use", m.computeSize = () => [0, l.MODEL_SELECTOR.MIN_HEIGHT], m.computeLayoutSize = void 0;
+	}), h.tooltip = "Select the VoxCPM model to use", h.computeSize = () => [0, s.MODEL_SELECTOR.MIN_HEIGHT], h.computeLayoutSize = void 0;
 	let _ = e.widgets;
 	if (_ && _.length > 1) {
-		let t = _.indexOf(m);
-		t > 0 && (_.splice(t, 1), _.unshift(m), u.debug("Moved model selector widget to position 0 for node:", e.id));
+		let t = _.indexOf(h);
+		t > 0 && (_.splice(t, 1), _.unshift(h), c.debug("Moved model selector widget to position 0 for node:", e.id));
 	}
 	let v = e.inputs?.find((e) => e.name === "model_name");
 	v && (v.widget = {
 		name: "model_selector",
 		_originalWidget: v.widget?.name
-	}, u.debug("Bound model_name input to model_selector widget for node:", e.id)), H.set(e.id, {
+	}, c.debug("Bound model_name input to model_selector widget for node:", e.id)), H.set(e.id, {
 		modelText: o,
 		folderIcon: a,
 		pathIndicator: d,
 		modelWidget: n
-	}), u.debug("Created model selector widget for node:", e.id);
+	}), c.debug("Created model selector widget for node:", e.id);
 }
-function fe(e) {
-	e.type = "converted-widget", e.computeSize = () => [0, -4], e.draw = () => {}, e.options || (e.options = {}), e.options.canvasOnly = !0, u.debug("Hidden default combo widget:", e.name);
-}
-function U() {
-	return V.currentDropdown !== null;
+function ue(e) {
+	e.type = "converted-widget", e.computeSize = () => [0, -4], e.draw = () => {}, e.options || (e.options = {}), e.options.canvasOnly = !0, c.debug("Hidden default combo widget:", e.name);
 }
 function W() {
+	return V.currentDropdown !== null;
+}
+function G() {
 	V.currentDropdown && V.currentDropdown.close(null);
 }
-async function G(e, r, i, a, o, s, c, l) {
+async function K(e, r, i, a, o, s, l, u) {
 	let d = r.options?.values || [];
 	if (d.length === 0) {
-		u.warn("No models available for dropdown"), k.show({
+		c.warn("No models available for dropdown"), D.show({
 			severity: "warn",
 			summary: "No Models Available",
 			detail: "No models found. Try browsing for a custom model directory.",
@@ -1033,9 +998,9 @@ async function G(e, r, i, a, o, s, c, l) {
 	}
 	let f = [];
 	try {
-		f = await le(n.fetchApi.bind(n));
+		f = await z(n.fetchApi.bind(n));
 	} catch (e) {
-		u.error("Failed to fetch model info:", e);
+		c.error("Failed to fetch model info:", e);
 	}
 	f.length === 0 && (f = d.map((e) => ({
 		name: e,
@@ -1045,46 +1010,49 @@ async function G(e, r, i, a, o, s, c, l) {
 		size_gb: 0,
 		is_downloaded: !0
 	})));
-	let p = c.getBoundingClientRect(), m = t.canvas.ds?.scale || 1;
-	l.classList.add(h.ARROW_ACTIVE), c.setAttribute("aria-expanded", "true");
+	let m = l.getBoundingClientRect(), h = t.canvas.ds?.scale || 1;
+	u.classList.add(p.ARROW_ACTIVE), l.setAttribute("aria-expanded", "true");
 	try {
-		let e = await new V(f, p, m, c).show();
+		let e = await new V(f, m, h, l).show();
 		if (e) {
 			r.value = e, i.textContent = e;
 			let t = f.find((t) => t.name === e);
-			t && (a.innerHTML = t.is_downloaded ? z.CHECK : z.CLOUD), r.callback && r.callback(e), s.setDirtyCanvas && s.setDirtyCanvas(!0), u.debug("Model selected:", e, "for node:", s.id);
+			t && (a.innerHTML = t.is_downloaded ? L.CHECK : L.CLOUD), r.callback && r.callback(e), s.setDirtyCanvas && s.setDirtyCanvas(!0), c.debug("Model selected:", e, "for node:", s.id);
 		}
 	} catch (e) {
-		u.error("Failed to open model dropdown:", e);
+		c.error("Failed to open model dropdown:", e);
 	} finally {
-		l.classList.remove(h.ARROW_ACTIVE), c.setAttribute("aria-expanded", "false");
+		u.classList.remove(p.ARROW_ACTIVE), l.setAttribute("aria-expanded", "false");
 	}
 }
-async function pe(e, t, r, i, a) {
-	u.log("Browse button clicked for node:", e.id);
-	let o = await L();
-	if (!o) {
-		u.debug("Browse cancelled by user");
+async function de(e, t, r, i, a) {
+	c.log("Browse button clicked for node:", e.id);
+	let o = await le(k.getSettings()?.effective_path || void 0);
+	if (!o?.path) {
+		c.debug("Browse cancelled by user");
 		return;
 	}
-	u.log("User selected custom path:", o), e.properties = e.properties || {}, e.properties.custom_model_path = o;
+	c.log("User selected model directory:", o.path, "(newly registered:", o.newlyRegistered, ")"), e.properties = e.properties || {}, e.properties.custom_model_path = o.path, o.newlyRegistered && await k.updateSettings({
+		use_custom_path: !0,
+		custom_model_path: o.path
+	});
 	try {
 		let s = await n.fetchApi("/voxcpm/models", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ path: o })
+			body: JSON.stringify({ path: o.path })
 		});
 		if (s.ok) {
 			let n = await s.json();
-			u.log("Models found at custom path:", n.models), me(t, n.models, e), i.innerHTML = z.FOLDER_OPEN, a.textContent = o, a.classList.add(h.PATH_VISIBLE), n.models.length > 0 ? r.textContent = t.value : r.textContent = "No models found", k.show({
+			c.log("Models found at custom path:", n.models), fe(t, n.models, e), i.innerHTML = L.FOLDER_OPEN, a.textContent = o.path, a.classList.add(p.PATH_VISIBLE), n.models.length > 0 ? r.textContent = t.value : r.textContent = "No models found", D.show({
 				severity: "success",
-				summary: "Custom Model Path Set",
-				detail: `Found ${n.models.length} model(s) in: ${o}`,
+				summary: "Model Directory Set",
+				detail: `Found ${n.models.length} model(s) in: ${o.path}`,
 				life: 5e3
 			});
 		} else {
 			let e = s.statusText || "Unknown error";
-			u.error("Failed to get models:", e), k.show({
+			c.error("Failed to get models:", e), D.show({
 				severity: "error",
 				summary: "Error",
 				detail: `Failed to scan model directory: ${e}`,
@@ -1092,7 +1060,7 @@ async function pe(e, t, r, i, a) {
 			});
 		}
 	} catch (e) {
-		u.error("Error fetching models:", e), k.show({
+		c.error("Error fetching models:", e), D.show({
 			severity: "error",
 			summary: "Error",
 			detail: "Failed to connect to server",
@@ -1100,67 +1068,19 @@ async function pe(e, t, r, i, a) {
 		});
 	}
 }
-function me(e, t, n) {
-	e.options ? e.options.values = t : e.options = { values: t }, t.length > 0 && !t.includes(e.value) && (e.value = t[0], e.callback && e.callback(t[0])), n.setDirtyCanvas && n.setDirtyCanvas(!0), u.debug("Updated model options:", t);
+function fe(e, t, n) {
+	e.options ? e.options.values = t : e.options = { values: t }, t.length > 0 && !t.includes(e.value) && (e.value = t[0], e.callback && e.callback(t[0])), n.setDirtyCanvas && n.setDirtyCanvas(!0), c.debug("Updated model options:", t);
 }
-function he(e, t) {
+function pe(e, t) {
 	let n = H.get(e.id);
 	if (!n) {
-		u.debug("No selector refs found for node:", e.id);
+		c.debug("No selector refs found for node:", e.id);
 		return;
 	}
 	let r = t || n.modelWidget.value;
 	n.modelText.textContent = r;
 	let i = e.properties?.custom_model_path;
-	i ? (n.folderIcon.innerHTML = z.FOLDER_OPEN, n.pathIndicator.textContent = i, n.pathIndicator.classList.add(h.PATH_VISIBLE)) : (n.folderIcon.innerHTML = z.FOLDER, n.pathIndicator.classList.remove(h.PATH_VISIBLE)), u.debug("Synced model selector display for node:", e.id, "value:", r);
-}
-var K = !1;
-async function ge() {
-	let e = t.graph || t.rootGraph;
-	if (!e?._nodes) return null;
-	let n = e._nodes.filter((e) => o.has(e.comfyClass));
-	if (n.length === 0) return null;
-	for (let e of n) {
-		let t = e.widgets;
-		if (!t) continue;
-		let n = t.find((e) => e.name === "model_name");
-		if (!n) continue;
-		let r = String(n.value || "");
-		if (!(!r || r.includes("No models found"))) try {
-			let e = await j.validateModelPath(r);
-			if (!e.valid) return {
-				modelName: r,
-				modelSizeGb: c(r),
-				effectivePath: e.effective_path,
-				error: e.error
-			};
-		} catch (e) {
-			u.warn("Model path validation failed for", r, e);
-		}
-	}
-	return null;
-}
-function _e() {
-	if (K) return;
-	K = !0;
-	let e = t.queuePrompt;
-	t.queuePrompt = async function(...t) {
-		try {
-			let e = await ge();
-			if (e) {
-				u.log("Model validation failed, showing download path dialog:", e);
-				let t = await se(e.modelName, e.modelSizeGb, e.effectivePath);
-				if (t.action === "cancel") {
-					u.log("User cancelled download path dialog, aborting queue");
-					return;
-				}
-				t.action === "download_custom" && t.customPath && (await j.setCustomPath(t.customPath), u.log("User selected custom path:", t.customPath)), t.action === "download_default" && (await j.setDefaultPath(), u.log("User selected default path")), await j.markFirstRunComplete();
-			}
-		} catch (e) {
-			u.warn("Queue interception error (non-fatal):", e);
-		}
-		return e.apply(this, t);
-	}, u.debug("Queue prompt intercepted for VoxCPM model validation");
+	i ? (n.folderIcon.innerHTML = L.FOLDER_OPEN, n.pathIndicator.textContent = i, n.pathIndicator.classList.add(p.PATH_VISIBLE)) : (n.folderIcon.innerHTML = L.FOLDER, n.pathIndicator.classList.remove(p.PATH_VISIBLE)), c.debug("Synced model selector display for node:", e.id, "value:", r);
 }
 var q = new class {
 	constructor() {
@@ -1177,14 +1097,14 @@ var q = new class {
 	}
 	async cancelDownload(e) {
 		try {
-			let t = await (await fetch(l.DOWNLOAD_PROGRESS.CANCEL_ENDPOINT, {
+			let t = await (await fetch(s.DOWNLOAD_PROGRESS.CANCEL_ENDPOINT, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ model_name: e })
 			})).json();
-			return t.success ? (u.info(`Download cancelled: ${e}`), !0) : (u.warn(`Cancel failed: ${t.message}`), !1);
+			return t.success ? (c.info(`Download cancelled: ${e}`), !0) : (c.warn(`Cancel failed: ${t.message}`), !1);
 		} catch (t) {
-			return u.error(`Failed to cancel download for '${e}':`, t), !1;
+			return c.error(`Failed to cancel download for '${e}':`, t), !1;
 		}
 	}
 	onModelUpdate(e, t) {
@@ -1201,15 +1121,15 @@ var q = new class {
 		try {
 			t.api.addEventListener(i.DOWNLOAD_PROGRESS, ((e) => {
 				this._handleProgressEvent(e.detail);
-			})), u.debug("Download progress WebSocket listener registered");
+			})), c.debug("Download progress WebSocket listener registered");
 		} catch (e) {
-			u.warn("Failed to bind download progress WebSocket listener:", e);
+			c.warn("Failed to bind download progress WebSocket listener:", e);
 		}
 	}
 	_handleProgressEvent(e) {
 		let t = e.model_name || e.transfer_id;
 		if (!t) {
-			u.warn("Download progress event missing model_name:", e);
+			c.warn("Download progress event missing model_name:", e);
 			return;
 		}
 		let n = e.event_type, r = this.downloads.get(t);
@@ -1256,22 +1176,22 @@ var q = new class {
 		if (r) for (let e of r) try {
 			e(n);
 		} catch (e) {
-			u.error(`Download listener error for '${t}':`, e);
+			c.error(`Download listener error for '${t}':`, e);
 		}
 		for (let t of this.globalListeners) try {
 			t(e, n);
 		} catch (e) {
-			u.error("Global download listener error:", e);
+			c.error("Global download listener error:", e);
 		}
 	}
-}(), J = l.DOWNLOAD_PROGRESS.BLOCK_CLASS;
-function ve() {
+}(), J = s.DOWNLOAD_PROGRESS.BLOCK_CLASS;
+function me() {
 	let e = `${J}-styles`;
 	if (document.getElementById(e)) return;
 	let t = document.createElement("style");
-	t.id = e, t.textContent = ye, document.head.appendChild(t);
+	t.id = e, t.textContent = he, document.head.appendChild(t);
 }
-var ye = `
+var he = `
 
 .${J} {
 	display: flex;
@@ -1284,7 +1204,7 @@ var ye = `
 	font-family: var(--voxcpm-font-mono, 'Consolas', 'Monaco', monospace);
 	font-size: 11px;
 	color: var(--voxcpm-text-primary, #e0e0e0);
-	min-height: ${l.DOWNLOAD_PROGRESS.MIN_HEIGHT}px;
+	min-height: ${s.DOWNLOAD_PROGRESS.MIN_HEIGHT}px;
 	transition: opacity var(--voxcpm-duration-fast, 150ms) ease;
 }
 
@@ -1378,7 +1298,7 @@ var ye = `
 		var(--voxcpm-color-accent-light, #a0b0ff)
 	);
 	border-radius: var(--voxcpm-radius-sm, 3px);
-	transition: width ${l.DOWNLOAD_PROGRESS.ANIMATION_DURATION}ms ease-out;
+	transition: width ${s.DOWNLOAD_PROGRESS.ANIMATION_DURATION}ms ease-out;
 	min-width: 0;
 }
 
@@ -1456,8 +1376,8 @@ var ye = `
 .${J}--complete .${J}__status {
 	color: var(--voxcpm-color-success, #4caf50);
 }
-`, Y = l.DOWNLOAD_PROGRESS.BLOCK_CLASS, be = l.DOWNLOAD_PROGRESS.WIDGET_NAME;
-function xe(e) {
+`, Y = s.DOWNLOAD_PROGRESS.BLOCK_CLASS, ge = s.DOWNLOAD_PROGRESS.WIDGET_NAME;
+function X(e) {
 	if (e === 0) return "0 B";
 	let t = [
 		"B",
@@ -1467,12 +1387,12 @@ function xe(e) {
 	], n = Math.floor(Math.log(e) / Math.log(1024));
 	return `${(e / 1024 ** n).toFixed(+(n > 0))} ${t[n]}`;
 }
-function Se(e) {
-	return e === 0 ? "--" : `${xe(e)}/s`;
+function _e(e) {
+	return e === 0 ? "--" : `${X(e)}/s`;
 }
-var Ce = class {
+var ve = class {
 	constructor() {
-		this.modelName = "", this.unsubscribe = null, this.hideTimeout = null, ve(), this.element = document.createElement("div"), this.element.className = `${Y} ${Y}--hidden`, this.element.innerHTML = this._buildHTML(), this.container = this.element, this.barFill = this.element.querySelector(`.${Y}__bar-fill`), this.percentageEl = this.element.querySelector(`.${Y}__percentage`), this.speedEl = this.element.querySelector(`.${Y}__speed`), this.fileInfoEl = this.element.querySelector(`.${Y}__file-info`), this.cancelBtn = this.element.querySelector(`.${Y}__cancel-btn`), this.statusEl = this.element.querySelector(`.${Y}__status`), this.xetBadge = this.element.querySelector(`.${Y}__xet-badge`), this.cancelBtn.addEventListener("click", (e) => {
+		this.modelName = "", this.unsubscribe = null, this.hideTimeout = null, me(), this.element = document.createElement("div"), this.element.className = `${Y} ${Y}--hidden`, this.element.innerHTML = this._buildHTML(), this.container = this.element, this.barFill = this.element.querySelector(`.${Y}__bar-fill`), this.percentageEl = this.element.querySelector(`.${Y}__percentage`), this.speedEl = this.element.querySelector(`.${Y}__speed`), this.fileInfoEl = this.element.querySelector(`.${Y}__file-info`), this.cancelBtn = this.element.querySelector(`.${Y}__cancel-btn`), this.statusEl = this.element.querySelector(`.${Y}__status`), this.xetBadge = this.element.querySelector(`.${Y}__xet-badge`), this.cancelBtn.addEventListener("click", (e) => {
 			e.stopPropagation(), this._onCancel();
 		}), this.element.addEventListener("mousedown", (e) => e.stopPropagation()), this.element.addEventListener("wheel", (e) => e.stopPropagation());
 	}
@@ -1492,13 +1412,13 @@ var Ce = class {
 		return `
 			<div class="${Y}__header">
 				<div class="${Y}__title">
-					<span class="${Y}__title-icon ${l.ICONS.DOWNLOAD}"></span>
+					<span class="${Y}__title-icon ${s.ICONS.DOWNLOAD}"></span>
 					<span>Downloading</span>
 					<span class="${Y}__xet-badge" style="display:none">XET</span>
 				</div>
 				<button class="${Y}__cancel-btn" title="Cancel download">
-					<span class="${l.ICONS.CANCEL}" style="font-size:10px;margin-right:3px"></span>
-					${l.DOWNLOAD_PROGRESS.CANCEL_LABEL}
+					<span class="${s.ICONS.CANCEL}" style="font-size:10px;margin-right:3px"></span>
+					${s.DOWNLOAD_PROGRESS.CANCEL_LABEL}
 				</button>
 			</div>
 			<div class="${Y}__bar-container">
@@ -1532,7 +1452,7 @@ var Ce = class {
 		}
 	}
 	_showDownloading(e) {
-		this.container.className = Y, this.barFill.style.width = `${Math.min(e.percentage, 100)}%`, this.percentageEl.textContent = `${Math.round(e.percentage)}%`, this.speedEl.textContent = Se(e.speed);
+		this.container.className = Y, this.barFill.style.width = `${Math.min(e.percentage, 100)}%`, this.percentageEl.textContent = `${Math.round(e.percentage)}%`, this.speedEl.textContent = _e(e.speed);
 		let t = e.totalFiles > 1 ? `file ${e.fileIndex + 1}/${e.totalFiles} • ${e.currentFile}` : e.currentFile;
 		this.fileInfoEl.textContent = t, this.xetBadge.style.display = e.isXet ? "inline-flex" : "none", this.cancelBtn.disabled = !1, this.statusEl.style.display = "none";
 	}
@@ -1557,11 +1477,11 @@ var Ce = class {
 		this.modelName && (this.cancelBtn.disabled = !0, this.statusEl.style.display = "block", this.statusEl.textContent = "Cancelling...", await q.cancelDownload(this.modelName) || (this.cancelBtn.disabled = !1, this.statusEl.textContent = "Cancel failed"));
 	}
 };
-function X(e) {
-	let t = new Ce(), n = e.addDOMWidget(be, l.DOWNLOAD_PROGRESS.WIDGET_TYPE, t.element, {
+function ye(e) {
+	let t = new ve(), n = e.addDOMWidget(ge, s.DOWNLOAD_PROGRESS.WIDGET_TYPE, t.element, {
 		getValue: () => "",
 		setValue: () => {},
-		minHeight: l.DOWNLOAD_PROGRESS.MIN_HEIGHT
+		minHeight: s.DOWNLOAD_PROGRESS.MIN_HEIGHT
 	});
 	return n.serialize = !1, e._voxcpmDownloadProgress || (e._voxcpmDownloadProgress = t), {
 		widget: n,
@@ -1573,19 +1493,19 @@ function Z(e, t) {
 	n && n.setModelName(t);
 }
 
-re();
-function we() {
+ne();
+function be() {
 	try {
 		let e = localStorage.getItem(r.NORMALIZATION_AVAILABLE);
 		if (e !== null) return e === "true";
 	} catch {}
 	return null;
 }
-function Te(e) {
+function xe(e) {
 	try {
-		localStorage.setItem(r.NORMALIZATION_AVAILABLE, String(e)), u.debug("Config stored to localStorage:", e);
+		localStorage.setItem(r.NORMALIZATION_AVAILABLE, String(e)), c.debug("Config stored to localStorage:", e);
 	} catch (e) {
-		u.warn("Failed to store config to localStorage:", e);
+		c.warn("Failed to store config to localStorage:", e);
 	}
 }
 var Q = {
@@ -1596,13 +1516,13 @@ var Q = {
 	init() {
 		if (this.initialized) return;
 		this.initialized = !0;
-		let e = we();
-		e !== null && (this.normalizationAvailable = e, u.debug("Loaded config from localStorage:", e));
+		let e = be();
+		e !== null && (this.normalizationAvailable = e, c.debug("Loaded config from localStorage:", e));
 	},
 	updateNormalizationWidget(e) {
 		this.initialized || this.init();
 		let t = e.widgets?.find((e) => e.name === "normalize_text");
-		return t ? this.normalizationAvailable ? (t.disabled && (u.debug("Re-enabling normalize_text widget for node:", e.id), t.disabled = !1, t.value = !0, t.options && (t.options.tooltip = void 0)), !1) : (t.disabled || (u.debug("Disabling normalize_text widget for node:", e.id), t.disabled = !0, t.value = !1, t.options = t.options || {}, t.options.tooltip = "Text normalization disabled: 'inflect' and 'wetext' packages not installed. Install with: pip install inflect wetext"), !0) : !1;
+		return t ? this.normalizationAvailable ? (t.disabled && (c.debug("Re-enabling normalize_text widget for node:", e.id), t.disabled = !1, t.value = !0, t.options && (t.options.tooltip = void 0)), !1) : (t.disabled || (c.debug("Disabling normalize_text widget for node:", e.id), t.disabled = !0, t.value = !1, t.options = t.options || {}, t.options.tooltip = "Text normalization disabled: 'inflect' and 'wetext' packages not installed. Install with: pip install inflect wetext"), !0) : !1;
 	},
 	updateAllNodes() {
 		this.initialized || this.init();
@@ -1614,28 +1534,28 @@ Q.init();
 var $ = {
 	name: "voxcpm.heavyExtension",
 	async setup() {
-		u.debug("Heavy extension loaded"), _e(), e.api.addEventListener(i.STATUS, ((e) => {
+		c.debug("Heavy extension loaded"), e.api.addEventListener(i.STATUS, ((e) => {
 			this.handleStatusEvent(e.detail);
 		})), e.api.addEventListener(i.CONFIG, ((e) => {
 			this.handleConfigEvent(e.detail);
 		})), e.api.addEventListener("reconnected", () => {
-			u.debug("WebSocket reconnected, waiting for config..."), Q.configReceived = !1, ue(), Q.lastConfigValue = null;
+			c.debug("WebSocket reconnected, waiting for config..."), Q.configReceived = !1, B(), Q.lastConfigValue = null;
 		}), e.api.addEventListener("status", () => {
-			Q.configReceived || u.debug("Status received, waiting for config...");
-		}), u.log("Event listeners registered");
+			Q.configReceived || c.debug("Status received, waiting for config...");
+		}), c.log("Event listeners registered");
 		try {
 			let t = await e.api.fetchApi("/voxcpm/model_info");
 			if (t.ok) {
 				let e = await t.json();
-				e && typeof e.normalization_available == "boolean" && (Q.configReceived || (u.debug("Fetched config from API fallback:", e), this.handleConfigEvent(e)));
+				e && typeof e.normalization_available == "boolean" && (Q.configReceived || (c.debug("Fetched config from API fallback:", e), this.handleConfigEvent(e)));
 			}
 		} catch (e) {
-			u.debug("Config API fallback failed (non-critical):", e);
+			c.debug("Config API fallback failed (non-critical):", e);
 		}
 	},
 	nodeCreated(e) {
 		if (!o.has(e.comfyClass)) return;
-		u.debug("VoxCPM node created:", e.id), Q.updateNormalizationWidget(e), de(e), X(e);
+		c.debug("VoxCPM node created:", e.id), Q.updateNormalizationWidget(e), U(e), ye(e);
 		let t = e.widgets;
 		if (t) {
 			let n = t.find((e) => e.name === "model_name");
@@ -1648,8 +1568,8 @@ var $ = {
 		}
 	},
 	loadedGraphNode(e) {
-		o.has(e.comfyClass) && (u.debug("VoxCPM node loaded from workflow:", e.id), Q.updateNormalizationWidget(e), setTimeout(() => {
-			he(e);
+		o.has(e.comfyClass) && (c.debug("VoxCPM node loaded from workflow:", e.id), Q.updateNormalizationWidget(e), setTimeout(() => {
+			pe(e);
 			let t = e.widgets;
 			if (t) {
 				let n = t.find((e) => e.name === "model_name");
@@ -1659,10 +1579,10 @@ var $ = {
 	},
 	handleStatusEvent(e) {
 		if (!e || !e.severity || !e.summary) {
-			u.warn("Invalid status event: missing severity or summary", e);
+			c.warn("Invalid status event: missing severity or summary", e);
 			return;
 		}
-		k.show({
+		D.show({
 			severity: e.severity,
 			summary: e.summary,
 			detail: e.detail,
@@ -1670,20 +1590,20 @@ var $ = {
 		});
 	},
 	async handleConfigEvent(e) {
-		if (u.log("Received config event:", e), !e) {
-			u.warn("Config event has no detail");
+		if (c.log("Received config event:", e), !e) {
+			c.warn("Config event has no detail");
 			return;
 		}
 		if (typeof e.normalization_available == "boolean") {
 			if (Q.lastConfigValue === e.normalization_available && Q.configReceived) {
-				u.debug("Config already processed, skipping");
+				c.debug("Config already processed, skipping");
 				return;
 			}
-			Q.normalizationAvailable = e.normalization_available, Q.configReceived = !0, Q.lastConfigValue = e.normalization_available, Te(e.normalization_available), u.debug("Text normalization available:", Q.normalizationAvailable), setTimeout(() => {
+			Q.normalizationAvailable = e.normalization_available, Q.configReceived = !0, Q.lastConfigValue = e.normalization_available, xe(e.normalization_available), c.debug("Text normalization available:", Q.normalizationAvailable), setTimeout(() => {
 				Q.updateAllNodes();
 			}, 100);
 		}
-		e.settings ? (u.log("Initializing settings manager with:", e.settings), await j.initialize(e)) : u.warn("No settings in config event");
+		e.settings ? (c.log("Initializing settings manager with:", e.settings), await k.initialize(e)) : c.warn("No settings in config event");
 	}
 };
 e.registerExtension($);

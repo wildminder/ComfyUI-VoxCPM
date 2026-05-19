@@ -69,16 +69,6 @@ class VoxCPMSettings:
         return False
 
     @property
-    def is_first_run(self) -> bool:
-        """Check if this is the first run."""
-        return self._settings.get("first_run", True)
-
-    def mark_first_run_complete(self) -> None:
-        """Mark first run as complete."""
-        self._settings["first_run"] = False
-        self._save_settings()
-
-    @property
     def use_custom_path(self) -> bool:
         """Check if user wants to use custom path."""
         return self._settings.get("use_custom_path", False)
@@ -151,14 +141,13 @@ class VoxCPMSettings:
         return self._validate_model_path(effective_path)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Export settings for frontend."""
-        return {
-            "first_run": self.is_first_run,
-            "use_custom_path": self.use_custom_path,
-            "custom_model_path": self.custom_model_path,
-            "effective_path": self.get_effective_model_path(),
-            "effective_path_valid": self.is_effective_path_valid(),
-        }
+    	"""Export settings for frontend."""
+    	return {
+    		"use_custom_path": self.use_custom_path,
+    		"custom_model_path": self.custom_model_path,
+    		"effective_path": self.get_effective_model_path(),
+    		"effective_path_valid": self.is_effective_path_valid(),
+    	}
 
 
 # Global settings instance
