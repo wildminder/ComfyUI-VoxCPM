@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import logging
 
 # Pytest forcefully imports __init__  out-of-context during test collection.
@@ -95,9 +96,38 @@ else:
         sys.path.append(current_dir)
 
     if _COMFYUI_AVAILABLE:
-        VOXCPM_SUBDIR_NAME = "VoxCPM"
+    VOXCPM_SUBDIR_NAME = "VoxCPM"
+    # Valid architecture values in config.json for VoxCPM models
+    VOXCPM_ARCHITECTURES = {"voxcpm", "voxcpm2"}
 
-        tts_path = os.path.join(folder_paths.models_dir, "tts")
+    def _is_voxcpm_model_dir(item_path: str) -> bool:
+        """Check if a directory contains a valid VoxCPM model.
+
+        A valid VoxCPM model directory must have:
+        1. config.json with "architecture" set to "voxcpm" or "voxcpm2"
+        2. Model weights: model.safetensors or pytorch_model.bin
+        """
+        config_path = os.path.join(item_path, "config.json")
+        if not os.path.exists(config_path):
+            return False
+
+        weights_exist = (
+            os.path.exists(os.path.join(item_path, "model.safetensors")) or
+            os.path.exists(os.path.join(item_path, "pytorch_model.bin"))
+        )
+        if not weights_exist:
+            return False
+
+        # Validate architecture in config.json
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            arch = config.get("architecture", "").lower()
+            return arch in VOXCPM_ARCHITECTURES
+        except (json.JSONDecodeError, OSError):
+            return False
+
+    tts_path = os.path.join(folder_paths.models_dir, "tts")
         os.makedirs(tts_path, exist_ok=True)
 
         if "tts" not in folder_paths.folder_names_and_paths:
@@ -118,45 +148,36 @@ else:
             if os.path.isdir(potential_path) and potential_path not in voxcpm_search_paths:
                 voxcpm_search_paths.append(potential_path)
 
-        for search_path in voxcpm_search_paths:
-            if not os.path.isdir(search_path):
-                continue
-            for item in os.listdir(search_path):
-                item_path = os.path.join(search_path, item)
-                if os.path.isdir(item_path) and item not in AVAILABLE_VOXCPM_MODELS:
-                    config_exists = os.path.exists(os.path.join(item_path, "config.json"))
-                    weights_exist = os.path.exists(os.path.join(item_path, "pytorch_model.bin")) or os.path.exists(os.path.join(item_path, "model.safetensors"))
+    for search_path in voxcpm_search_paths:
+        if not os.path.isdir(search_path):
+            continue
+        for item in os.listdir(search_path):
+            item_path = os.path.join(search_path, item)
+            if os.path.isdir(item_path) and item not in AVAILABLE_VOXCPM_MODELS:
+                if _is_voxcpm_model_dir(item_path):
+                    AVAILABLE_VOXCPM_MODELS[item] = {
+                        "type": "local",
+                        "path": item_path
+                    }
 
-                    if config_exists and weights_exist:
-                        AVAILABLE_VOXCPM_MODELS[item] = {
-                            "type": "local",
-                            "path": item_path
-                        }
-
-        def scan_custom_model_path(path: str) -> list:
-            models = []
-            if not os.path.isdir(path):
-                logger.warning(f"Custom model path does not exist: {path}")
-                return models
-
-            for item in os.listdir(path):
-                item_path = os.path.join(path, item)
-                if os.path.isdir(item_path):
-                    config_exists = os.path.exists(os.path.join(item_path, "config.json"))
-                    weights_exist = (
-                        os.path.exists(os.path.join(item_path, "pytorch_model.bin")) or
-                        os.path.exists(os.path.join(item_path, "model.safetensors"))
-                    )
-                    if config_exists and weights_exist:
-                        models.append(item)
-                        logger.debug(f"Found model: {item} at {item_path}")
-
+    def scan_custom_model_path(path: str) -> list:
+        models = []
+        if not os.path.isdir(path):
+            logger.warning(f"Custom model path does not exist: {path}")
             return models
 
-        try:
-            from server import PromptServer
-            from aiohttp import web
-            import json
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path):
+                if _is_voxcpm_model_dir(item_path):
+                    models.append(item)
+                    logger.debug(f"Found model: {item} at {item_path}")
+
+        return models
+
+    try:
+        from server import PromptServer
+        from aiohttp import web
 
             @PromptServer.instance.routes.post("/voxcpm/models")
             async def voxcpm_models_handler(request):
@@ -192,17 +213,17 @@ else:
                         size_gb = model_data.get("size_gb", 0)
                         repo_id = model_data.get("repo_id", "")
 
-                        is_downloaded = False
-                        if model_type == "official":
-                            for tts_folder in folder_paths.get_folder_paths("tts"):
-                                model_dir = os.path.join(tts_folder, VOXCPM_SUBDIR_NAME, model_name)
-                                if os.path.isdir(model_dir) and os.path.exists(os.path.join(model_dir, "config.json")):
-                                        is_downloaded = True
-                                        break
-                        elif model_type == "local":
-                            model_path = model_data.get("path", "")
-                            if model_path and os.path.isdir(model_path) and os.path.exists(os.path.join(model_path, "config.json")):
-                                    is_downloaded = True
+                is_downloaded = False
+                if model_type == "official":
+                    for tts_folder in folder_paths.get_folder_paths("tts"):
+                        model_dir = os.path.join(tts_folder, VOXCPM_SUBDIR_NAME, model_name)
+                        if os.path.isdir(model_dir) and _is_voxcpm_model_dir(model_dir):
+                            is_downloaded = True
+                            break
+                elif model_type == "local":
+                    model_path = model_data.get("path", "")
+                    if model_path and os.path.isdir(model_path) and _is_voxcpm_model_dir(model_path):
+                        is_downloaded = True
 
                         info = {
                             "name": model_name,
@@ -277,16 +298,10 @@ else:
                         voxcpm_subdir = os.path.join(tts_path, VOXCPM_SUBDIR_NAME)
                         models = []
                         if os.path.isdir(voxcpm_subdir):
-                            for item in os.listdir(voxcpm_subdir):
-                                item_path = os.path.join(voxcpm_subdir, item)
-                                if os.path.isdir(item_path):
-                                    config_exists = os.path.exists(os.path.join(item_path, "config.json"))
-                                    weights_exist = (
-                                        os.path.exists(os.path.join(item_path, "model.safetensors")) or
-                                        os.path.exists(os.path.join(item_path, "pytorch_model.bin"))
-                                    )
-                                    if config_exists and weights_exist:
-                                        models.append(item)
+            for item in os.listdir(voxcpm_subdir):
+                    item_path = os.path.join(voxcpm_subdir, item)
+                    if os.path.isdir(item_path) and _is_voxcpm_model_dir(item_path):
+                        models.append(item)
 
                         paths_info.append({
                             "path": tts_path,
@@ -347,16 +362,10 @@ else:
                         voxcpm_subdir = os.path.join(dir_path, VOXCPM_SUBDIR_NAME)
                         scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else dir_path
 
-                        for item in os.listdir(scan_dir):
-                            item_path = os.path.join(scan_dir, item)
-                            if os.path.isdir(item_path):
-                                config_exists = os.path.exists(os.path.join(item_path, "config.json"))
-                                weights_exist = (
-                                    os.path.exists(os.path.join(item_path, "model.safetensors")) or
-                                    os.path.exists(os.path.join(item_path, "pytorch_model.bin"))
-                                )
-                                if config_exists and weights_exist:
-                                    models.append(item)
+            for item in os.listdir(scan_dir):
+                item_path = os.path.join(scan_dir, item)
+                if os.path.isdir(item_path) and _is_voxcpm_model_dir(item_path):
+                    models.append(item)
 
                     is_valid = is_registered and exists
                     return web.json_response({
