@@ -78,6 +78,72 @@ else:
         thread = threading.Thread(target=send_after_delay, daemon=True)
         thread.start()
 
+
+    def _read_model_config(model_dir: str) -> dict | None:
+        """Read a VoxCPM model's config.json and return parsed dict.
+
+        Returns None if config.json doesn't exist or can't be parsed.
+        """
+        config_path = os.path.join(model_dir, "config.json")
+        if not os.path.isfile(config_path):
+            return None
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.debug(f"Could not read config.json in {model_dir}: {e}")
+            return None
+
+    def _is_voxcpm_model_dir(path: str) -> bool:
+        """Check if a directory is a valid VoxCPM model (has config.json + weights)."""
+        if not os.path.isdir(path):
+            return False
+        config_exists = os.path.exists(os.path.join(path, "config.json"))
+        weights_exist = (
+            os.path.exists(os.path.join(path, "model.safetensors")) or
+            os.path.exists(os.path.join(path, "pytorch_model.bin"))
+        )
+        return config_exists and weights_exist
+
+    def _scan_voxcpm_models(scan_dir: str) -> list[dict]:
+        """Scan a directory for VoxCPM model subdirectories.
+
+        Returns a list of dicts:
+        [
+            {"name": "VoxCPM2", "architecture": "voxcpm2", "path": "/path/to/VoxCPM2"},
+            {"name": "my_custom_model", "architecture": "voxcpm", "path": "/path/to/my_custom_model"},
+            ...
+        ]
+        """
+        models = []
+        if not os.path.isdir(scan_dir):
+            return models
+
+        for item in os.listdir(scan_dir):
+            item_path = os.path.join(scan_dir, item)
+            if _is_voxcpm_model_dir(item_path):
+                config = _read_model_config(item_path) or {}
+                architecture = config.get("architecture", "unknown")
+                models.append({
+                    "name": item,
+                    "architecture": architecture,
+                    "path": item_path,
+                })
+                logger.debug(f"Found model: {item} (architecture={architecture}) at {item_path}")
+
+        return models
+
+    def scan_custom_model_path(path: str) -> list[dict]:
+        """Scan a custom model path for VoxCPM models.
+
+        Returns a list of dicts with name, architecture, and path.
+        """
+        if not os.path.isdir(path):
+            logger.warning(f"Custom model path does not exist: {path}")
+            return []
+
+        return _scan_voxcpm_models(path)
+
     try:
         _schedule_config_send()
     except Exception as e:
@@ -96,38 +162,9 @@ else:
         sys.path.append(current_dir)
 
     if _COMFYUI_AVAILABLE:
-    VOXCPM_SUBDIR_NAME = "VoxCPM"
-    # Valid architecture values in config.json for VoxCPM models
-    VOXCPM_ARCHITECTURES = {"voxcpm", "voxcpm2"}
+        VOXCPM_SUBDIR_NAME = "VoxCPM"
 
-    def _is_voxcpm_model_dir(item_path: str) -> bool:
-        """Check if a directory contains a valid VoxCPM model.
-
-        A valid VoxCPM model directory must have:
-        1. config.json with "architecture" set to "voxcpm" or "voxcpm2"
-        2. Model weights: model.safetensors or pytorch_model.bin
-        """
-        config_path = os.path.join(item_path, "config.json")
-        if not os.path.exists(config_path):
-            return False
-
-        weights_exist = (
-            os.path.exists(os.path.join(item_path, "model.safetensors")) or
-            os.path.exists(os.path.join(item_path, "pytorch_model.bin"))
-        )
-        if not weights_exist:
-            return False
-
-        # Validate architecture in config.json
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            arch = config.get("architecture", "").lower()
-            return arch in VOXCPM_ARCHITECTURES
-        except (json.JSONDecodeError, OSError):
-            return False
-
-    tts_path = os.path.join(folder_paths.models_dir, "tts")
+        tts_path = os.path.join(folder_paths.models_dir, "tts")
         os.makedirs(tts_path, exist_ok=True)
 
         if "tts" not in folder_paths.folder_names_and_paths:
@@ -148,36 +185,22 @@ else:
             if os.path.isdir(potential_path) and potential_path not in voxcpm_search_paths:
                 voxcpm_search_paths.append(potential_path)
 
-    for search_path in voxcpm_search_paths:
-        if not os.path.isdir(search_path):
-            continue
-        for item in os.listdir(search_path):
-            item_path = os.path.join(search_path, item)
-            if os.path.isdir(item_path) and item not in AVAILABLE_VOXCPM_MODELS:
-                if _is_voxcpm_model_dir(item_path):
+        for search_path in voxcpm_search_paths:
+            if not os.path.isdir(search_path):
+                continue
+            for model_info in _scan_voxcpm_models(search_path):
+                item = model_info["name"]
+                if item not in AVAILABLE_VOXCPM_MODELS:
                     AVAILABLE_VOXCPM_MODELS[item] = {
                         "type": "local",
-                        "path": item_path
-                    }
+                        "path": model_info["path"],
+                        "architecture": model_info["architecture"],
+                        }
 
-    def scan_custom_model_path(path: str) -> list:
-        models = []
-        if not os.path.isdir(path):
-            logger.warning(f"Custom model path does not exist: {path}")
-            return models
-
-        for item in os.listdir(path):
-            item_path = os.path.join(path, item)
-            if os.path.isdir(item_path):
-                if _is_voxcpm_model_dir(item_path):
-                    models.append(item)
-                    logger.debug(f"Found model: {item} at {item_path}")
-
-        return models
-
-    try:
-        from server import PromptServer
-        from aiohttp import web
+        try:
+            from server import PromptServer
+            from aiohttp import web
+            import json
 
             @PromptServer.instance.routes.post("/voxcpm/models")
             async def voxcpm_models_handler(request):
@@ -191,10 +214,24 @@ else:
                         return web.json_response({"error": "Path must be absolute"}, status=400)
 
                     models = scan_custom_model_path(path)
+
+                    # Also check if the path itself is a direct model folder
+                    is_direct_model = _is_voxcpm_model_dir(path)
+                    direct_model_info = None
+                    if is_direct_model:
+                        config = _read_model_config(path) or {}
+                        direct_model_info = {
+                            "name": os.path.basename(path),
+                            "architecture": config.get("architecture", "unknown"),
+                            "path": path,
+                        }
+
                     return web.json_response({
                         "path": path,
                         "models": models,
-                        "count": len(models)
+                        "count": len(models),
+                        "is_direct_model": is_direct_model,
+                        "direct_model_info": direct_model_info,
                     })
                 except json.JSONDecodeError:
                     return web.json_response({"error": "Invalid JSON"}, status=400)
@@ -213,17 +250,17 @@ else:
                         size_gb = model_data.get("size_gb", 0)
                         repo_id = model_data.get("repo_id", "")
 
-                is_downloaded = False
-                if model_type == "official":
-                    for tts_folder in folder_paths.get_folder_paths("tts"):
-                        model_dir = os.path.join(tts_folder, VOXCPM_SUBDIR_NAME, model_name)
-                        if os.path.isdir(model_dir) and _is_voxcpm_model_dir(model_dir):
-                            is_downloaded = True
-                            break
-                elif model_type == "local":
-                    model_path = model_data.get("path", "")
-                    if model_path and os.path.isdir(model_path) and _is_voxcpm_model_dir(model_path):
-                        is_downloaded = True
+                        is_downloaded = False
+                        if model_type == "official":
+                            for tts_folder in folder_paths.get_folder_paths("tts"):
+                                model_dir = os.path.join(tts_folder, VOXCPM_SUBDIR_NAME, model_name)
+                                if os.path.isdir(model_dir) and os.path.exists(os.path.join(model_dir, "config.json")):
+                                        is_downloaded = True
+                                        break
+                        elif model_type == "local":
+                            model_path = model_data.get("path", "")
+                            if model_path and os.path.isdir(model_path) and os.path.exists(os.path.join(model_path, "config.json")):
+                                    is_downloaded = True
 
                         info = {
                             "name": model_name,
@@ -283,7 +320,10 @@ else:
                             "path": "/path/to/tts",
                             "is_default": true,
                             "voxcpm_subdir": "/path/to/tts/VoxCPM",
-                            "models": ["VoxCPM2", "VoxCPM1.5"]
+                            "models": [
+                                {"name": "VoxCPM2", "architecture": "voxcpm2", "path": "/path/to/VoxCPM2"},
+                                {"name": "VoxCPM1.5", "architecture": "voxcpm", "path": "/path/to/VoxCPM1.5"}
+                            ]
                         },
                         ...
                     ]
@@ -298,10 +338,7 @@ else:
                         voxcpm_subdir = os.path.join(tts_path, VOXCPM_SUBDIR_NAME)
                         models = []
                         if os.path.isdir(voxcpm_subdir):
-            for item in os.listdir(voxcpm_subdir):
-                    item_path = os.path.join(voxcpm_subdir, item)
-                    if os.path.isdir(item_path) and _is_voxcpm_model_dir(item_path):
-                        models.append(item)
+                            models = _scan_voxcpm_models(voxcpm_subdir)
 
                         paths_info.append({
                             "path": tts_path,
@@ -320,16 +357,26 @@ else:
             async def voxcpm_validate_directory_handler(request):
                 """Validate whether a directory is within a registered tts search path.
 
+                Also detects if the path itself is a direct VoxCPM model folder
+                (contains config.json + weights), in which case it returns the
+                model's architecture from config.json.
+
                 Query params:
-                    path: Directory path to validate
+                path: Directory path to validate
 
                 Returns:
                 {
                     "valid": bool,
-                    "is_registered": bool,  # True if path is within a registered tts directory
-                    "registered_parent": str | null,  # The registered tts path that contains this path
-                    "exists": bool,  # True if the directory exists on disk
-                    "models": [],  # VoxCPM models found in this directory
+                    "is_registered": bool,
+                    "registered_parent": str | null,
+                    "exists": bool,
+                    "is_direct_model": bool,  # True if path is a model folder itself
+                    "direct_model_info": {     # Present if is_direct_model
+                        "name": "folder_name",
+                        "architecture": "voxcpm2" | "voxcpm" | "unknown",
+                        "path": "/absolute/path"
+                    } | null,
+                    "models": [{"name": ..., "architecture": ..., "path": ...}],
                     "error": str | null
                 }
                 """
@@ -355,17 +402,24 @@ else:
                     # Check if directory exists
                     exists = os.path.isdir(dir_path)
 
-                    # Scan for VoxCPM models
+                    # Check if this path is itself a direct VoxCPM model folder
+                    is_direct_model = exists and _is_voxcpm_model_dir(dir_path)
+                    direct_model_info = None
+                    if is_direct_model:
+                        config = _read_model_config(dir_path) or {}
+                        direct_model_info = {
+                            "name": os.path.basename(dir_path),
+                            "architecture": config.get("architecture", "unknown"),
+                            "path": dir_path,
+                        }
+
+                    # Scan for VoxCPM models in subdirectories
                     models = []
-                    if exists:
+                    if exists and not is_direct_model:
                         # Check if this is a VoxCPM subdir itself
                         voxcpm_subdir = os.path.join(dir_path, VOXCPM_SUBDIR_NAME)
                         scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else dir_path
-
-            for item in os.listdir(scan_dir):
-                item_path = os.path.join(scan_dir, item)
-                if os.path.isdir(item_path) and _is_voxcpm_model_dir(item_path):
-                    models.append(item)
+                        models = _scan_voxcpm_models(scan_dir)
 
                     is_valid = is_registered and exists
                     return web.json_response({
@@ -373,6 +427,8 @@ else:
                         "is_registered": is_registered,
                         "registered_parent": registered_parent,
                         "exists": exists,
+                        "is_direct_model": is_direct_model,
+                        "direct_model_info": direct_model_info,
                         "models": models,
                         "error": None if is_valid else (
                             "Not within a registered tts model directory" if not is_registered
