@@ -1,10 +1,25 @@
+"""ComfyUI-VoxCPM: Text-to-speech custom node integrating the VoxCPM model family.
+
+This is the package entrypoint loaded by ComfyUI. It handles:
+- Environment detection (ComfyUI available or not)
+- ComfyUI folder_paths registration for tts models
+- Model discovery at startup (official + local)
+- API route registration
+- Frontend extension configuration broadcasting
+
+All heavy logic is delegated to focused modules:
+- modules/model_info.py: Model configs, registry, and scanning
+- modules/api_routes.py: HTTP endpoint handlers
+- modules/config_broadcast.py: Frontend config event broadcasting
+"""
+
 import os
 import sys
-import json
 import logging
 
-# Pytest forcefully imports __init__  out-of-context during test collection.
-# causes relative imports to crash. If we detect pytest, we safely exit. Just quick fix.
+# ── Pytest Guard ──────────────────────────────────────────────────────
+# Pytest forcefully imports __init__ out-of-context during test collection.
+# This causes relative imports to crash. Detect and exit early.
 if "pytest" in sys.modules:
     WEB_DIRECTORY = "./js"
     __all__ = ['WEB_DIRECTORY']
@@ -12,7 +27,7 @@ if "pytest" in sys.modules:
 else:
     logger = logging.getLogger(__name__)
 
-    # Detect if running inside ComfyUI environment
+    # ── Environment Detection ─────────────────────────────────────────
     try:
         import folder_paths
         _COMFYUI_AVAILABLE = True
@@ -20,165 +35,45 @@ else:
         folder_paths = None
         _COMFYUI_AVAILABLE = False
 
-    # These imports are safe even without ComfyUI (no folder_paths dependency)
-    from .modules.model_info import AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS
+    # ── Package Imports ───────────────────────────────────────────────
+    from .modules.model_info import (
+        AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS, TEXT_NORMALIZATION_AVAILABLE,
+        scan_voxcpm_models,
+    )
+    from .modules.config_broadcast import schedule_config_send
 
-    # Late import for dependency check - avoid breaking import when dependencies are missing
-    try:
-        from .src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
-    except Exception:
-        TEXT_NORMALIZATION_AVAILABLE = False
-
-    # Import settings module
-    from .modules.settings import get_settings
-
-    # Track if config has been sent once
-    _config_sent_once = False
-
-    def send_config_to_client(client_id=None):
-        """Send configuration to a specific client or broadcast to all."""
-        global _config_sent_once
-        try:
-            from server import PromptServer
-            if PromptServer.instance is not None:
-                # Get user settings
-                settings = get_settings()
-                config_data = {
-                    "normalization_available": TEXT_NORMALIZATION_AVAILABLE,
-                    "settings": settings.to_dict(),
-                }
-                logger.debug(f"Sending config: {config_data} to client: {client_id or 'all'}")
-                if client_id:
-                    PromptServer.instance.send_sync("voxcpm.config", config_data, client_id)
-                else:
-                    PromptServer.instance.send_sync("voxcpm.config", config_data)
-                logger.debug("Config sent successfully")
-
-            if not _config_sent_once and not TEXT_NORMALIZATION_AVAILABLE:
-                _config_sent_once = True
-                logger.info("Text normalization packages (inflect, wetext) not found. Normalization will be disabled. Install them using: pip install inflect wetext")
-        except Exception as e:
-            logger.warning(f"Failed to send config: {e}")
-
-    def send_config_event():
-        """Send configuration to frontend (legacy function for compatibility)."""
-        send_config_to_client()
-
-    def _schedule_config_send():
-        """Schedule config to be sent once after server starts using threading."""
-        import threading
-        import time
-
-        def send_after_delay():
-            time.sleep(3)
-            logger.debug("Sending initial config event...")
-            send_config_event()
-            logger.debug("Initial config event sent")
-
-        thread = threading.Thread(target=send_after_delay, daemon=True)
-        thread.start()
-
-
-    def _read_model_config(model_dir: str) -> dict | None:
-        """Read a VoxCPM model's config.json and return parsed dict.
-
-        Returns None if config.json doesn't exist or can't be parsed.
-        """
-        config_path = os.path.join(model_dir, "config.json")
-        if not os.path.isfile(config_path):
-            return None
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            logger.debug(f"Could not read config.json in {model_dir}: {e}")
-            return None
-
-    def _is_voxcpm_model_dir(path: str) -> bool:
-        """Check if a directory is a valid VoxCPM model (has config.json + weights)."""
-        if not os.path.isdir(path):
-            return False
-        config_exists = os.path.exists(os.path.join(path, "config.json"))
-        weights_exist = (
-            os.path.exists(os.path.join(path, "model.safetensors")) or
-            os.path.exists(os.path.join(path, "pytorch_model.bin"))
-        )
-        return config_exists and weights_exist
-
-    def _scan_voxcpm_models(scan_dir: str) -> list[dict]:
-        """Scan a directory for VoxCPM model subdirectories.
-
-        Returns a list of dicts:
-        [
-            {"name": "VoxCPM2", "architecture": "voxcpm2", "path": "/path/to/VoxCPM2"},
-            {"name": "my_custom_model", "architecture": "voxcpm", "path": "/path/to/my_custom_model"},
-            ...
-        ]
-        """
-        models = []
-        if not os.path.isdir(scan_dir):
-            return models
-
-        for item in os.listdir(scan_dir):
-            item_path = os.path.join(scan_dir, item)
-            if _is_voxcpm_model_dir(item_path):
-                config = _read_model_config(item_path) or {}
-                architecture = config.get("architecture", "unknown")
-                models.append({
-                    "name": item,
-                    "architecture": architecture,
-                    "path": item_path,
-                })
-                logger.debug(f"Found model: {item} (architecture={architecture}) at {item_path}")
-
-        return models
-
-    def scan_custom_model_path(path: str) -> list[dict]:
-        """Scan a custom model path for VoxCPM models.
-
-        Returns a list of dicts with name, architecture, and path.
-        """
-        if not os.path.isdir(path):
-            logger.warning(f"Custom model path does not exist: {path}")
-            return []
-
-        return _scan_voxcpm_models(path)
-
-    try:
-        _schedule_config_send()
-    except Exception as e:
-        logger.debug(f"Failed to schedule config sender: {e}")
-
+    # ── Logger Setup ──────────────────────────────────────────────────
     logger.setLevel(logging.INFO)
     logger.propagate = False
     if not logger.hasHandlers():
         handler = logging.StreamHandler()
-        formatter = logging.Formatter(f"[ComfyUI-VoxCPM] %(message)s")
+        formatter = logging.Formatter("[ComfyUI-VoxCPM] %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
+    # ── sys.path Registration ─────────────────────────────────────────
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if current_dir not in sys.path:
         sys.path.append(current_dir)
 
+    # ── ComfyUI Integration ───────────────────────────────────────────
     if _COMFYUI_AVAILABLE:
-        VOXCPM_SUBDIR_NAME = "VoxCPM"
-
+        # Register tts folder path with ComfyUI
         tts_path = os.path.join(folder_paths.models_dir, "tts")
         os.makedirs(tts_path, exist_ok=True)
-
         if "tts" not in folder_paths.folder_names_and_paths:
-            folder_paths.folder_names_and_paths["tts"] = ([tts_path], folder_paths.supported_pt_extensions)
-        else:
-            if tts_path not in folder_paths.folder_names_and_paths["tts"][0]:
-                folder_paths.folder_names_and_paths["tts"][0].append(tts_path)
+            folder_paths.folder_names_and_paths["tts"] = (
+                [tts_path], folder_paths.supported_pt_extensions
+            )
+        elif tts_path not in folder_paths.folder_names_and_paths["tts"][0]:
+            folder_paths.folder_names_and_paths["tts"][0].append(tts_path)
 
+        # Populate AVAILABLE_VOXCPM_MODELS with official models
         for model_name, config in MODEL_CONFIGS.items():
-            AVAILABLE_VOXCPM_MODELS[model_name] = {
-                "type": "official",
-                **config
-            }
+            AVAILABLE_VOXCPM_MODELS[model_name] = {"type": "official", **config}
 
+        # Discover local models in tts/VoxCPM/ subdirectories
+        VOXCPM_SUBDIR_NAME = "VoxCPM"
         voxcpm_search_paths = []
         for tts_folder in folder_paths.get_folder_paths("tts"):
             potential_path = os.path.join(tts_folder, VOXCPM_SUBDIR_NAME)
@@ -188,382 +83,31 @@ else:
         for search_path in voxcpm_search_paths:
             if not os.path.isdir(search_path):
                 continue
-            for model_info in _scan_voxcpm_models(search_path):
+            for model_info in scan_voxcpm_models(search_path):
                 item = model_info["name"]
                 if item not in AVAILABLE_VOXCPM_MODELS:
                     AVAILABLE_VOXCPM_MODELS[item] = {
                         "type": "local",
                         "path": model_info["path"],
                         "architecture": model_info["architecture"],
-                        }
+                    }
 
+        # Register API routes
         try:
             from server import PromptServer
-            from aiohttp import web
-            import json
-
-            @PromptServer.instance.routes.post("/voxcpm/models")
-            async def voxcpm_models_handler(request):
-                try:
-                    data = await request.json()
-                    path = data.get("path", "")
-
-                    if not path:
-                        return web.json_response({"error": "Path is required"}, status=400)
-                    if not os.path.isabs(path):
-                        return web.json_response({"error": "Path must be absolute"}, status=400)
-
-                    models = scan_custom_model_path(path)
-
-                    # Also check if the path itself is a direct model folder
-                    is_direct_model = _is_voxcpm_model_dir(path)
-                    direct_model_info = None
-                    if is_direct_model:
-                        config = _read_model_config(path) or {}
-                        direct_model_info = {
-                            "name": os.path.basename(path),
-                            "architecture": config.get("architecture", "unknown"),
-                            "path": path,
-                        }
-
-                    return web.json_response({
-                        "path": path,
-                        "models": models,
-                        "count": len(models),
-                        "is_direct_model": is_direct_model,
-                        "direct_model_info": direct_model_info,
-                    })
-                except json.JSONDecodeError:
-                    return web.json_response({"error": "Invalid JSON"}, status=400)
-                except Exception as e:
-                    logger.error(f"Error handling model scan request: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-
-            @PromptServer.instance.routes.get("/voxcpm/model_info")
-            async def voxcpm_model_info_handler(request):
-                try:
-                    models_list = []
-                    for model_name, model_data in AVAILABLE_VOXCPM_MODELS.items():
-                        model_type = model_data.get("type", "local")
-                        architecture = model_data.get("architecture", "unknown")
-                        sample_rate = model_data.get("sample_rate", 0)
-                        size_gb = model_data.get("size_gb", 0)
-                        repo_id = model_data.get("repo_id", "")
-
-                        is_downloaded = False
-                        if model_type == "official":
-                            for tts_folder in folder_paths.get_folder_paths("tts"):
-                                model_dir = os.path.join(tts_folder, VOXCPM_SUBDIR_NAME, model_name)
-                                if os.path.isdir(model_dir) and os.path.exists(os.path.join(model_dir, "config.json")):
-                                        is_downloaded = True
-                                        break
-                        elif model_type == "local":
-                            model_path = model_data.get("path", "")
-                            if model_path and os.path.isdir(model_path) and os.path.exists(os.path.join(model_path, "config.json")):
-                                    is_downloaded = True
-
-                        info = {
-                            "name": model_name,
-                            "type": model_type,
-                            "architecture": architecture,
-                            "sample_rate": sample_rate,
-                            "size_gb": size_gb,
-                            "is_downloaded": is_downloaded,
-                        }
-                        if repo_id:
-                            info["repo_id"] = repo_id
-                        if model_type == "local" and "path" in model_data:
-                            info["path"] = model_data["path"]
-                        models_list.append(info)
-
-                    return web.json_response({"models": models_list})
-
-                except Exception as e:
-                    logger.error(f"Error handling model info request: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-
-            @PromptServer.instance.routes.post("/voxcpm/cancel_download")
-            async def voxcpm_cancel_download_handler(request):
-                """Cancel an active model download.
-        
-                Expects JSON body: {"model_name": "VoxCPM2"}
-                Returns: {"success": true/false, "message": "..."}
-                """
-                try:
-                    from .modules.downloader import get_download_manager
-                    data = await request.json()
-                    model_name = data.get("model_name", "")
-                    if not model_name:
-                        return web.json_response({"error": "model_name is required"}, status=400)
-        
-                    download_manager = get_download_manager()
-                    cancelled = download_manager.cancel_download(model_name)
-                    if cancelled:
-                        return web.json_response({"success": True, "message": f"Download cancelled for '{model_name}'"})
-                    else:
-                        return web.json_response({"success": False, "message": f"No active download for '{model_name}'"})
-        
-                except json.JSONDecodeError:
-                    return web.json_response({"error": "Invalid JSON"}, status=400)
-                except Exception as e:
-                    logger.error(f"Error handling cancel download request: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-        
-            @PromptServer.instance.routes.get("/voxcpm/tts_search_paths")
-            async def voxcpm_tts_search_paths_handler(request):
-                """Return all registered tts model search paths with model listings.
-
-                Returns:
-                {
-                    "paths": [
-                        {
-                            "path": "/path/to/tts",
-                            "is_default": true,
-                            "voxcpm_subdir": "/path/to/tts/VoxCPM",
-                            "models": [
-                                {"name": "VoxCPM2", "architecture": "voxcpm2", "path": "/path/to/VoxCPM2"},
-                                {"name": "VoxCPM1.5", "architecture": "voxcpm", "path": "/path/to/VoxCPM1.5"}
-                            ]
-                        },
-                        ...
-                    ]
-                }
-                """
-                try:
-                    tts_paths = folder_paths.get_folder_paths("tts")
-                    default_tts = os.path.join(folder_paths.models_dir, "tts")
-                    paths_info = []
-
-                    for tts_path in tts_paths:
-                        voxcpm_subdir = os.path.join(tts_path, VOXCPM_SUBDIR_NAME)
-                        models = []
-                        if os.path.isdir(voxcpm_subdir):
-                            models = _scan_voxcpm_models(voxcpm_subdir)
-
-                        paths_info.append({
-                            "path": tts_path,
-                            "is_default": (tts_path == default_tts),
-                            "voxcpm_subdir": voxcpm_subdir if os.path.isdir(voxcpm_subdir) else None,
-                            "models": models,
-                        })
-
-                    return web.json_response({"paths": paths_info})
-
-                except Exception as e:
-                    logger.error(f"Error handling tts_search_paths request: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-
-            @PromptServer.instance.routes.get("/voxcpm/validate_directory")
-            async def voxcpm_validate_directory_handler(request):
-                """Validate whether a directory is within a registered tts search path.
-
-                Also detects if the path itself is a direct VoxCPM model folder
-                (contains config.json + weights), in which case it returns the
-                model's architecture from config.json.
-
-                Query params:
-                path: Directory path to validate
-
-                Returns:
-                {
-                    "valid": bool,
-                    "is_registered": bool,
-                    "registered_parent": str | null,
-                    "exists": bool,
-                    "is_direct_model": bool,  # True if path is a model folder itself
-                    "direct_model_info": {     # Present if is_direct_model
-                        "name": "folder_name",
-                        "architecture": "voxcpm2" | "voxcpm" | "unknown",
-                        "path": "/absolute/path"
-                    } | null,
-                    "models": [{"name": ..., "architecture": ..., "path": ...}],
-                    "error": str | null
-                }
-                """
-                dir_path = request.query.get("path", "")
-                if not dir_path:
-                    return web.json_response({"error": "path is required"}, status=400)
-
-                try:
-                    # Normalize the path for comparison
-                    dir_path = os.path.normpath(dir_path)
-                    tts_paths = folder_paths.get_folder_paths("tts")
-
-                    # Check if the path is within any registered tts directory
-                    is_registered = False
-                    registered_parent = None
-                    for tts_path in tts_paths:
-                        norm_tts = os.path.normpath(tts_path)
-                        if dir_path == norm_tts or dir_path.startswith(norm_tts + os.sep):
-                            is_registered = True
-                            registered_parent = tts_path
-                            break
-
-                    # Check if directory exists
-                    exists = os.path.isdir(dir_path)
-
-                    # Check if this path is itself a direct VoxCPM model folder
-                    is_direct_model = exists and _is_voxcpm_model_dir(dir_path)
-                    direct_model_info = None
-                    if is_direct_model:
-                        config = _read_model_config(dir_path) or {}
-                        direct_model_info = {
-                            "name": os.path.basename(dir_path),
-                            "architecture": config.get("architecture", "unknown"),
-                            "path": dir_path,
-                        }
-
-                    # Scan for VoxCPM models in subdirectories
-                    models = []
-                    if exists and not is_direct_model:
-                        # Check if this is a VoxCPM subdir itself
-                        voxcpm_subdir = os.path.join(dir_path, VOXCPM_SUBDIR_NAME)
-                        scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else dir_path
-                        models = _scan_voxcpm_models(scan_dir)
-
-                    is_valid = is_registered and exists
-                    return web.json_response({
-                        "valid": is_valid,
-                        "is_registered": is_registered,
-                        "registered_parent": registered_parent,
-                        "exists": exists,
-                        "is_direct_model": is_direct_model,
-                        "direct_model_info": direct_model_info,
-                        "models": models,
-                        "error": None if is_valid else (
-                            "Not within a registered tts model directory" if not is_registered
-                            else "Directory does not exist" if not exists
-                            else None
-                        ),
-                    })
-
-                except Exception as e:
-                    logger.error(f"Error handling validate_directory request: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-
-            @PromptServer.instance.routes.post("/voxcpm/register_model_path")
-            async def voxcpm_register_model_path_handler(request):
-                """Register a new directory as a tts model search path.
-
-                This calls folder_paths.add_model_folder_path("tts", path) so
-                ComfyUI's model discovery will find models in the new directory.
-
-                Expects JSON body: {"path": "/absolute/path/to/directory"}
-                Returns: {"success": bool, "path": str, "error": str | null}
-                """
-                try:
-                    data = await request.json()
-                    path = data.get("path", "")
-
-                    if not path:
-                        return web.json_response({"error": "path is required"}, status=400)
-
-                    if not os.path.isabs(path):
-                        return web.json_response({"error": "Path must be absolute"}, status=400)
-
-                    if not os.path.isdir(path):
-                        return web.json_response({"error": f"Directory does not exist: {path}"}, status=400)
-
-                    # Check if already registered
-                    tts_paths = folder_paths.get_folder_paths("tts")
-                    norm_path = os.path.normpath(path)
-                    for existing in tts_paths:
-                        if os.path.normpath(existing) == norm_path:
-                            return web.json_response({
-                                "success": True,
-                                "path": path,
-                                "error": None,
-                                "already_registered": True,
-                            })
-
-                    # Register the new path
-                    folder_paths.add_model_folder_path("tts", path)
-                    logger.info(f"Registered new tts model path: {path}")
-
-                    return web.json_response({
-                        "success": True,
-                        "path": path,
-                        "error": None,
-                        "already_registered": False,
-                    })
-
-                except json.JSONDecodeError:
-                    return web.json_response({"error": "Invalid JSON"}, status=400)
-                except Exception as e:
-                    logger.error(f"Error handling register_model_path request: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-
-            @PromptServer.instance.routes.get("/voxcpm/download_status")
-            async def voxcpm_download_status_handler(request):
-                """Get status of all active downloads.
-        
-                Returns: {"downloads": {"VoxCPM2": {...state...}}, ...}
-                """
-                try:
-                    from .modules.downloader import get_download_manager
-                    download_manager = get_download_manager()
-                    statuses = download_manager.get_all_statuses()
-                    return web.json_response({"downloads": statuses})
-        
-                except Exception as e:
-                    logger.error(f"Error handling download status request: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-        
-            # === Lazy-Load Heavy Extension Endpoint ===
-            # The heavy JS (voxcpmHeavy.js + shared.js) is stored OUTSIDE the
-            # WEB_DIRECTORY (js/) so ComfyUI's GET /extensions endpoint doesn't
-            # discover it.  The lightweight stub (js/extension.js) dynamically
-            # imports the heavy code via this endpoint only when a VoxCPM node
-            # is actually used in the workflow.
-            _HEAVY_JS_DIR = os.path.join(current_dir, "js_lazy")
-
-            @PromptServer.instance.routes.get("/voxcpm/heavy_extension/{filename}")
-            async def voxcpm_heavy_extension_handler(request):
-                """Serve lazy-loaded JS files from outside WEB_DIRECTORY.
-
-                Only voxcpmHeavy.js is allowed — prevents arbitrary file reads.
-                Returns application/javascript with correct charset.
-
-                NOTE: shared.js was removed in a previous architecture. The stub
-                (extension.js) now inlines VOXCPM_NODE_TYPES to avoid a cross-directory
-                chunk dependency that caused 404 errors. All shared constants are
-                inlined into voxcpmHeavy.js at build time.
-                """
-                filename = request.match_info.get("filename", "")
-                if filename not in ("voxcpmHeavy.js",):
-                    return web.json_response(
-                        {"error": f"File not allowed: {filename}"}, status=403
-                    )
-
-                file_path = os.path.join(_HEAVY_JS_DIR, filename)
-                if not os.path.isfile(file_path):
-                    return web.json_response(
-                        {"error": f"File not found: {filename}"}, status=404
-                    )
-
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    return web.Response(
-                        text=content,
-                        content_type="application/javascript",
-                        charset="utf-8",
-                    )
-                except Exception as e:
-                    logger.error(f"Error serving heavy extension file {filename}: {e}")
-                    return web.json_response({"error": str(e)}, status=500)
-
-            logger.debug("VoxCPM API routes registered")
-
+            from .modules.api_routes import register_routes
+            register_routes(PromptServer.instance.routes, folder_paths, current_dir)
         except Exception as e:
             logger.warning(f"Failed to register API routes: {e}")
 
-        from .voxcpm_nodes import comfy_entrypoint
+        # Schedule config broadcast to frontend
+        try:
+            schedule_config_send()
+        except Exception as e:
+            logger.debug(f"Failed to schedule config sender: {e}")
 
-        WEB_DIRECTORY = "./js"
-        __all__ = ['comfy_entrypoint', 'WEB_DIRECTORY']
+    # ── Exports ───────────────────────────────────────────────────────
+    from .voxcpm_nodes import comfy_entrypoint
 
-    else:
-        # do we need this stuff here?
-        WEB_DIRECTORY = "./js"
-        __all__ = ['WEB_DIRECTORY', '_COMFYUI_AVAILABLE']
+    WEB_DIRECTORY = "./js"
+    __all__ = ['comfy_entrypoint', 'WEB_DIRECTORY']
