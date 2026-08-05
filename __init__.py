@@ -106,6 +106,15 @@ else:
         except Exception as e:
             logger.debug(f"Failed to schedule config sender: {e}")
 
+        # Register event-driven config broadcast (primary mechanism)
+        # This sends config when a client connects, replacing the fragile
+        # time.sleep(3) approach in schedule_config_send().
+        try:
+            from .modules.config_broadcast import register_config_on_connect
+            register_config_on_connect()
+        except Exception as e:
+            logger.debug(f"Failed to register client connect handler: {e}")
+
     # ── Exports ───────────────────────────────────────────────────────
     from .voxcpm_nodes import comfy_entrypoint
 

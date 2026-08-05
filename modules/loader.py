@@ -13,6 +13,21 @@ logger = logging.getLogger(__name__)
 
 LOADED_MODELS_CACHE = {}
 
+# ── Default LoRA Configuration Constants ─────────────────────────────
+# These values are optimized for single-speaker voice cloning:
+# - r=32: Good balance between capacity and overfitting risk for voice cloning.
+#   Higher rank (64+) is recommended for style/language adaptation.
+# - alpha=16: Scaling factor (scaling = alpha / r = 0.5).
+#   Usually set to r or 2*r. Adjust to control LoRA influence strength.
+# - enable_lm=True: Essential for voice quality (language model backbone).
+# - enable_dit=True: Essential for voice quality (diffusion transformer).
+# - enable_proj=False: Projection layers rarely benefit from LoRA.
+DEFAULT_LORA_RANK = 32
+DEFAULT_LORA_ALPHA = 16
+DEFAULT_LORA_ENABLE_LM = True
+DEFAULT_LORA_ENABLE_DIT = True
+DEFAULT_LORA_ENABLE_PROJ = False
+
 
 class VoxCPMModelHandler(torch.nn.Module):
     """
@@ -91,11 +106,11 @@ class VoxCPMLoader:
         logger.info("Instantiating VoxCPM model...")
 
         default_lora_config = LoRAConfig(
-            enable_lm=True,
-            enable_dit=True,
-            enable_proj=False,
-            r=32,
-            alpha=16
+            enable_lm=DEFAULT_LORA_ENABLE_LM,
+            enable_dit=DEFAULT_LORA_ENABLE_DIT,
+            enable_proj=DEFAULT_LORA_ENABLE_PROJ,
+            r=DEFAULT_LORA_RANK,
+            alpha=DEFAULT_LORA_ALPHA
         )
 
         model_instance = VoxCPM(

@@ -46,21 +46,22 @@ def register_routes(routes, folder_paths_module, current_dir: str):
     @routes.post("/voxcpm/models")
     async def voxcpm_models_handler(request):
         """Scan a directory for VoxCPM models.
-
-        Also detects if the path itself is a direct model folder.
+    
+        Checks for models in:
+        1. Direct subdirectories of the given path
+        2. A VoxCPM/ subdirectory within the given path (convention: tts/VoxCPM/)
+        3. The path itself (if it's a direct model folder)
         """
         try:
             data = await request.json()
             path = data.get("path", "")
-
+    
             if not path:
                 return web.json_response({"error": "Path is required"}, status=400)
             if not os.path.isabs(path):
                 return web.json_response({"error": "Path must be absolute"}, status=400)
-
-            models = scan_custom_model_path(path)
-
-            # Also check if the path itself is a direct model folder
+    
+            # Check if the path itself is a direct model folder
             is_direct_model = is_voxcpm_model_dir(path)
             direct_model_info = None
             if is_direct_model:
@@ -70,7 +71,14 @@ def register_routes(routes, folder_paths_module, current_dir: str):
                     "architecture": config.get("architecture", "unknown"),
                     "path": path,
                 }
-
+    
+            # Scan for models: check VoxCPM/ subdir first (convention), then direct children
+            models = []
+            if not is_direct_model and os.path.isdir(path):
+                voxcpm_subdir = os.path.join(path, VOXCPM_SUBDIR_NAME)
+                scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else path
+                models = scan_voxcpm_models(scan_dir)
+    
             return web.json_response({
                 "path": path,
                 "models": models,
@@ -183,13 +191,32 @@ def register_routes(routes, folder_paths_module, current_dir: str):
             for tts_path in tts_paths:
                 voxcpm_subdir = os.path.join(tts_path, VOXCPM_SUBDIR_NAME)
                 models = []
+                is_direct_model = False
+                direct_model_info = None
+    
                 if os.path.isdir(voxcpm_subdir):
+                    # Convention: tts/VoxCPM/<model_name>/
                     models = scan_voxcpm_models(voxcpm_subdir)
-
+                elif is_voxcpm_model_dir(tts_path):
+                    # The tts path itself is a direct model folder
+                    is_direct_model = True
+                    config = read_model_config(tts_path) or {}
+                    direct_model_info = {
+                        "name": os.path.basename(tts_path),
+                        "architecture": config.get("architecture", "unknown"),
+                        "path": tts_path,
+                    }
+                    models = [direct_model_info]
+                else:
+                    # Scan direct children for model folders
+                    models = scan_voxcpm_models(tts_path)
+    
                 paths_info.append({
                     "path": tts_path,
                     "is_default": (tts_path == default_tts),
                     "voxcpm_subdir": voxcpm_subdir if os.path.isdir(voxcpm_subdir) else None,
+                    "is_direct_model": is_direct_model,
+                    "direct_model_info": direct_model_info,
                     "models": models,
                 })
 
@@ -263,7 +290,9 @@ def register_routes(routes, folder_paths_module, current_dir: str):
                 scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else dir_path
                 models = scan_voxcpm_models(scan_dir)
 
-            is_valid = is_registered and exists
+            # A direct model folder is valid even if not within a registered tts
+            # directory — it IS the model, not a parent directory containing models.
+            is_valid = (is_registered and exists) or is_direct_model
             return web.json_response({
                 "valid": is_valid,
                 "is_registered": is_registered,
@@ -290,8 +319,15 @@ def register_routes(routes, folder_paths_module, current_dir: str):
         This calls folder_paths.add_model_folder_path("tts", path) so
         ComfyUI's model discovery will find models in the new directory.
 
+        After registering, scans the path for VoxCPM models and returns
+        the count in the response. If no models are found, a warning is
+        included (but the path is still registered — the user may add
+        models later).
+
         Expects JSON body: {"path": "/absolute/path/to/directory"}
-        Returns: {"success": bool, "path": str, "error": str | null}
+        Returns: {"success": bool, "path": str, "error": str | null,
+                  "already_registered": bool, "models": [...], "model_count": int,
+                  "warning": str | null}
         """
         try:
             data = await request.json()
@@ -311,22 +347,59 @@ def register_routes(routes, folder_paths_module, current_dir: str):
             norm_path = os.path.normpath(path)
             for existing in tts_paths:
                 if os.path.normpath(existing) == norm_path:
+                    # Already registered — scan for models to return in response
+                    models = []
+                    is_direct_model = is_voxcpm_model_dir(path)
+                    if is_direct_model:
+                        config = read_model_config(path) or {}
+                        models = [{
+                            "name": os.path.basename(path),
+                            "architecture": config.get("architecture", "unknown"),
+                            "path": path,
+                        }]
+                    else:
+                        voxcpm_subdir = os.path.join(path, VOXCPM_SUBDIR_NAME)
+                        scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else path
+                        models = scan_voxcpm_models(scan_dir)
+
                     return web.json_response({
                         "success": True,
                         "path": path,
                         "error": None,
                         "already_registered": True,
+                        "models": models,
+                        "model_count": len(models),
+                        "warning": "No VoxCPM models found in this path" if not models else None,
                     })
 
             # Register the new path
             folder_paths_module.add_model_folder_path("tts", path)
             logger.info(f"Registered new tts model path: {path}")
 
+            # Scan for VoxCPM models in the registered path
+            models = []
+            is_direct_model = is_voxcpm_model_dir(path)
+            if is_direct_model:
+                config = read_model_config(path) or {}
+                models = [{
+                    "name": os.path.basename(path),
+                    "architecture": config.get("architecture", "unknown"),
+                    "path": path,
+                }]
+            else:
+                # Check for VoxCPM/ subdir convention
+                voxcpm_subdir = os.path.join(path, VOXCPM_SUBDIR_NAME)
+                scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else path
+                models = scan_voxcpm_models(scan_dir)
+
             return web.json_response({
                 "success": True,
                 "path": path,
                 "error": None,
                 "already_registered": False,
+                "models": models,
+                "model_count": len(models),
+                "warning": "No VoxCPM models found in this path" if not models else None,
             })
 
         except json.JSONDecodeError:

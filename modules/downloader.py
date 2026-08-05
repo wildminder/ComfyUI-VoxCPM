@@ -473,36 +473,43 @@ class DownloadManager:
         error: bool = False,
         cancelled: bool = False,
     ) -> None:
+        """Log download progress to the logger (replaces print statements).
+
+        Previously used print() with \r for console progress bars, but this
+        caused inconsistent output and interfered with logging. Now uses
+        logger.info/error for consistent, filterable log output.
+        """
         with self._lock:
             state = self._active_downloads.get(model_name)
             if state is None:
                 return
 
         if cancelled:
-            print(f"\r[VoxCPM] X {model_name} download cancelled", flush=True)
+            logger.info(f"Download cancelled: {model_name}")
             return
-    
+
         if error:
             msg = state.error_message or "unknown error"
-            print(f"\r[VoxCPM] X {model_name} download failed: {msg}", flush=True)
+            logger.error(f"Download failed: {model_name} - {msg}")
             return
-    
+
         if complete:
             total = _format_bytes(state.total_bytes) if state.total_bytes else "unknown size"
-            print(f"\r[VoxCPM] OK {model_name} download complete ({total})", flush=True)
+            logger.info(f"Download complete: {model_name} ({total})")
             return
 
         pct = state.progress_percentage
-        filled = int(pct / 100 * 20)
-        bar = "=" * filled + "-" * (20 - filled)
         speed_str = _format_speed(state.speed) if state.speed > 0 else "-"
 
         file_info = ""
         if state.total_files > 1:
             file_info = f" file {state.file_index + 1}/{state.total_files}"
-    
-        line = f"\r[VoxCPM] Downloading {model_name} {bar} {pct:5.1f}% {speed_str}{file_info}"
-        print(f"{line:<80}", end="", flush=True)
+
+        # Log progress at debug level to avoid spamming the console.
+        # The frontend receives real-time updates via WebSocket events.
+        logger.debug(
+            f"Downloading {model_name}: {pct:.1f}% {speed_str}{file_info}"
+        )
 
     def _cleanup(self, model_name: str, local_dir: str):
         if os.path.exists(local_dir):
@@ -513,8 +520,8 @@ class DownloadManager:
                         os.remove(item_path)
                     elif os.path.isdir(item_path):
                         shutil.rmtree(item_path)
-            except Exception:
-                pass
+            except OSError as e:
+                logger.warning(f"Failed to clean up download directory {local_dir}: {e}")
 
         with self._lock:
             self._active_downloads.pop(model_name, None)

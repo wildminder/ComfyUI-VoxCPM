@@ -182,8 +182,12 @@ class VoxCPMNode(io.ComfyNode):
                     PromptServer.instance.send_sync("voxcpm.config", {
                         "normalization_available": False
                     })
-            except Exception:
-                pass
+            except ImportError as e:
+                logger.debug(f"Failed to import server for config event: {e}")
+            except AttributeError as e:
+                logger.debug(f"Failed to access PromptServer for config event: {e}")
+            except RuntimeError as e:
+                logger.debug(f"Failed to send config event: {e}")
 
         # Send notification if text normalization is disabled and user tries to enable it
         if normalize_text and not TEXT_NORMALIZATION_AVAILABLE:
@@ -196,8 +200,12 @@ class VoxCPMNode(io.ComfyNode):
                         "detail": "Optional packages 'inflect' and 'wetext' are not installed. Install with: pip install inflect wetext",
                         "life": 10000
                     })
-            except Exception:
-                pass
+            except ImportError as e:
+                logger.debug(f"Failed to import server for status notification: {e}")
+            except AttributeError as e:
+                logger.debug(f"Failed to access PromptServer for status notification: {e}")
+            except RuntimeError as e:
+                logger.debug(f"Failed to send status notification: {e}")
 
         # Validate VoxCPM2-only features (graceful degradation for non-fatal issues)
         is_voxcpm2, warning, ignore_reference = validate_voxcpm2_features(

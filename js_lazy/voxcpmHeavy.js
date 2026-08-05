@@ -302,8 +302,7 @@ var v = {
 .${v.BLOCK} {
   position: fixed;
   z-index: 1000;
-  min-width: 280px;
-  max-width: 400px;
+  
   max-height: 320px;
   background: var(--voxcpm-cyber-bg);
   border: 1px solid var(--voxcpm-cyber-border);
@@ -707,9 +706,9 @@ function N(e) {
 		let i = null, a = !1, o = !1, s = null, c = null, l = r.querySelector("#voxcpm-mdd-path-input"), u = r.querySelector("#voxcpm-mdd-register"), d = r.querySelector("#voxcpm-mdd-validation"), f = r.querySelector("#voxcpm-mdd-models-preview"), p = r.querySelector("#voxcpm-mdd-model-count"), m = r.querySelector("#voxcpm-mdd-models-list"), h = r.querySelector("#voxcpm-mdd-confirm"), g = r.querySelector("#voxcpm-mdd-cancel"), _ = r.querySelectorAll(".voxcpm-mdd__path-item");
 		_.forEach((e) => {
 			e.addEventListener("click", () => {
-				_.forEach((e) => e.classList.remove("voxcpm-mdd__path-item--selected")), e.classList.add("voxcpm-mdd__path-item--selected"), i = e.dataset.path || null, a = !0, o = !1, s = null, l && i && (l.value = i), h && (h.disabled = !1), u && (u.disabled = !0);
+				_.forEach((e) => e.classList.remove("voxcpm-mdd__path-item--selected")), e.classList.add("voxcpm-mdd__path-item--selected"), i = e.dataset.path || null, a = !0, o = !1;
 				let t = n.find((e) => e.path === i);
-				t && t.models.length > 0 ? (f.style.display = "block", p.textContent = t.models.length.toString(), m.innerHTML = t.models.map((e) => R(e)).join("")) : f.style.display = "none", d.innerHTML = "";
+				s = t?.is_direct_model ? t.direct_model_info ?? null : null, l && i && (l.value = i), h && (h.disabled = !1), u && (u.disabled = !0), t && t.models.length > 0 ? (f.style.display = "block", p.textContent = t.models.length.toString(), m.innerHTML = t.models.map((e) => R(e)).join("")) : f.style.display = "none", d.innerHTML = "";
 			});
 		}), l?.addEventListener("input", () => {
 			let e = l.value.trim();
@@ -796,12 +795,12 @@ function H() {
 	B = null;
 }
 var U = class e {
-	constructor(e, t, n, r) {
-		this.selectedIndex = -1, this.resolveSelection = null, this.cleanups = [], this.isOpen = !1, this.modelInfo = e, this.anchorRect = t, this.scale = n, this.widgetElement = r || null, this.panel = document.createElement("div"), this.panel.className = v.BLOCK, this.panel.setAttribute("role", "listbox"), this.panel.setAttribute("aria-label", "Select model"), this.header = document.createElement("div"), this.header.className = v.HEADER, this.header.innerHTML = `${z.SHIELD} <span>${s.MODEL_DROPDOWN.HEADER_TEXT}</span>`, this.list = document.createElement("div"), this.list.className = v.LIST, this.panel.appendChild(this.header), this.panel.appendChild(this.list), this.renderItems();
+	constructor(e, t, n, r, i) {
+		this.resizeObserver = null, this.selectedIndex = -1, this.resolveSelection = null, this.cleanups = [], this.isOpen = !1, this.modelInfo = e, this.anchorRect = t, this.scale = n, this.widgetElement = r || null, this.anchorElement = i || null, this.panel = document.createElement("div"), this.panel.className = v.BLOCK, this.panel.setAttribute("role", "listbox"), this.panel.setAttribute("aria-label", "Select model"), this.header = document.createElement("div"), this.header.className = v.HEADER, this.header.innerHTML = `${z.SHIELD} <span>${s.MODEL_DROPDOWN.HEADER_TEXT}</span>`, this.list = document.createElement("div"), this.list.className = v.LIST, this.panel.appendChild(this.header), this.panel.appendChild(this.list), this.renderItems();
 	}
 	show() {
 		return new Promise((t) => {
-			this.resolveSelection = t, e.currentDropdown && e.currentDropdown !== this && e.currentDropdown.close(null), this.positionPanel(), document.body.appendChild(this.panel), this.isOpen = !0, e.currentDropdown = this, this.setupClickOutside(), this.setupKeyboardNav(), this.setupZoomChangeListener(), this.panel.tabIndex = -1, this.panel.focus();
+			this.resolveSelection = t, e.currentDropdown && e.currentDropdown !== this && e.currentDropdown.close(null), this.positionPanel(), document.body.appendChild(this.panel), this.isOpen = !0, e.currentDropdown = this, this.setupClickOutside(), this.setupKeyboardNav(), this.setupZoomChangeListener(), this.setupResizeObserver(), this.panel.tabIndex = -1, this.panel.focus();
 		});
 	}
 	close(t = null) {
@@ -839,10 +838,10 @@ var U = class e {
 		}), n;
 	}
 	positionPanel() {
-		let e = this.scale, t = s.MODEL_DROPDOWN.ANCHOR_GAP, n = window.innerHeight, r = window.innerWidth, i = s.MODEL_DROPDOWN.ITEM_HEIGHT, a = s.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS, o = (32 + Math.min(this.modelInfo.length, a) * i) * e, c = 300 * e, l, u = n - this.anchorRect.bottom, d = this.anchorRect.top;
-		l = u >= o + t ? this.anchorRect.bottom + t : d >= o + t ? this.anchorRect.top - o - t : this.anchorRect.bottom + t;
-		let f = this.anchorRect.left;
-		f + c > r && (f = r - c - 8), f = Math.max(8, f), this.panel.style.position = "fixed", this.panel.style.top = `${l}px`, this.panel.style.left = `${f}px`, this.panel.style.zIndex = String(s.MODEL_DROPDOWN.Z_INDEX), this.panel.style.transformOrigin = "top left", this.panel.style.transform = `scale(${e})`, this.panel.style.setProperty("--voxcpm-dropdown-scale", String(e));
+		let e = this.scale, t = s.MODEL_DROPDOWN.ANCHOR_GAP, n = window.innerHeight, r = window.innerWidth, i = s.MODEL_DROPDOWN.ITEM_HEIGHT, a = s.MODEL_DROPDOWN.MAX_VISIBLE_ITEMS, o = (32 + Math.min(this.modelInfo.length, a) * i) * e, c = this.anchorElement ? this.anchorElement.getBoundingClientRect().width : 300, l = c > 0 ? c / e : 300, u = l > 0 ? l : 300, d = u * e, f, p = n - this.anchorRect.bottom, m = this.anchorRect.top;
+		f = p >= o + t ? this.anchorRect.bottom + t : m >= o + t ? this.anchorRect.top - o - t : this.anchorRect.bottom + t;
+		let h = this.anchorRect.left;
+		h + d > r && (h = r - d - 8), h = Math.max(8, h), this.panel.style.position = "fixed", this.panel.style.top = `${f}px`, this.panel.style.left = `${h}px`, this.panel.style.zIndex = String(s.MODEL_DROPDOWN.Z_INDEX), this.panel.style.transformOrigin = "top left", this.panel.style.transform = `scale(${e})`, this.panel.style.setProperty("--voxcpm-dropdown-scale", String(e)), this.anchorElement && (this.panel.style.width = `${u}px`, this.panel.style.minWidth = `${u}px`, this.panel.style.maxWidth = `${u}px`);
 	}
 	setupClickOutside() {
 		let e = (e) => {
@@ -894,6 +893,15 @@ var U = class e {
 			e.ds && (e.ds.onChanged = n);
 		});
 	}
+	setupResizeObserver() {
+		this.anchorElement && (this.resizeObserver = new ResizeObserver(() => {
+			if (!this.isOpen || !this.anchorElement) return;
+			let e = this.anchorElement.getBoundingClientRect().width / this.scale;
+			e > 0 && (this.panel.style.width = `${e}px`, this.panel.style.minWidth = `${e}px`, this.panel.style.maxWidth = `${e}px`);
+		}), this.resizeObserver.observe(this.anchorElement), this.cleanups.push(() => {
+			this.resizeObserver?.disconnect(), this.resizeObserver = null;
+		}));
+	}
 	setSelectedIndex(e) {
 		let t = this.list.querySelectorAll(`.${v.ITEM}`);
 		if (t.forEach((e) => {
@@ -941,14 +949,14 @@ function ue(e) {
 			K();
 			return;
 		}
-		q(t, n, o, a, d, e, i, l);
+		q(t, n, o, a, d, e, i, l, i);
 	}), i.addEventListener("keydown", (t) => {
 		if (t.key === "Enter" || t.key === " ") {
 			if (t.preventDefault(), t.stopPropagation(), G()) {
 				K();
 				return;
 			}
-			q(t, n, o, a, d, e, i, l);
+			q(t, n, o, a, d, e, i, l, i);
 		}
 	}), u.addEventListener("click", async (t) => {
 		t.preventDefault(), t.stopPropagation(), await fe(e, n, o, a, d);
@@ -997,9 +1005,9 @@ function G() {
 function K() {
 	U.currentDropdown && U.currentDropdown.close(null);
 }
-async function q(e, r, i, a, o, s, l, u) {
-	let d = r.options?.values || [];
-	if (d.length === 0) {
+async function q(e, r, i, a, o, s, l, u, d) {
+	let f = r.options?.values || [];
+	if (f.length === 0) {
 		c.warn("No models available for dropdown"), O.show({
 			severity: "warn",
 			summary: "No Models Available",
@@ -1008,13 +1016,13 @@ async function q(e, r, i, a, o, s, l, u) {
 		});
 		return;
 	}
-	let f = [];
+	let m = [];
 	try {
-		f = await V(n.fetchApi.bind(n));
+		m = await V(n.fetchApi.bind(n));
 	} catch (e) {
 		c.error("Failed to fetch model info:", e);
 	}
-	f.length === 0 && (f = d.map((e) => ({
+	m.length === 0 && (m = f.map((e) => ({
 		name: e,
 		type: "local",
 		architecture: "unknown",
@@ -1022,13 +1030,13 @@ async function q(e, r, i, a, o, s, l, u) {
 		size_gb: 0,
 		is_downloaded: !0
 	})));
-	let m = l.getBoundingClientRect(), h = t.canvas.ds?.scale || 1;
+	let h = l.getBoundingClientRect(), g = t.canvas.ds?.scale || 1;
 	u.classList.add(p.ARROW_ACTIVE), l.setAttribute("aria-expanded", "true");
 	try {
-		let e = await new U(f, m, h, l).show();
+		let e = await new U(m, h, g, l, d).show();
 		if (e) {
 			r.value = e, i.textContent = e;
-			let t = f.find((t) => t.name === e);
+			let t = m.find((t) => t.name === e);
 			t && (a.innerHTML = t.is_downloaded ? z.CHECK : z.CLOUD), r.callback && r.callback(e), s.setDirtyCanvas && s.setDirtyCanvas(!0), c.debug("Model selected:", e, "for node:", s.id);
 		}
 	} catch (e) {

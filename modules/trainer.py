@@ -280,7 +280,7 @@ def run_lora_training(
 
             if step % 10 == 0:
                 lr_val = optimizer.param_groups[0]['lr']
-                print(f"Step {step}/{max_steps}, Loss: {total_loss_val:.4f}, LR: {lr_val:.8f}")
+                logger.info(f"Step {step}/{max_steps}, Loss: {total_loss_val:.4f}, LR: {lr_val:.8f}")
 
             if (step + 1) % save_every_steps == 0 or (step + 1) == max_steps:
                 save_path = os.path.join(output_dir, f"{output_name}_step_{step+1}.safetensors")
