@@ -109,6 +109,26 @@ class VoxCPMNode(io.ComfyNode):
         )
 
     @classmethod
+    def validate_inputs(cls, **kwargs) -> bool | str:
+        """Validate inputs, allowing dynamically-discovered custom models.
+
+        The model_name combo options are built at node registration time from
+        AVAILABLE_VOXCPM_MODELS.keys(). However, custom models discovered at
+        runtime (via the model directory dialog) are added to
+        AVAILABLE_VOXCPM_MODELS after registration. This method bypasses
+        the static combo validation by accepting any model_name that exists
+        in AVAILABLE_VOXCPM_MODELS at execution time.
+        """
+        model_name = kwargs.get("model_name")
+        if model_name is not None:
+            # Accept any model that's in the dynamic registry (includes
+            # custom models added at runtime via the model directory dialog)
+            if model_name not in AVAILABLE_VOXCPM_MODELS:
+                available = list(AVAILABLE_VOXCPM_MODELS.keys())
+                return f"Model '{model_name}' not found. Available models: {available}"
+        return True
+
+    @classmethod
     def execute(
         cls,
         model_name: str,

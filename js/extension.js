@@ -27,21 +27,39 @@ async function c(t) {
 }
 e.registerExtension({
 	name: "voxcpm.lazyLoader",
-	settings: [{
-		id: "voxcpm.use_custom_path",
-		category: ["VoxCPM", "Model Path"],
-		name: "Use Custom Model Path",
-		type: "boolean",
-		defaultValue: !1,
-		tooltip: "Enable to use a custom directory for VoxCPM models"
-	}, {
-		id: "voxcpm.custom_model_path",
-		category: ["VoxCPM", "Model Path"],
-		name: "Custom Model Path",
-		type: "text",
-		defaultValue: "",
-		tooltip: "Path to custom VoxCPM models directory"
-	}],
+	settings: [
+		{
+			id: "voxcpm.use_custom_path",
+			category: ["VoxCPM", "Model Path"],
+			name: "Use Custom Model Path",
+			type: "boolean",
+			defaultValue: !1,
+			tooltip: "Enable to use a custom directory for VoxCPM models"
+		},
+		{
+			id: "voxcpm.custom_model_path",
+			category: ["VoxCPM", "Model Path"],
+			name: "Custom Model Path",
+			type: "text",
+			defaultValue: "",
+			tooltip: "Path to custom VoxCPM models directory"
+		},
+		{
+			id: "voxcpm.reset_settings",
+			category: ["VoxCPM", "Model Path"],
+			name: "Reset Custom Model Path Settings",
+			type: "boolean",
+			defaultValue: !1,
+			tooltip: "Clears the saved custom model path and resets to defaults. The page will reload after clearing.",
+			onChange: async (t) => {
+				if (t) try {
+					await e.api.fetchApi("/voxcpm/settings", { method: "DELETE" }), await e.api.storeSetting("voxcpm.reset_settings", !1), window.location.reload();
+				} catch (e) {
+					console.error("[VoxCPM] Failed to clear settings:", e);
+				}
+			}
+		}
+	],
 	async beforeConfigureGraph(e) {
 		o(e) && await a();
 	},

@@ -91,8 +91,55 @@ else:
                         "path": model_info["path"],
                         "architecture": model_info["architecture"],
                     }
+    
+            # Migration: remove old voxcpm_settings.json (replaced by
+            # comfy.settings.json via ComfyUI's built-in settings API).
+            try:
+                from .modules.settings import SETTINGS_FILE
+                old_settings_path = os.path.join(
+                    folder_paths.get_user_directory(), "default", "VoxCPM", SETTINGS_FILE
+                )
+                if os.path.exists(old_settings_path):
+                    os.remove(old_settings_path)
+                    logger.info("Removed old voxcpm_settings.json (migrated to comfy.settings.json)")
+            except Exception:
+                pass  # Non-critical migration
 
-        # Register API routes
+            # Re-register custom model paths from persisted settings.
+            # When a user selects a custom model directory via the frontend
+            # dialog, the path is saved to comfy.settings.json via
+            # app.api.storeSetting("voxcpm.custom_model_path", path).
+            # On server restart, we re-register it with folder_paths so
+            # models in the custom directory are discoverable again.
+            try:
+                from .modules.settings import get_settings
+                settings = get_settings()
+                if settings.use_custom_path and settings.custom_model_path:
+                    custom_path = settings.custom_model_path
+                    if os.path.isdir(custom_path):
+                        existing_paths = folder_paths.get_folder_paths("tts")
+                        if custom_path not in existing_paths:
+                            folder_paths.add_model_folder_path("tts", custom_path)
+                            logger.info(f"Re-registered custom model path from settings: {custom_path}")
+    
+                        # Scan for models in the custom path
+                        VOXCPM_SUBDIR = "VoxCPM"
+                        voxcpm_subdir = os.path.join(custom_path, VOXCPM_SUBDIR)
+                        scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else custom_path
+                        for model_info in scan_voxcpm_models(scan_dir):
+                            item = model_info["name"]
+                            if item not in AVAILABLE_VOXCPM_MODELS:
+                                AVAILABLE_VOXCPM_MODELS[item] = {
+                                    "type": "local",
+                                    "path": model_info["path"],
+                                    "architecture": model_info["architecture"],
+                                }
+                    else:
+                        logger.warning(f"Custom model path from settings no longer exists: {custom_path}")
+            except Exception as e:
+                logger.warning(f"Failed to re-register custom model paths: {e}")
+    
+            # Register API routes
         try:
             from server import PromptServer
             from .modules.api_routes import register_routes

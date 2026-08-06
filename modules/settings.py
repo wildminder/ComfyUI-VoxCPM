@@ -1,12 +1,18 @@
 """
 VoxCPM User Settings Management
 
-Handles persistence of user preferences including:
-- Model path preference (default/custom)
-- Custom model path
-- First-run flag
+Reads user preferences from ComfyUI's built-in comfy.settings.json file.
+The frontend writes settings via app.api.storeSetting("voxcpm.<key>", value)
+which stores them in user/default/comfy.settings.json. This module reads
+those settings on the backend side.
 
-Uses ComfyUI's folder_paths for proper integration.
+Settings keys (all prefixed with "voxcpm."):
+- voxcpm.use_custom_path (bool): Whether to use a custom model path
+- voxcpm.custom_model_path (str): The custom model directory path
+
+This module is READ-ONLY — the frontend is the single write path via
+ComfyUI's settings API (POST /settings/voxcpm.<key>). The backend
+only reads these settings to determine the effective model path.
 """
 
 import os
@@ -16,80 +22,72 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+# Legacy settings file name (used for migration cleanup)
 SETTINGS_FILE = "voxcpm_settings.json"
+
+# Settings key prefix in comfy.settings.json
+SETTINGS_PREFIX = "voxcpm."
 
 
 class VoxCPMSettings:
-    """Manages user settings for VoxCPM using ComfyUI's user directory."""
+    """Reads VoxCPM settings from ComfyUI's comfy.settings.json file.
+
+    This class is read-only. Settings are written by the frontend via
+    ComfyUI's settings API (app.api.storeSetting). The backend reads
+    them to determine the effective model path and broadcast config
+    to the frontend.
+    """
 
     def __init__(self):
         self._settings: Dict[str, Any] = {}
-        self._settings_path: Optional[str] = None
         self._load_settings()
 
-    def _get_settings_path(self) -> str:
-        """Get the path to the settings file in ComfyUI's user directory."""
+    def _get_comfy_settings_path(self) -> Optional[str]:
+        """Get the path to comfy.settings.json in the user directory."""
         try:
             import folder_paths
 
             user_dir = folder_paths.get_user_directory()
             if user_dir:
-                # Store in user/default/VoxCPM/voxcpm_settings.json
-                voxcpm_user_dir = os.path.join(user_dir, "default", "VoxCPM")
-                os.makedirs(voxcpm_user_dir, exist_ok=True)
-                return os.path.join(voxcpm_user_dir, SETTINGS_FILE)
+                return os.path.join(user_dir, "default", "comfy.settings.json")
         except ImportError:
             pass
-
-        # Fallback to custom node directory
-        return SETTINGS_FILE
+        return None
 
     def _load_settings(self) -> None:
-        """Load settings from disk."""
+        """Load settings from comfy.settings.json."""
         try:
-            self._settings_path = self._get_settings_path()
-            if os.path.exists(self._settings_path):
-                with open(self._settings_path, "r", encoding="utf-8") as f:
-                    self._settings = json.load(f)
-                logger.debug(f"Loaded settings from {self._settings_path}")
+            settings_path = self._get_comfy_settings_path()
+            if settings_path and os.path.exists(settings_path):
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    all_settings = json.load(f)
+                # Filter to only voxcpm.* keys
+                self._settings = {
+                    k: v for k, v in all_settings.items()
+                    if k.startswith(SETTINGS_PREFIX)
+                }
+                logger.debug(f"Loaded VoxCPM settings from comfy.settings.json: {list(self._settings.keys())}")
         except Exception as e:
-            logger.warning(f"Failed to load settings: {e}")
+            logger.warning(f"Failed to load settings from comfy.settings.json: {e}")
             self._settings = {}
 
-    def _save_settings(self) -> bool:
-        """Save settings to disk."""
-        try:
-            if self._settings_path:
-                with open(self._settings_path, "w", encoding="utf-8") as f:
-                    json.dump(self._settings, f, indent=2)
-                logger.debug(f"Saved settings to {self._settings_path}")
-                return True
-        except Exception as e:
-            logger.error(f"Failed to save settings: {e}")
-        return False
+    def reload(self) -> None:
+        """Re-read settings from comfy.settings.json.
+
+        Call this after the frontend writes new settings via storeSetting
+        to ensure the backend has fresh data.
+        """
+        self._load_settings()
 
     @property
     def use_custom_path(self) -> bool:
         """Check if user wants to use custom path."""
-        return self._settings.get("use_custom_path", False)
-
-    def set_use_custom_path(self, value: bool) -> None:
-        """Set custom path preference."""
-        self._settings["use_custom_path"] = value
-        self._save_settings()
+        return self._settings.get(f"{SETTINGS_PREFIX}use_custom_path", False)
 
     @property
     def custom_model_path(self) -> Optional[str]:
         """Get custom model path."""
-        return self._settings.get("custom_model_path")
-
-    def set_custom_model_path(self, path: str) -> bool:
-        """Set custom model path. Returns True if valid."""
-        if self._validate_model_path(path):
-            self._settings["custom_model_path"] = path
-            self._save_settings()
-            return True
-        return False
+        return self._settings.get(f"{SETTINGS_PREFIX}custom_model_path")
 
     def _validate_model_path(self, path: str) -> bool:
         """Validate that path exists and contains valid model structure."""
@@ -141,13 +139,13 @@ class VoxCPMSettings:
         return self._validate_model_path(effective_path)
 
     def to_dict(self) -> Dict[str, Any]:
-    	"""Export settings for frontend."""
-    	return {
-    		"use_custom_path": self.use_custom_path,
-    		"custom_model_path": self.custom_model_path,
-    		"effective_path": self.get_effective_model_path(),
-    		"effective_path_valid": self.is_effective_path_valid(),
-    	}
+        """Export settings for frontend."""
+        return {
+            "use_custom_path": self.use_custom_path,
+            "custom_model_path": self.custom_model_path,
+            "effective_path": self.get_effective_model_path(),
+            "effective_path_valid": self.is_effective_path_valid(),
+        }
 
 
 # Global settings instance

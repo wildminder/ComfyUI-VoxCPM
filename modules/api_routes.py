@@ -130,7 +130,26 @@ def register_routes(routes, folder_paths_module, current_dir: str):
                     info["path"] = model_data["path"]
                 models_list.append(info)
 
-            return web.json_response({"models": models_list})
+            # Include settings in the response so the frontend can
+            # restore custom model path configuration even if the
+            # WebSocket config event was missed (e.g., heavy module
+            # loaded after the initial voxcpm.config broadcast).
+            # Reload settings from comfy.settings.json to ensure fresh
+            # data (the frontend may have written new settings via
+            # storeSetting since the backend last read the file).
+            try:
+                from .settings import get_settings
+                from .model_info import TEXT_NORMALIZATION_AVAILABLE
+                settings = get_settings()
+                settings.reload()
+                return web.json_response({
+                    "models": models_list,
+                    "normalization_available": TEXT_NORMALIZATION_AVAILABLE,
+                    "settings": settings.to_dict(),
+                })
+            except Exception:
+                # Settings module not available — return models only
+                return web.json_response({"models": models_list})
 
         except Exception as e:
             logger.error(f"Error handling model info request: {e}")
@@ -362,6 +381,19 @@ def register_routes(routes, folder_paths_module, current_dir: str):
                         scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else path
                         models = scan_voxcpm_models(scan_dir)
 
+                    # Add discovered models to AVAILABLE_VOXCPM_MODELS (same
+                    # as the new-registration branch below — needed when the
+                    # path was registered at runtime but models weren't added
+                    # to the registry yet).
+                    for model in models:
+                        if model["name"] not in AVAILABLE_VOXCPM_MODELS:
+                            AVAILABLE_VOXCPM_MODELS[model["name"]] = {
+                                "type": "local",
+                                "path": model["path"],
+                                "architecture": model.get("architecture", "unknown"),
+                            }
+                            logger.info(f"Added model to registry: {model['name']}")
+
                     return web.json_response({
                         "success": True,
                         "path": path,
@@ -375,6 +407,12 @@ def register_routes(routes, folder_paths_module, current_dir: str):
             # Register the new path
             folder_paths_module.add_model_folder_path("tts", path)
             logger.info(f"Registered new tts model path: {path}")
+
+            # NOTE: Settings persistence is handled by the frontend via
+            # app.api.storeSetting("voxcpm.custom_model_path", path) which
+            # writes to comfy.settings.json. The backend reads these settings
+            # on startup (see __init__.py) and via get_settings().reload().
+            # No backend write needed here.
 
             # Scan for VoxCPM models in the registered path
             models = []
@@ -392,6 +430,19 @@ def register_routes(routes, folder_paths_module, current_dir: str):
                 scan_dir = voxcpm_subdir if os.path.isdir(voxcpm_subdir) else path
                 models = scan_voxcpm_models(scan_dir)
 
+            # Add discovered models to AVAILABLE_VOXCPM_MODELS so they're
+            # available for validate_inputs and model loading at runtime.
+            # Without this, models discovered after startup (via the model
+            # directory dialog) won't pass prompt validation.
+            for model in models:
+                if model["name"] not in AVAILABLE_VOXCPM_MODELS:
+                    AVAILABLE_VOXCPM_MODELS[model["name"]] = {
+                        "type": "local",
+                        "path": model["path"],
+                        "architecture": model.get("architecture", "unknown"),
+                    }
+                    logger.info(f"Added model to registry: {model['name']}")
+
             return web.json_response({
                 "success": True,
                 "path": path,
@@ -406,6 +457,49 @@ def register_routes(routes, folder_paths_module, current_dir: str):
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             logger.error(f"Error handling register_model_path request: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    @routes.delete("/voxcpm/settings")
+    async def voxcpm_clear_settings_handler(request):
+        """Clear all VoxCPM settings from comfy.settings.json.
+
+        Removes all keys starting with "voxcpm." from the shared
+        comfy.settings.json file. This is used for cleanup when the
+        user wants to reset to defaults or when uninstalling.
+
+        Returns: {"success": bool, "removed": [list of removed keys]}
+        """
+        try:
+            import folder_paths
+
+            user_dir = folder_paths.get_user_directory()
+            if not user_dir:
+                return web.json_response({"error": "User directory not found"}, status=500)
+
+            settings_file = os.path.join(user_dir, "default", "comfy.settings.json")
+            if not os.path.exists(settings_file):
+                return web.json_response({"success": True, "removed": []})
+
+            with open(settings_file, "r", encoding="utf-8") as f:
+                all_settings = json.load(f)
+
+            # Remove all voxcpm.* keys
+            removed = [k for k in list(all_settings.keys()) if k.startswith("voxcpm.")]
+            for key in removed:
+                del all_settings[key]
+
+            with open(settings_file, "w", encoding="utf-8") as f:
+                json.dump(all_settings, f, indent=4)
+
+            # Reload settings in the global instance
+            from .settings import get_settings
+            get_settings().reload()
+
+            logger.info(f"Cleared VoxCPM settings: {removed}")
+            return web.json_response({"success": True, "removed": removed})
+
+        except Exception as e:
+            logger.error(f"Error clearing VoxCPM settings: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     @routes.get("/voxcpm/download_status")
