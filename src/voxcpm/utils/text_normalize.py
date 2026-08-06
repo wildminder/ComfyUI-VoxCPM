@@ -1,21 +1,20 @@
 # some functions are copied from https://github.com/FunAudioLLM/CosyVoice/blob/main/cosyvoice/utils/frontend_utils.py
 import re
 import regex
+import importlib.util
 
-# Optional dependencies for full text normalization
-try:
-    import inflect
-    INFLECT_AVAILABLE = True
-except ImportError:
-    INFLECT_AVAILABLE = False
-    inflect = None
-
-try:
-    from wetext import Normalizer
-    WETEXT_AVAILABLE = True
-except ImportError:
-    WETEXT_AVAILABLE = False
-    Normalizer = None
+# Optional dependencies for full text normalization.
+#
+# We use importlib.util.find_spec() instead of try/except import because
+# wetext's __init__.py can hang or raise non-ImportError exceptions (e.g.,
+# FileNotFoundError for missing resource files) on some systems. find_spec()
+# only checks if the package is findable on the filesystem — it does NOT
+# execute the module's __init__.py, so it never hangs.
+#
+# The actual imports are deferred to TextNormalizer.__init__ (lazy loading),
+# wrapped in try/except Exception to catch all failure modes.
+INFLECT_AVAILABLE = importlib.util.find_spec("inflect") is not None
+WETEXT_AVAILABLE = importlib.util.find_spec("wetext") is not None
 
 # Global status flag for feature detection
 TEXT_NORMALIZATION_AVAILABLE = INFLECT_AVAILABLE and WETEXT_AVAILABLE
@@ -180,11 +179,23 @@ class TextNormalizer:
     def __init__(self, tokenizer=None):
         self.tokenizer = tokenizer
         self.available = TEXT_NORMALIZATION_AVAILABLE
-        
+
         if self.available:
-            self.zh_tn_model = Normalizer(lang="zh", operator="tn", remove_erhua=True)
-            self.en_tn_model = Normalizer(lang="en", operator="tn")
-            self.inflect_parser = inflect.engine()
+            # Lazy-load optional dependencies. find_spec() confirmed they're
+            # installed, but the actual import can still fail (e.g., broken
+            # install, missing resource files, C extension load failure).
+            # Catch Exception (not just ImportError) for robust graceful degradation.
+            try:
+                from wetext import Normalizer
+                import inflect
+                self.zh_tn_model = Normalizer(lang="zh", operator="tn", remove_erhua=True)
+                self.en_tn_model = Normalizer(lang="en", operator="tn")
+                self.inflect_parser = inflect.engine()
+            except Exception:
+                self.available = False
+                self.zh_tn_model = None
+                self.en_tn_model = None
+                self.inflect_parser = None
         else:
             self.zh_tn_model = None
             self.en_tn_model = None

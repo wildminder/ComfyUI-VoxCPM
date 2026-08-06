@@ -62,6 +62,9 @@ def _format_speed(bytes_per_sec: float) -> str:
 
 _EVENT_POLL_TIMEOUT = 0.05
 
+# Maximum download attempts (1 initial + retries on transient network errors)
+MAX_DOWNLOAD_RETRIES = 2
+
 class DownloadCancelledError(Exception):
     def __init__(self, model_name: str):
         self.model_name = model_name
@@ -208,127 +211,156 @@ class DownloadManager:
 
         _suppress_hf_http_logs()
 
-        result_path = None
-        error_occurred = None
-        was_cancelled = False
-
-        def do_download():
-            nonlocal result_path, error_occurred, was_cancelled
-            try:
-                result_path = tracker.download_snapshot(
-                    repo_id=repo_id,
-                    local_dir=local_dir,
-                    transfer_id=model_name,
-                )
-            except TransferCancelledError:
-                was_cancelled = True
-            except KeyboardInterrupt:
-                was_cancelled = True
-            except Exception as e:
-                error_occurred = e
-
-        # ALWAYS use a background thread for the download logic.
-        # This prevents blocking the main ComfyUI thread, ensuring the while-loop
-        # correctly drains tracker.event_queue and pushes UI updates in real-time.
-        download_thread = threading.Thread(target=do_download, daemon=True)
-        download_thread.start()
-
         try:
-            while download_thread.is_alive() or not tracker.event_queue.empty():
-                if tracker.is_cancelled(transfer_id=model_name) or was_cancelled:
-                    self._update_state(model_name, status=DownloadStatus.CANCELLED)
+            for attempt in range(1, MAX_DOWNLOAD_RETRIES + 1):
+                result_path = None
+                error_occurred = None
+                was_cancelled = False
+
+                def do_download():
+                    nonlocal result_path, error_occurred, was_cancelled
+                    try:
+                        result_path = tracker.download_snapshot(
+                            repo_id=repo_id,
+                            local_dir=local_dir,
+                            transfer_id=model_name,
+                        )
+                    except TransferCancelledError:
+                        was_cancelled = True
+                    except KeyboardInterrupt:
+                        was_cancelled = True
+                    except Exception as e:
+                        error_occurred = e
+
+                # ALWAYS use a background thread for the download logic.
+                # This prevents blocking the main ComfyUI thread, ensuring the while-loop
+                # correctly drains tracker.event_queue and pushes UI updates in real-time.
+                download_thread = threading.Thread(target=do_download, daemon=True)
+                download_thread.start()
+
+                try:
+                    while download_thread.is_alive() or not tracker.event_queue.empty():
+                        if tracker.is_cancelled(transfer_id=model_name) or was_cancelled:
+                            self._update_state(model_name, status=DownloadStatus.CANCELLED)
+                            self._emit_download_event(
+                                model_name=model_name,
+                                event_type="error",
+                                phase="error",
+                                client_id=client_id,
+                                extra_data={"error": "Download cancelled by user"},
+                            )
+                            self._print_console_progress(model_name, cancelled=True)
+                            tracker.cancel(transfer_id=model_name)
+                            download_thread.join(timeout=5.0)
+                            if download_thread.is_alive():
+                                logger.warning(
+                                    f"Download thread for '{model_name}' did not exit within 5s "
+                                    f"after cancellation. Resources may temporarily leak."
+                                )
+                            self._cleanup(model_name, local_dir)
+                            raise DownloadCancelledError(model_name)
+
+                        try:
+                            event = tracker.event_queue.get(timeout=_EVENT_POLL_TIMEOUT)
+                        except queue.Empty:
+                            continue
+
+                        self._update_state_from_event(model_name, event)
+                        self._emit_progress_event(model_name, event, client_id)
+
+                        if event.event_type == EventType.PROGRESS:
+                            self._print_console_progress(model_name)
+
+                        if event.event_type in (EventType.COMPLETE, EventType.ERROR, EventType.CANCELLED):
+                            if event.event_type == EventType.ERROR:
+                                error_occurred = event.error or "Unknown download error"
+                            if event.event_type == EventType.CANCELLED:
+                                was_cancelled = True
+                            break
+
+                    download_thread.join(timeout=30.0)
+
+                    # Drain any remaining events from the queue post-completion
+                    while not tracker.event_queue.empty():
+                        try:
+                            event = tracker.event_queue.get_nowait()
+                            self._update_state_from_event(model_name, event)
+                            self._emit_progress_event(model_name, event, client_id)
+                        except queue.Empty:
+                            break
+
+                    # Final cancel check
+                    if tracker.is_cancelled(transfer_id=model_name) or was_cancelled:
+                        self._update_state(model_name, status=DownloadStatus.CANCELLED)
+                        self._emit_download_event(
+                            model_name=model_name,
+                            event_type="error",
+                            phase="error",
+                            client_id=client_id,
+                            extra_data={"error": "Download cancelled by user"},
+                        )
+                        self._print_console_progress(model_name, cancelled=True)
+                        self._cleanup(model_name, local_dir)
+                        raise DownloadCancelledError(model_name)
+
+                    if error_occurred:
+                        # If we have retries left, send a retry notification and continue
+                        if attempt < MAX_DOWNLOAD_RETRIES:
+                            logger.warning(
+                                f"Download attempt {attempt}/{MAX_DOWNLOAD_RETRIES} failed for "
+                                f"'{model_name}': {error_occurred}. Retrying..."
+                            )
+                            # Send retry notification to frontend
+                            try:
+                                from server import PromptServer
+                                if PromptServer.instance is not None:
+                                    PromptServer.instance.send_sync("voxcpm.status", {
+                                        "severity": "warn",
+                                        "summary": f"Retrying download: {model_name}",
+                                        "detail": f"Attempt {attempt + 1}/{MAX_DOWNLOAD_RETRIES} after network error: {error_occurred}",
+                                        "life": 5000,
+                                    }, client_id)
+                            except Exception:
+                                pass
+                            # Clean up partial download before retrying
+                            self._cleanup(model_name, local_dir)
+                            continue  # Retry
+
+                        # Max retries reached — raise error
+                        self._update_state(
+                            model_name=model_name,
+                            status=DownloadStatus.ERROR,
+                            error_message=str(error_occurred),
+                        )
+                        self._emit_download_event(
+                            model_name=model_name,
+                            event_type="error",
+                            phase="error",
+                            client_id=client_id,
+                            extra_data={"error": str(error_occurred)},
+                        )
+                        self._print_console_progress(model_name, error=True)
+                        raise DownloadError(model_name, str(error_occurred))
+
+                    # Success
+                    self._update_state(model_name, status=DownloadStatus.COMPLETE)
                     self._emit_download_event(
                         model_name=model_name,
-                        event_type="error",
-                        phase="error",
+                        event_type="complete",
+                        phase="complete",
                         client_id=client_id,
-                        extra_data={"error": "Download cancelled by user"},
+                        extra_data={"local_dir": local_dir},
                     )
-                    self._print_console_progress(model_name, cancelled=True)
-                    tracker.cancel(transfer_id=model_name)
-                    download_thread.join(timeout=5.0)
-                    if download_thread.is_alive():
-                        logger.warning(
-                            f"Download thread for '{model_name}' did not exit within 5s "
-                            f"after cancellation. Resources may temporarily leak."
-                        )
+                    self._print_console_progress(model_name, complete=True)
+
+                    return result_path or local_dir
+
+                except DownloadCancelledError:
                     self._cleanup(model_name, local_dir)
-                    raise DownloadCancelledError(model_name)
+                    raise
 
-                try:
-                    event = tracker.event_queue.get(timeout=_EVENT_POLL_TIMEOUT)
-                except queue.Empty:
-                    continue
-
-                self._update_state_from_event(model_name, event)
-                self._emit_progress_event(model_name, event, client_id)
-
-                if event.event_type == EventType.PROGRESS:
-                    self._print_console_progress(model_name)
-
-                if event.event_type in (EventType.COMPLETE, EventType.ERROR, EventType.CANCELLED):
-                    if event.event_type == EventType.ERROR:
-                        error_occurred = event.error or "Unknown download error"
-                    if event.event_type == EventType.CANCELLED:
-                        was_cancelled = True
-                    break
-
-            download_thread.join(timeout=30.0)
-
-            # Drain any remaining events from the queue post-completion
-            while not tracker.event_queue.empty():
-                try:
-                    event = tracker.event_queue.get_nowait()
-                    self._update_state_from_event(model_name, event)
-                    self._emit_progress_event(model_name, event, client_id)
-                except queue.Empty:
-                    break
-
-            # Final cancel check
-            if tracker.is_cancelled(transfer_id=model_name) or was_cancelled:
-                self._update_state(model_name, status=DownloadStatus.CANCELLED)
-                self._emit_download_event(
-                    model_name=model_name,
-                    event_type="error",
-                    phase="error",
-                    client_id=client_id,
-                    extra_data={"error": "Download cancelled by user"},
-                )
-                self._print_console_progress(model_name, cancelled=True)
-                self._cleanup(model_name, local_dir)
-                raise DownloadCancelledError(model_name)
-
-            if error_occurred:
-                self._update_state(
-                    model_name=model_name,
-                    status=DownloadStatus.ERROR,
-                    error_message=str(error_occurred),
-                )
-                self._emit_download_event(
-                    model_name=model_name,
-                    event_type="error",
-                    phase="error",
-                    client_id=client_id,
-                    extra_data={"error": str(error_occurred)},
-                )
-                self._print_console_progress(model_name, error=True)
-                raise DownloadError(model_name, str(error_occurred))
-
-            self._update_state(model_name, status=DownloadStatus.COMPLETE)
-            self._emit_download_event(
-                model_name=model_name,
-                event_type="complete",
-                phase="complete",
-                client_id=client_id,
-                extra_data={"local_dir": local_dir},
-            )
-            self._print_console_progress(model_name, complete=True)
-
-            return result_path or local_dir
-
-        except DownloadCancelledError:
-            self._cleanup(model_name, local_dir)
-            raise
+            # Should not reach here, but just in case
+            raise DownloadError(model_name, "Download failed after all retries")
         finally:
             _restore_hf_http_logs()
 

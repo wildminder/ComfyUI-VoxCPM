@@ -1,14 +1,23 @@
 [project]
 name = "ComfyUI-VoxCPM"
 description = "VoxCPM v1.5-2 TTS. Optimized, fast and full featured nodes for expressive speech gen and true-to-life voice cloning"
-version = "2.3.0"
+version = "2.4.0"
 license = {file = "LICENSE"}
+requires-python = ">=3.10"
 dependencies = ["torch","torchaudio","transformers","safetensors","huggingface_hub","einops","addict","pydantic","simplejson","sortedcontainers","soundfile","diffusers","tqdm","bitsandbytes"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Environment :: GPU :: NVIDIA CUDA",
+]
 
 [project.urls]
+Homepage = "https://github.com/wildminder/ComfyUI-VoxCPM"
+Documentation = "https://github.com/wildminder/ComfyUI-VoxCPM#readme"
 Repository = "https://github.com/wildminder/ComfyUI-VoxCPM"
+Issues = "https://github.com/wildminder/ComfyUI-VoxCPM/issues"
 
 [tool.comfy]
 PublisherId = "wildai"
 DisplayName = "VoxCPM TTS"
 Icon = ""
+requires-comfyui = ">=0.28.0"

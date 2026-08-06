@@ -26,7 +26,7 @@ from ..modules.generation import (
     build_final_text,
     validate_voxcpm2_features,
 )
-from ..modules.downloader import DownloadCancelledError
+from ..modules.downloader import DownloadCancelledError, DownloadError
 from ..modules.device_utils import get_available_devices
 from ..modules.utils import set_seed
 from ..modules.dtype_utils import get_dtype_options, DTYPE_AUTO
@@ -80,7 +80,7 @@ class VoxCPMNode(io.ComfyNode):
 
             # Text input
             io.String.Input("text", multiline=True, default="VoxCPM is an innovative TTS model designed to generate highly expressive speech.", tooltip="Text to synthesize."),
-            io.String.Input("voice_design", default="", tooltip="Voice design instruction for VoxCPM2 (e.g., 'warm female voice', 'deep male voice'). Only used in plain TTS mode (no reference audio). Ignored when reference audio is connected or for VoxCPM1.5."),
+            io.String.Input("voice_design", default="", tooltip="Voice design instruction for VoxCPM2 (e.g., 'warm female voice', 'deep male voice'). Applied in plain TTS and reference cloning modes. Ignored when prompt audio is used (continuation cloning) or for VoxCPM1.5."),
 
             # Generation parameters (basic)
                 io.Float.Input("cfg", default=2.0, min=0.1, max=10.0, step=0.1, tooltip="Guidance scale. Higher values adhere more to the prompt but may sound less natural."),
@@ -242,10 +242,15 @@ class VoxCPMNode(io.ComfyNode):
             ref_waveform = None
             ref_sample_rate = None
 
-        if (prompt_waveform is not None) or (ref_waveform is not None):
+        # voice_design is only ignored when prompt_waveform is used (continuation/
+        # ultimate cloning), because the model prepends prompt_text to the target
+        # text. When only ref_waveform is used (controllable cloning), the target
+        # text is used directly, so voice_design instructions in the text are valid.
+        # See: .dev/src/VoxCPM2/src/voxcpm/model/voxcpm2.py _generate() modes.
+        if prompt_waveform is not None:
             final_text = text
             if final_voice_design:
-                logger.info("Voice design ignored: reference audio takes precedence for voice cloning")
+                logger.info("Voice design ignored: prompt audio takes precedence for continuation cloning")
         else:
             final_text = build_final_text(text, final_voice_design)
 
@@ -257,6 +262,22 @@ class VoxCPMNode(io.ComfyNode):
             patcher, model = load_voxcpm_model(model_name, device, dtype, client_id=client_id)
         except DownloadCancelledError:
             logger.info(f"Download cancelled for model '{model_name}'")
+            raise model_management.InterruptProcessingException()
+        except DownloadError as e:
+            logger.error(f"Download failed for model '{model_name}': {e.message}")
+            # Send error notification to frontend via WebSocket so the user
+            # sees a toast notification instead of a raw traceback.
+            try:
+                from server import PromptServer
+                if PromptServer.instance is not None:
+                    PromptServer.instance.send_sync("voxcpm.status", {
+                        "severity": "error",
+                        "summary": f"Download Failed: {model_name}",
+                        "detail": f"Network error: {e.message}. Check your internet connection and try again.",
+                        "life": 10000,
+                    }, client_id)
+            except Exception:
+                pass  # Non-critical — don't fail on notification errors
             raise model_management.InterruptProcessingException()
 
         # Apply LoRA if specified
