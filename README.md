@@ -8,17 +8,24 @@
 <p align="center">
 ComfyUI custom node integrating <strong>VoxCPM</strong> — a tokenizer-free TTS system for expressive speech generation and voice cloning.
 <br />
+  
 [![Report Bug][bug-shield]][bug-url] [![Request Feature][feature-shield]][feature-url]
+
 </p>
 </div>
 
+<!-- PROJECT SHIELDS -->
 <div align="center">
-[![Stargazers][stars-shield]][stars-url] [![Telegram][telegram-shield]][telegram-url] [![X][x-shield]][x-url]
+
+[![Stargazers][stars-shield]][stars-url]
+[![Telegram][telegram-shield]][telegram-url]
+[![X][x-shield]][x-url]
+
 </div>
 
 <br>
 
-## About
+## ▷ About
 
 VoxCPM models speech in a continuous space using a MiniCPM-4 backbone, producing highly expressive speech and accurate zero-shot voice cloning. This node handles model downloading, memory management, and audio processing end-to-end.
 
@@ -26,20 +33,20 @@ VoxCPM models speech in a continuous space using a MiniCPM-4 backbone, producing
 <img alt="ComfyUI-VoxCPM example workflow" src="https://github.com/user-attachments/assets/bfb28fa2-c143-4542-97f7-936a67941125" />
 </div>
 
-### VoxCPM2
-- **Voice Design** — generate voices from natural language descriptions
-- **Controllable Voice Cloning** — clone with style control instructions
-- **Ultimate Cloning** — combine reference audio (identity) + prompt audio (prosody)
-- **48kHz** output, **30+ languages**
+### ❖ VoxCPM2
+* **Voice Design** — generate voices from natural language descriptions
+* **Controllable Voice Cloning** — clone with style control instructions
+* **Ultimate Cloning** — combine reference audio (identity) + prompt audio (prosody)
+* **48kHz** output, **30+ languages**
 
-### VoxCPM1.5
-- **44.1kHz** output, LoRA support, native LoRA training
-- Context-aware expressive speech, zero-shot TTS
-- Automatic model management
+### ❖ VoxCPM1.5
+* **44.1kHz** output, LoRA support, native LoRA training
+* Context-aware expressive speech, zero-shot TTS
+* Automatic model management
 
-<p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## Getting Started
+## ▓ Getting Started
 
 **Via ComfyUI Manager:** Search `ComfyUI-VoxCPM` → Install.
 
@@ -55,7 +62,7 @@ Restart ComfyUI. Nodes appear under `audio/tts`. Models auto-download to `ComfyU
 
 <p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
 
-## Models
+## ▓ Models
 
 | Model | Params | Sample Rate | Languages | Link |
 |:---|:---:|:---:|:---:|:---|
@@ -65,52 +72,53 @@ Restart ComfyUI. Nodes appear under `audio/tts`. Models auto-download to `ComfyU
 
 <p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
 
-## Nodes
+## ▓ Nodes
 
-### `VoxCPM TTS`
+### ❖ `VoxCPM TTS`
 Unified TTS node supporting VoxCPM1.5 and VoxCPM2: zero-shot TTS, voice design, voice cloning, ultimate cloning, LoRA support.
 
-### `VoxCPM Voice Cloning`
+### ❖ `VoxCPM Voice Cloning`
 Configures audio-based cloning (prompt/reference audio, VAD trimming). Connect to TTS node's `voice_config` input.
 
-### `VoxCPM Advanced Params`
+### ❖ `VoxCPM Advanced Params`
 Configures diffusion parameters (temperature, sway sampling, CFG, timesteps, retry). Connect to TTS node's `advanced_params` input.
 
-### Training Nodes
-- **`VoxCPM Train Config`** — LoRA training parameters
-- **`VoxCPM Dataset Maker`** — create training datasets from audio
-- **`VoxCPM LoRA Trainer`** — train custom LoRA models
+### ❖ Training Nodes
+* **`VoxCPM Train Config`** — LoRA training parameters
+* **`VoxCPM Dataset Maker`** — create training datasets from audio
+* **`VoxCPM LoRA Trainer`** — train custom LoRA models
 
-> `voice_design` is a direct parameter on the TTS node, not part of the Voice Cloning config.
+> **Note:** `voice_design` is a direct parameter on the TTS node, not part of the Voice Cloning config.
 
 **Config precedence:** Direct parameters > config node values > defaults.
 
-<p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## Usage
+## ▓ Usage
 
-### Basic TTS (Zero-Shot)
+### ❖ Basic TTS (Zero-Shot)
 Add `VoxCPM TTS` → select model → enter text → generate.
 
-### Voice Cloning (VoxCPM1.5 style)
+### ❖ Voice Cloning (VoxCPM1.5 style)
 Connect `Load Audio` → `prompt_audio`, provide exact transcript in `prompt_text` → generate.
 
-### Voice Design (VoxCPM2)
+### ❖ Voice Design (VoxCPM2)
 Select VoxCPM2 model → enter description in `voice_design` (e.g., "warm female voice") → generate. Voice design is applied in plain TTS and reference cloning modes. Ignored when prompt audio is used (continuation cloning).
 
-### Reference Cloning (VoxCPM2)
+### ❖ Reference Cloning (VoxCPM2)
 Connect reference audio to `reference_audio` (no transcript needed) → generate. Voice design instructions can be combined with reference audio for controllable cloning (e.g., style control).
 
-### Ultimate Cloning (VoxCPM2)
+### ❖ Ultimate Cloning (VoxCPM2)
 Connect `reference_audio` (identity) + `prompt_audio` with transcript (prosody) → generate.
 
+> [!NOTE]
 > **Denoising:** The built-in ZipEnhancer denoiser is disabled by default to keep dependencies light.
 
 <p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
 
-## Advanced Parameters
+## ▓ Advanced Parameters
 
-### Diffusion
+### ❖ Diffusion
 
 | Parameter | Default | Range | Description |
 |:---|:---:|:---:|:---|
@@ -120,7 +128,7 @@ Connect `reference_audio` (identity) + `prompt_audio` with transcript (prosody) 
 | `cfg_value` | 2.0 | 0.1-10.0 | Guidance scale |
 | `inference_timesteps` | 10 | 1-100 | More steps = higher quality, slower |
 
-### Device & Precision
+### ❖ Device & Precision
 
 | Parameter | Default | Options | Description |
 |:---|:---:|:---:|:---|
@@ -129,7 +137,7 @@ Connect `reference_audio` (identity) + `prompt_audio` with transcript (prosody) 
 
 > AudioVAE always runs in FP32 for numerical stability.
 
-### VAD (VoxCPM2)
+### ❖ VAD (VoxCPM2)
 
 | Parameter | Default | Range | Description |
 |:---|:---:|:---:|:---|
@@ -139,15 +147,15 @@ Connect `reference_audio` (identity) + `prompt_audio` with transcript (prosody) 
 
 <p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
 
-## LoRA Support
+## ▓ LoRA Support
 
 **Inference:** Place `.safetensors` LoRA files in `ComfyUI/models/loras/`, refresh, select in `lora_name` dropdown.
 
 **Training:** 👉 [Full LoRA Training Guide](readme-lora-training.md)
 
-<p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## Voice Design Examples
+## ▓ Voice Design Examples
 
 | Description | Result |
 |:---|:---|
@@ -159,25 +167,28 @@ Connect `reference_audio` (identity) + `prompt_audio` with transcript (prosody) 
 
 Combine descriptions: `"warm female voice with slight British accent"`
 
-<p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
-## Voice Cloning Tips
+## ▓ Voice Cloning Tips
 
 1. **Verbatim transcript** — `prompt_text` must match audio word-for-word
 2. **Punctuation matters** — affects intonation
 3. **5-15 seconds** of clear speech works best
 
+> [!Warning]
+> `prompt_text` is the exact transcript, not a description of the voice.
+
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
+
+## ▓ Risks and Limitations
+
+* Voice cloning can be misused for deepfakes — use responsibly
+* May exhibit instability with very long/complex inputs
+* VoxCPM1.5: Chinese and English only; VoxCPM2: 30+ languages
+
 <p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
 
-## Risks and Limitations
-
-- Voice cloning can be misused for deepfakes — use responsibly
-- May exhibit instability with very long/complex inputs
-- VoxCPM1.5: Chinese and English only; VoxCPM2: 30+ languages
-
-<p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
-
-## Changelog
+## ▓ Changelog
 
 ### v2.4.0
 - **Custom model selector UI** — replaced default LiteGraph dropdown with custom DOM widget featuring cyber-themed design, SVG model icons, and DEFAULT/CUSTOM badges
@@ -195,7 +206,7 @@ Combine descriptions: `"warm female voice with slight British accent"`
 - Vite 5→8 upgrade, LiteGraph canvas widget fixes
 - LoRA training nodes
 
-<p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 ## License
 
@@ -203,13 +214,14 @@ VoxCPM model and components: [Apache-2.0 License](https://github.com/OpenBMB/Vox
 
 ## Acknowledgments
 
-- **OpenBMB & ModelBest** for [VoxCPM](https://github.com/OpenBMB/VoxCPM)
-- **The ComfyUI team** for the platform
+* **OpenBMB & ModelBest** for [VoxCPM](https://github.com/OpenBMB/VoxCPM)
+* **The ComfyUI team** for the platform
 
-<p align="right"><a href="#readme-top">⟔ ▲ ⟓</a></p>
+<p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 <p align="center">══════════════════════════════════</p>
 
+<!-- MARKDOWN LINKS & IMAGES -->
 [stars-shield]: https://img.shields.io/github/stars/wildminder/ComfyUI-VoxCPM.svg?style=for-the-badge
 [stars-url]: https://github.com/wildminder/ComfyUI-VoxCPM/stargazers
 [telegram-shield]: https://img.shields.io/badge/Telegram-TokenDiff-26A5E4?style=for-the-badge&logo=telegram&logoColor=white
