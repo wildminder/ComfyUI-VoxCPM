@@ -161,6 +161,9 @@ cython_debug/
 # Node.js
 node_modules/
 
+# Frontend TypeScript source (dev-only, not published to remote)
+js-src/
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
