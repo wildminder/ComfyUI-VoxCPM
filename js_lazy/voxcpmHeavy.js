@@ -1624,7 +1624,7 @@ var X = {
 	}
 };
 X.init();
-function Z(t) {
+function Oe(t) {
 	if (!t || !t.severity || !t.summary) {
 		c.warn("Invalid status event: missing severity or summary", t);
 		return;
@@ -1646,7 +1646,7 @@ function Z(t) {
 		c.debug("ComfyUI toast notification failed:", e);
 	}
 }
-async function Q(t) {
+async function Z(t) {
 	if (c.log("Received config event:", t), !t) {
 		c.warn("Config event has no detail");
 		return;
@@ -1669,11 +1669,22 @@ async function Q(t) {
 		}
 	} else c.warn("No settings in config event");
 }
+async function Q() {
+	try {
+		let t = await e.api.fetchApi("/voxcpm/model_info");
+		if (t.ok) {
+			let e = await t.json();
+			e && typeof e.normalization_available == "boolean" && (X.configReceived ? c.debug("Config already received, skipping API fetch") : (c.debug("Fetched config from API:", e), await Z(e)));
+		}
+	} catch (e) {
+		c.debug("Config API fetch failed (non-critical):", e);
+	}
+}
 try {
 	e.api.addEventListener(i.STATUS, ((e) => {
-		Z(e.detail);
+		Oe(e.detail);
 	})), e.api.addEventListener(i.CONFIG, ((e) => {
-		Q(e.detail);
+		Z(e.detail);
 	})), e.api.addEventListener("reconnected", () => {
 		c.debug("WebSocket reconnected, waiting for config..."), X.configReceived = !1, R(), X.lastConfigValue = null;
 	}), e.api.addEventListener("status", () => {
@@ -1682,6 +1693,7 @@ try {
 } catch (e) {
 	c.warn("Failed to register event listeners at module load:", e);
 }
+Q();
 try {
 	K.onAnyUpdate((e, t) => {
 		e === "complete" && t.modelName && (c.debug(`Download complete for '${t.modelName}', refreshing model selector icon`), R(), _e(t.modelName));
@@ -1692,16 +1704,7 @@ try {
 var $ = {
 	name: "voxcpm.heavyExtension",
 	async setup() {
-		c.debug("Heavy extension setup() called");
-		try {
-			let t = await e.api.fetchApi("/voxcpm/model_info");
-			if (t.ok) {
-				let e = await t.json();
-				e && typeof e.normalization_available == "boolean" && (X.configReceived || (c.debug("Fetched config from API fallback:", e), Q(e)));
-			}
-		} catch (e) {
-			c.debug("Config API fallback failed (non-critical):", e);
-		}
+		c.debug("Heavy extension setup() called"), await Q();
 	},
 	nodeCreated(e) {
 		if (!o.has(e.comfyClass)) return;
@@ -1727,8 +1730,8 @@ var $ = {
 			}
 		}, 60));
 	},
-	handleStatusEvent: Z,
-	handleConfigEvent: Q
+	handleStatusEvent: Oe,
+	handleConfigEvent: Z
 };
 e.registerExtension($);
 

@@ -25,6 +25,21 @@ async function c(t) {
 	let n = await a();
 	for (let r of n) await r.loadedGraphNode?.(t, e);
 }
+var l = !1;
+async function u() {
+	if (!l) try {
+		let t = await e.api.fetchApi("/voxcpm/model_info");
+		if (!t.ok) return;
+		let n = await t.json();
+		if (n && typeof n.normalization_available == "boolean") {
+			l = !0;
+			let t = e.api;
+			typeof t.dispatchCustomEvent == "function" ? t.dispatchCustomEvent("voxcpm.config", n) : typeof t.dispatchEvent == "function" && t.dispatchEvent(new CustomEvent("voxcpm.config", { detail: n }));
+		}
+	} catch (e) {
+		console.debug("[VoxCPM] Config API fetch failed (non-critical):", e);
+	}
+}
 e.registerExtension({
 	name: "voxcpm.lazyLoader",
 	settings: [
@@ -60,6 +75,9 @@ e.registerExtension({
 			}
 		}
 	],
+	async setup() {
+		await u();
+	},
 	async beforeConfigureGraph(e) {
 		o(e) && await a();
 	},
