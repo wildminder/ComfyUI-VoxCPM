@@ -1,9 +1,128 @@
-from .config import MiniCPM4Config
+import logging
+import math
+from typing import List, Tuple
+
 import torch
 import torch.nn as nn
-from typing import List, Tuple
-import math
+
 from .cache import StaticKVCache
+from .config import MiniCPM4Config
+
+logger = logging.getLogger(__name__)
+
+
+# ===========================================================================
+# LOCAL PATCH -- not part of upstream OpenBMB/VoxCPM.
+# ROCm (AMD) probe for the fused SDPA backends.
+#
+# Background: .dev/docs/issues/2026-10-14-amd-rocm-sdpa-invalid-argument.md
+#   - wildminder/ComfyUI-VoxCPM#34  (RX 9060 XT / gfx1200, torch 2.13.0+rocm10.0.0, byte-identical traceback)
+#   - pytorch/pytorch#194498       (fused SDPA fails to launch on gfx1100/gfx1151/gfx1200/gfx1201)
+#   - ROCm/aotriton#210, ROCm/TheRock#7315
+#   - unslothai/unsloth#12639      (force-a-checked-launch probe pattern)
+#   - Comfy-Org/ComfyUI#15648      (ComfyUI core hits the same deferred error)
+#
+# On several ROCm stacks the fused (flash / mem-efficient) SDPA kernels cannot
+# launch at all. HIP launch errors are sticky *and* deferred: they only surface
+# at the next checked operation, which is why users see the failure reported at
+# an unrelated later line (e.g. `attn_output.transpose(1, 2).contiguous()`) and
+# not at the SDPA call that actually caused it.
+#
+# The probe below runs exactly once, lazily, on the first attention call. It
+# executes one tiny causal SDPA forward (with `enable_gqa=True`, same call shape
+# as the real attention), forces a checked launch by reading the result back to
+# the host and, if that fails, disables the fused backends once so SDPA falls
+# back to the always-available math backend. On CUDA / CPU / MPS / DirectML
+# builds this module does nothing at all.
+# ===========================================================================
+
+# Cached probe state. `True` once the one-time probe has run (successfully or
+# not), so the per-attention-call cost after warm-up is a single global read.
+_ROCM_FUSED_SDPA_PROBE_DONE: bool = False
+
+# Tiny problem size for the probe: small enough to be free, large enough that
+# every fused code path (GQA + causal masking + fp16/bf16) is exercised.
+_PROBE_NUM_HEADS: int = 4
+_PROBE_NUM_KV_HEADS: int = 2
+_PROBE_SEQ_LEN: int = 8
+_PROBE_HEAD_DIM: int = 16
+
+
+def _rocm_fused_sdpa_probe(device: torch.device) -> None:
+    """Run one tiny causal SDPA forward on `device` and force a checked launch.
+
+    Any exception means the fused backends cannot launch on this device and is
+    expected to be handled by the caller (by falling back to the math backend).
+
+    Raises:
+        Exception: whatever the runtime raises when the fused kernels cannot be
+            launched (on ROCm: a deferred `hipErrorInvalidValue`).
+    """
+    dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    query = torch.randn(
+        1, _PROBE_NUM_HEADS, _PROBE_SEQ_LEN, _PROBE_HEAD_DIM, device=device, dtype=dtype
+    )
+    key = torch.randn(
+        1, _PROBE_NUM_KV_HEADS, _PROBE_SEQ_LEN, _PROBE_HEAD_DIM, device=device, dtype=dtype
+    )
+    value = torch.randn(
+        1, _PROBE_NUM_KV_HEADS, _PROBE_SEQ_LEN, _PROBE_HEAD_DIM, device=device, dtype=dtype
+    )
+    attn_output = torch.nn.functional.scaled_dot_product_attention(
+        query, key, value, is_causal=True, enable_gqa=True
+    )
+    # Host read-back: this is what makes the probe reliable. Without it a
+    # deferred HIP launch error would only surface at some later, unrelated
+    # kernel (ref: https://github.com/unslothai/unsloth/issues/12639).
+    attn_output.sum().item()
+
+
+def _ensure_rocm_sdpa_backends(device: torch.device) -> None:
+    """One-time, ROCm-only check that the fused SDPA backends can actually launch.
+
+    Safe to call before every SDPA call: after the first invocation it is a
+    single global read. It is a complete no-op on non-ROCm builds (CUDA, CPU,
+    MPS, DirectML) and while torch.compile is tracing (pure python control flow
+    on a cached bool, so `fullgraph=True` is unaffected).
+
+    Args:
+        device: device the attention tensors live on, used for the probe.
+    """
+    global _ROCM_FUSED_SDPA_PROBE_DONE
+    if _ROCM_FUSED_SDPA_PROBE_DONE:
+        return
+    # Mark as done *before* probing: even an unexpected failure inside the probe
+    # (or a race between two worker threads) must never turn into an endless
+    # probe loop - running the probe a second time would be harmless anyway.
+    _ROCM_FUSED_SDPA_PROBE_DONE = True
+
+    if torch.version.hip is None:
+        # Not a ROCm build -> nothing to probe, backend selection untouched.
+        return
+    if torch.compiler.is_compiling():
+        # Traced by torch.compile (e.g. the compiled decode `forward_step`):
+        # never run side effects from a traced region. This guard is mandatory,
+        # not cosmetic - dynamo cannot trace `logger.*`, so tracing past it
+        # would make the `fullgraph=True` compile of `forward_step` raise
+        # `Unsupported` on ROCm. The eager prefill pass still performs the probe.
+        return
+
+    try:
+        _rocm_fused_sdpa_probe(device)
+    except Exception as e:
+        # The fused kernels cannot launch on this ROCm stack. Keep the math
+        # backend (always available) for the whole process so attention works
+        # instead of crashing with a deferred HIP launch error.
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+        logger.warning(
+            "Fused scaled_dot_product_attention backends (flash / mem-efficient) failed to "
+            "launch on this ROCm device and have been disabled for this session; attention "
+            "falls back to the math backend. First error: %s",
+            e,
+        )
+    else:
+        logger.debug("ROCm fused SDPA probe succeeded; fused backends left enabled.")
 
 
 def rms_layernorm(hidden: torch.Tensor, weight: torch.Tensor, eps: float):
@@ -154,6 +273,12 @@ class MiniCPMAttention(nn.Module):
         query_states = query_states.contiguous()
         key_states = key_states.contiguous()
         value_states = value_states.contiguous()
+
+        # One-time ROCm probe (no-op on CUDA / CPU / MPS / DirectML). Must run
+        # before SDPA so a fused backend that cannot launch is replaced by the
+        # math backend instead of crashing later with a deferred HIP error.
+        _ensure_rocm_sdpa_backends(query_states.device)
+
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
             key_states,
@@ -205,6 +330,12 @@ class MiniCPMAttention(nn.Module):
         query_states = query_states.contiguous()
         key_cache = key_cache.contiguous()
         value_cache = value_cache.contiguous()
+
+        # One-time ROCm probe (no-op on CUDA / CPU / MPS / DirectML). Must run
+        # before SDPA so a fused backend that cannot launch is replaced by the
+        # math backend instead of crashing later with a deferred HIP error.
+        _ensure_rocm_sdpa_backends(query_states.device)
+
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
             key_cache,
