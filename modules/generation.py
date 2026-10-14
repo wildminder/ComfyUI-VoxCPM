@@ -208,7 +208,13 @@ def generate_audio(
     """
     try:
         # Handle text normalization fallback
-        from src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
+        # Package-relative import first (ComfyUI loads this node as a package);
+        # absolute fallback covers top-level imports (e.g. the test suite),
+        # where `modules` itself is the top-level package.
+        try:
+            from ..src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
+        except ImportError:
+            from src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
         if normalize and not TEXT_NORMALIZATION_AVAILABLE:
             logger.warning("⚠️ Text normalization packages (inflect, wetext) not installed. Proceeding without text normalization.")
             normalize = False

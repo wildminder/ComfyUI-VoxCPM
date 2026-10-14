@@ -159,7 +159,10 @@ class DownloadManager:
             except ImportError:
                 pass
 
-        from src.hf_progress import HfProgressTracker, EventType, TransferCancelledError
+        try:
+            from ..src.hf_progress import HfProgressTracker, EventType, TransferCancelledError
+        except ImportError:
+            from src.hf_progress import HfProgressTracker, EventType, TransferCancelledError
 
         return self._download_model_inner(
             model_name, repo_id, local_dir, client_id,
@@ -176,7 +179,10 @@ class DownloadManager:
         EventType,
         TransferCancelledError,
     ) -> str:
-        from src.hf_progress import is_xet_available
+        try:
+            from ..src.hf_progress import is_xet_available
+        except ImportError:
+            from src.hf_progress import is_xet_available
 
         token = self._get_token()
         tracker = HfProgressTracker(token=token)
@@ -477,7 +483,10 @@ class DownloadManager:
             state.file_index = event.file_index
             state.total_files = event.total_files
 
-            from src.hf_progress import EventType as _EventType
+            try:
+                from ..src.hf_progress import EventType as _EventType
+            except ImportError:
+                from src.hf_progress import EventType as _EventType
             if event.event_type == _EventType.COMPLETE:
                 state.status = DownloadStatus.COMPLETE
                 return
