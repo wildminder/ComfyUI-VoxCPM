@@ -48,7 +48,7 @@ else:
     # "[INFO] message", so the node prefix is attached to the record message
     # itself via the factory below — scoped to this package's loggers, which
     # also covers the vendored src/ modules.
-    _LOG_PREFIX = f"[{__name__}] "
+    _LOG_PREFIX = f"[VoxCPM TTS] "
     _original_record_factory = logging.getLogRecordFactory()
 
     def _voxcpm_record_factory(*args, **kwargs):
