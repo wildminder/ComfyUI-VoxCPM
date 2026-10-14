@@ -43,13 +43,22 @@ else:
     from .modules.config_broadcast import schedule_config_send
 
     # ── Logger Setup ──────────────────────────────────────────────────
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-    if not logger.hasHandlers():
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter("[ComfyUI-VoxCPM] %(message)s")
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    # Inherit ComfyUI's root logger: no custom handler, no propagate=False,
+    # no forced level. ComfyUI's ColoredFormatter renders records as
+    # "[INFO] message", so the node prefix is attached to the record message
+    # itself via the factory below — scoped to this package's loggers, which
+    # also covers the vendored src/ modules.
+    _LOG_PREFIX = f"[{__name__}] "
+    _original_record_factory = logging.getLogRecordFactory()
+
+    def _voxcpm_record_factory(*args, **kwargs):
+        record = _original_record_factory(*args, **kwargs)
+        name = record.name
+        if isinstance(record.msg, str) and (name == __name__ or name.startswith(__name__ + ".")):
+            record.msg = _LOG_PREFIX + record.msg
+        return record
+
+    logging.setLogRecordFactory(_voxcpm_record_factory)
 
     # ── sys.path Registration ─────────────────────────────────────────
     current_dir = os.path.dirname(os.path.abspath(__file__))
